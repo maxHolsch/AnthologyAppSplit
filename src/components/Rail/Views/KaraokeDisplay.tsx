@@ -23,6 +23,7 @@ export const KaraokeDisplay = memo<KaraokeDisplayProps>(({ responseId }) => {
   const questionNodes = useAnthologyStore(state => state.data.questionNodes);
   const conversations = useAnthologyStore(state => state.data.conversations);
   const currentTime = useAnthologyStore(state => state.audio.currentTime);
+  const playbackState = useAnthologyStore(state => state.audio.playbackState);
 
   // If response not found, don't render
   if (!response) {
@@ -38,10 +39,12 @@ export const KaraokeDisplay = memo<KaraokeDisplayProps>(({ responseId }) => {
   const questionText = parentQuestion?.question_text || '';
 
   // Use word highlighting hook if word timestamps available
+  // Only highlight when actively playing (not paused or idle)
   const { words, hasActiveWord } = useWordHighlighting({
     wordTimestamps: response.word_timestamps,
     currentTime: currentTime,
     audioStart: response.audio_start,
+    isPlaying: playbackState === 'playing',
   });
 
   // Render word-by-word or plain text fallback

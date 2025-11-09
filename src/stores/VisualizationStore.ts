@@ -41,6 +41,9 @@ export const useVisualizationStore = create<VisualizationStoreType>()(
         // This is THE CRITICAL FIX - don't copy, let D3 mutate the actual objects
         const d3Nodes = nodes;
 
+        // Create a set of valid node IDs for validation
+        const nodeIds = new Set(nodes.map(n => n.id));
+
         const d3Links = edges
           .filter(edge => edge.source && edge.target) // Filter out edges with null source/target
           .map(edge => {
@@ -56,6 +59,17 @@ export const useVisualizationStore = create<VisualizationStoreType>()(
               source: sourceId,
               target: targetId
             };
+          })
+          // Filter out edges that reference non-existent nodes
+          .filter(edge => {
+            const sourceExists = nodeIds.has(edge.source as string);
+            const targetExists = nodeIds.has(edge.target as string);
+
+            if (!sourceExists || !targetExists) {
+              console.warn(`Edge references missing node - source: ${edge.source} (${sourceExists}), target: ${edge.target} (${targetExists})`);
+              return false;
+            }
+            return true;
           });
 
         // Use provided dimensions or defaults

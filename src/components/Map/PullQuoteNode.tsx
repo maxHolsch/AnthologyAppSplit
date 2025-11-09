@@ -11,9 +11,12 @@ export function PullQuoteNode({ node, onClick, onMouseEnter, onMouseLeave }: Pul
   const selectedNodes = useAnthologyStore(state => state.selection.selectedNodes);
   const hoveredNode = useAnthologyStore(state => state.selection.hoveredNode);
   const conversations = useAnthologyStore(state => state.data.conversations);
+  const currentTrack = useAnthologyStore(state => state.audio.currentTrack);
+  const playbackState = useAnthologyStore(state => state.audio.playbackState);
 
   const isSelected = selectedNodes.has(node.id);
   const isHovered = hoveredNode === node.id;
+  const isPlaying = currentTrack === node.id && playbackState === 'playing';
 
   // Get position with fallback
   const x = node.x ?? 0;
@@ -99,6 +102,35 @@ export function PullQuoteNode({ node, onClick, onMouseEnter, onMouseLeave }: Pul
       style={{ cursor: 'pointer' }}
       opacity={opacity}
     >
+      {/* Pulsing border for playing state */}
+      {isPlaying && (
+        <rect
+          x={-width / 2}
+          y={-height / 2}
+          width={width}
+          height={height}
+          rx={borderRadius}
+          fill="none"
+          stroke={baseColor}
+          strokeWidth={2}
+          strokeOpacity={0.6}
+          pointerEvents="none"
+        >
+          <animate
+            attributeName="stroke-width"
+            values="2;4;2"
+            dur="1.5s"
+            repeatCount="indefinite"
+          />
+          <animate
+            attributeName="stroke-opacity"
+            values="0.6;0.3;0.6"
+            dur="1.5s"
+            repeatCount="indefinite"
+          />
+        </rect>
+      )}
+
       {/* Hover border */}
       {isHovered && (
         <rect

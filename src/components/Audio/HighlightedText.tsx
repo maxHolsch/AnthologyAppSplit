@@ -19,15 +19,19 @@ export const HighlightedText = memo<HighlightedTextProps>(({ response }) => {
   // Get audio state from store
   const currentTrack = useAnthologyStore((state) => state.audio.currentTrack);
   const currentTime = useAnthologyStore((state) => state.audio.currentTime);
+  const playbackState = useAnthologyStore((state) => state.audio.playbackState);
 
   // Check if this response is currently playing
   const isCurrentTrack = currentTrack === response.id;
+  const isPlaying = isCurrentTrack && playbackState === 'playing';
 
   // Use word highlighting hook if this track is playing and has word timestamps
+  // Only highlight when actively playing (not paused or idle)
   const wordHighlighting = useWordHighlighting({
     wordTimestamps: response.word_timestamps,
     currentTime: isCurrentTrack ? currentTime : 0,
     audioStart: response.audio_start,
+    isPlaying: isPlaying,
   });
 
   // If no word timestamps, display plain text

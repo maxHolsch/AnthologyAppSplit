@@ -83,9 +83,13 @@ export const AudioPlayer = memo<AudioPlayerProps>(({ response }) => {
       // Check if we've reached segment end
       if (currentTimeMs >= audio_end) {
         audioElement.pause();
-        audioElement.currentTime = audio_start / 1000;
-        updateCurrentTime(0);
-        stop();
+        // Keep the audio at the end position (don't rewind)
+        // Keep currentTime at the end so the last word stays highlighted
+        const finalRelativeTime = audio_end - audio_start;
+        updateCurrentTime(finalRelativeTime);
+        // Don't call stop() - keep currentTrack so karaoke display stays visible
+        // Just pause the playback state
+        pause();
         rafRef.current = null;
         return;
       }

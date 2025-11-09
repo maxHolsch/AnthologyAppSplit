@@ -47,11 +47,11 @@ function App() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Load real data from anthology_template.json
+  // Load real data from 6798_phase2_3_template.json
   useEffect(() => {
     const loadAnthologyData = async () => {
       try {
-        const response = await fetch('/anthology_template.json');
+        const response = await fetch('/6798_phase2_3_template.json');
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }

@@ -18,6 +18,7 @@ interface UseWordHighlightingOptions {
   wordTimestamps: WordTimestamp[] | undefined;
   currentTime: number; // milliseconds relative to segment start
   audioStart: number; // milliseconds absolute start time
+  isPlaying?: boolean; // Only highlight words when actively playing
 }
 
 /**
@@ -25,7 +26,7 @@ interface UseWordHighlightingOptions {
  * @returns Object with current word index and helper functions
  */
 export function useWordHighlighting(options: UseWordHighlightingOptions) {
-  const { wordTimestamps, currentTime, audioStart } = options;
+  const { wordTimestamps, currentTime, audioStart, isPlaying = true } = options;
 
   // Track the previous word index for stateful, forward-biased searching
   const previousIndexRef = useRef<number>(-1);
@@ -41,9 +42,10 @@ export function useWordHighlighting(options: UseWordHighlightingOptions) {
   /**
    * Find the currently active word index
    * Uses stateful tracking to prefer forward progression
+   * Only highlights when isPlaying is true
    */
   const currentWordIndex = useMemo(() => {
-    if (!wordTimestamps || wordTimestamps.length === 0) {
+    if (!wordTimestamps || wordTimestamps.length === 0 || !isPlaying) {
       previousIndexRef.current = -1;
       return -1;
     }
@@ -51,7 +53,7 @@ export function useWordHighlighting(options: UseWordHighlightingOptions) {
     const newIndex = findCurrentWord(wordTimestamps, absoluteTime, previousIndexRef.current);
     previousIndexRef.current = newIndex;
     return newIndex;
-  }, [wordTimestamps, absoluteTime]);
+  }, [wordTimestamps, absoluteTime, isPlaying]);
 
   /**
    * Check if a specific word index is currently active

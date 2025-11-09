@@ -9,9 +9,12 @@ export function ResponseNode({ node, onClick, onMouseEnter, onMouseLeave }: Resp
   const selectedNodes = useAnthologyStore(state => state.selection.selectedNodes);
   const hoveredNode = useAnthologyStore(state => state.selection.hoveredNode);
   const conversations = useAnthologyStore(state => state.data.conversations);
+  const currentTrack = useAnthologyStore(state => state.audio.currentTrack);
+  const playbackState = useAnthologyStore(state => state.audio.playbackState);
 
   const isSelected = selectedNodes.has(node.id);
   const isHovered = hoveredNode === node.id;
+  const isPlaying = currentTrack === node.id && playbackState === 'playing';
 
   // Get position with fallback
   const x = node.x ?? 0;
@@ -61,6 +64,31 @@ export function ResponseNode({ node, onClick, onMouseEnter, onMouseLeave }: Resp
           strokeOpacity={0.3}
           pointerEvents="none"
         />
+      )}
+
+      {/* Pulsing ring for playing state */}
+      {isPlaying && (
+        <circle
+          r={7}
+          fill="none"
+          stroke={color}
+          strokeWidth={2}
+          strokeOpacity={0.6}
+          pointerEvents="none"
+        >
+          <animate
+            attributeName="r"
+            values="7;12;7"
+            dur="1.5s"
+            repeatCount="indefinite"
+          />
+          <animate
+            attributeName="stroke-opacity"
+            values="0.6;0;0.6"
+            dur="1.5s"
+            repeatCount="indefinite"
+          />
+        </circle>
       )}
 
       {/* Main circle */}

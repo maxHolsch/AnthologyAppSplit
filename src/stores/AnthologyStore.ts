@@ -211,13 +211,20 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
 
           data.responses.forEach(response => {
             if (response.type === 'response' && response.responds_to) {
-              const edgeId = `${response.responds_to}-${response.id}`;
               const color = colorAssignments.get(response.conversation_id)?.color;
 
-              edges.set(edgeId, {
-                source: response.responds_to,
-                target: response.id,
-                color
+              // Handle both single string and array of question IDs
+              const respondsToArray = Array.isArray(response.responds_to)
+                ? response.responds_to
+                : [response.responds_to];
+
+              respondsToArray.forEach(questionId => {
+                const edgeId = `${questionId}-${response.id}`;
+                edges.set(edgeId, {
+                  source: questionId,
+                  target: response.id,
+                  color
+                });
               });
             }
           });

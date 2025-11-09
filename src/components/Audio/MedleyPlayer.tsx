@@ -26,6 +26,8 @@ export const MedleyPlayer = memo<MedleyPlayerProps>(({ responseIds }) => {
 
   // Handle play action - start shuffle playback
   const handlePlay = useCallback(() => {
+    // Always shuffle to a new random track when clicking play
+    // This ensures clicking the shuffle button plays a new random response
     shufflePlay(responseIds);
   }, [shufflePlay, responseIds]);
 
