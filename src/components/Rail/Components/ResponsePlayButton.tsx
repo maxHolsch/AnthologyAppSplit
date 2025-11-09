@@ -18,7 +18,7 @@ interface ResponsePlayButtonProps {
 }
 
 export const ResponsePlayButton = memo<ResponsePlayButtonProps>(({
-  response,
+  // response, // TODO: Will be used in Phase 5 for audio playback
   isPlaying,
   currentTime,
   duration,

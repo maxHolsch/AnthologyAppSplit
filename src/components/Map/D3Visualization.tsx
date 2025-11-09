@@ -31,7 +31,7 @@ export function D3Visualization() {
   const simulation = useVisualizationStore(state => state.simulation);
   const needsUpdate = useVisualizationStore(state => state.needsUpdate);
   const setNeedsUpdate = useVisualizationStore(state => state.setNeedsUpdate);
-  const tickCount = useVisualizationStore(state => state.tickCount); // Subscribe to tick updates
+  useVisualizationStore(state => state.tickCount); // Subscribe to tick updates
 
   // Use simulationNodes for rendering (these have D3-updated positions)
   // Fall back to store nodes if simulation hasn't started yet
@@ -52,7 +52,7 @@ export function D3Visualization() {
     if (!dragBehavior) return;
 
     // Select all node groups rendered by React
-    const nodeGroups = d3.selectAll<SVGGElement, GraphNode>('.node-group');
+    const nodeGroups = d3.selectAll('.node-group');
 
     // Bind node data to DOM elements via __data__ property
     // This allows D3 drag behavior to access node data
@@ -69,7 +69,8 @@ export function D3Visualization() {
     });
 
     // Apply drag behavior - D3 will use __data__ property
-    nodeGroups.call(dragBehavior);
+    // Type assertion to match D3's generic selection type
+    nodeGroups.call(dragBehavior as any);
 
     // Cleanup: remove drag handlers on unmount
     return () => {

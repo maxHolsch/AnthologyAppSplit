@@ -15,7 +15,7 @@ export const QuestionView = memo(() => {
   const selectResponse = useAnthologyStore(state => state.selectResponse);
   const hoverNode = useAnthologyStore(state => state.hoverNode);
   const audioState = useAnthologyStore(state => state.audio);
-  const play = useAnthologyStore(state => state.play);
+  // const play = useAnthologyStore(state => state.play); // TODO: Phase 5 audio
   const pause = useAnthologyStore(state => state.pause);
   const shufflePlay = useAnthologyStore(state => state.shufflePlay);
 

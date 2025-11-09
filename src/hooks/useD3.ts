@@ -17,7 +17,6 @@ export function useD3(
   const simulation = useVisualizationStore(state => state.simulation);
   const initSimulation = useVisualizationStore(state => state.initSimulation);
   const updateSimulation = useVisualizationStore(state => state.updateSimulation);
-  const stopSimulation = useVisualizationStore(state => state.stopSimulation);
 
   const nodesRef = useRef<GraphNode[]>(nodes);
   const edgesRef = useRef<GraphEdge[]>(edges);

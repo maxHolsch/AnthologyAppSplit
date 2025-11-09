@@ -154,6 +154,9 @@ export interface VisualizationState {
   svgRef: SVGSVGElement | null;
   containerRef: SVGGElement | null;
 
+  // Zoom utilities
+  centerOnNode: ((nodeX: number, nodeY: number, targetScale?: number, duration?: number) => void) | null;
+
   // Render flags
   needsUpdate: boolean;
   isSimulating: boolean;
@@ -176,6 +179,7 @@ export interface VisualizationActions {
   requestUpdate: () => void;
   updateComplete: () => void;
   getNodePosition: (nodeId: string) => { x: number; y: number } | null;
+  setCenterOnNode: (fn: ((nodeX: number, nodeY: number, targetScale?: number, duration?: number) => void) | null) => void;
 }
 
 export interface VisualizationStore extends VisualizationState, VisualizationActions {}

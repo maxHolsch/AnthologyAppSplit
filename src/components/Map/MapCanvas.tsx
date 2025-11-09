@@ -17,6 +17,7 @@ export function MapCanvas({ width = 800, height = 600, className }: MapCanvasPro
   const clearSelection = useAnthologyStore(state => state.clearSelection);
   const setSvgRef = useVisualizationStore(state => state.setSvgRef);
   const setContainerRef = useVisualizationStore(state => state.setContainerRef);
+  const setCenterOnNode = useVisualizationStore(state => state.setCenterOnNode);
 
   // Convert maps to arrays (memoized to prevent infinite loops)
   const nodes = useMemo(() => Array.from(nodesMap.values()), [nodesMap]);
@@ -33,13 +34,13 @@ export function MapCanvas({ width = 800, height = 600, className }: MapCanvasPro
   );
 
   // Initialize zoom behavior
-  useD3Zoom(svgRef, containerRef, {
+  const { centerOnNode } = useD3Zoom(svgRef, containerRef, {
     minZoom: 0.5,
     maxZoom: 3,
     initialZoom: 1
   });
 
-  // Store refs in VisualizationStore
+  // Store refs and zoom utilities in VisualizationStore
   useEffect(() => {
     if (svgRef.current) {
       setSvgRef(svgRef.current);
@@ -47,7 +48,14 @@ export function MapCanvas({ width = 800, height = 600, className }: MapCanvasPro
     if (containerRef.current) {
       setContainerRef(containerRef.current);
     }
-  }, [setSvgRef, setContainerRef]);
+    // Register zoom utility for use by selection actions
+    setCenterOnNode(centerOnNode);
+
+    return () => {
+      // Cleanup on unmount
+      setCenterOnNode(null);
+    };
+  }, [setSvgRef, setContainerRef, setCenterOnNode, centerOnNode]);
 
   // Update dimensions when props change
   useEffect(() => {

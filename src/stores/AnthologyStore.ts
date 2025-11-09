@@ -21,6 +21,7 @@ import type {
   DataState,
   AudioState
 } from '@types';
+import { useVisualizationStore } from './VisualizationStore';
 
 // Default color palette for conversations
 const DEFAULT_COLORS = [
@@ -341,6 +342,16 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
             activeResponse: null
           }
         }));
+
+        // Auto-zoom to question node
+        const vizStore = useVisualizationStore.getState();
+        const position = vizStore.getNodePosition(questionId);
+        const centerOnNode = vizStore.centerOnNode;
+
+        if (position && centerOnNode) {
+          // Zoom to 1.5x scale for better focus on question and responses
+          centerOnNode(position.x, position.y, 1.5, 750);
+        }
       },
 
       selectResponse: (responseId: string) => {
@@ -357,6 +368,16 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
             activeResponse: responseId
           }
         }));
+
+        // Auto-zoom to response node
+        const vizStore = useVisualizationStore.getState();
+        const position = vizStore.getNodePosition(responseId);
+        const centerOnNode = vizStore.centerOnNode;
+
+        if (position && centerOnNode) {
+          // Zoom to 2x scale for focused view on individual response
+          centerOnNode(position.x, position.y, 2.0, 750);
+        }
       },
 
       clearSelection: () => {

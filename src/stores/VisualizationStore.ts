@@ -20,6 +20,7 @@ export const useVisualizationStore = create<VisualizationStoreType>()(
       simulationNodes: [], // D3-mutated nodes with positions
       svgRef: null,
       containerRef: null,
+      centerOnNode: null, // Zoom utility function
       needsUpdate: false,
       isSimulating: false,
       tickCount: 0, // Increments on each simulation tick
@@ -176,6 +177,10 @@ export const useVisualizationStore = create<VisualizationStoreType>()(
         }
 
         return null;
+      },
+
+      setCenterOnNode: (fn: ((nodeX: number, nodeY: number, targetScale?: number, duration?: number) => void) | null) => {
+        set({ centerOnNode: fn });
       }
     }),
     {
