@@ -80,8 +80,8 @@ export function PullQuoteNode({ node, onClick, onMouseEnter, onMouseLeave }: Pul
     onClick?.(node);
   };
 
-  const handleMouseEnter = () => {
-    onMouseEnter?.(node);
+  const handleMouseEnter = (e: React.MouseEvent) => {
+    onMouseEnter?.(node, e);
   };
 
   const handleMouseLeave = () => {

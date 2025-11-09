@@ -204,6 +204,7 @@ export interface InteractionState {
   tooltipNode: string | null;
   tooltipPos: { x: number; y: number } | null;
   tooltipContent: string | null;
+  tooltipTimeout: NodeJS.Timeout | null;
 }
 
 export interface InteractionActions {

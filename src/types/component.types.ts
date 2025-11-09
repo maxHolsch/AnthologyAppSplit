@@ -22,7 +22,7 @@ export interface MapCanvasProps {
 export interface NodeProps {
   node: GraphNode;
   onClick?: (node: GraphNode) => void;
-  onMouseEnter?: (node: GraphNode) => void;
+  onMouseEnter?: (node: GraphNode, event: React.MouseEvent) => void;
   onMouseLeave?: (node: GraphNode) => void;
 }
 

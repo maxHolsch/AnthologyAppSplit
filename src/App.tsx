@@ -1,7 +1,8 @@
 import { useEffect, useState, useMemo } from 'react';
 import { MapCanvas } from '@components/Map';
 import { CommentRail } from '@components/Rail';
-import { useAnthologyStore } from '@stores';
+import { Tooltip } from '@components/UI/Tooltip';
+import { useAnthologyStore, useInteractionStore } from '@stores';
 import './App.css';
 
 /**
@@ -16,6 +17,10 @@ function App() {
   const error = useAnthologyStore(state => state.data.loadError);
   const railWidth = useAnthologyStore(state => state.view.railWidth);
   const railExpanded = useAnthologyStore(state => state.view.railExpanded);
+
+  // Tooltip state
+  const tooltipContent = useInteractionStore(state => state.tooltipContent);
+  const tooltipPos = useInteractionStore(state => state.tooltipPos);
 
   // Convert maps to arrays (memoized to prevent infinite loops)
   const nodes = useMemo(() => Array.from(nodesMap.values()), [nodesMap]);
@@ -100,6 +105,13 @@ function App() {
         </div>
         <CommentRail />
       </main>
+
+      {/* Tooltip overlay - rendered at app level for proper positioning */}
+      <Tooltip
+        content={tooltipContent}
+        position={tooltipPos}
+        visible={!!tooltipContent && !!tooltipPos}
+      />
     </div>
   );
 }

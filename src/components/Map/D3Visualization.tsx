@@ -98,16 +98,14 @@ export function D3Visualization() {
     // centerOnNode(node.x ?? 0, node.y ?? 0, 1.5);
   }, [selectQuestion, selectResponse]);
 
-  // Handle node hover
-  const handleNodeMouseEnter = useCallback((node: GraphNode) => {
+  // Handle node hover with mouse position tracking
+  const handleNodeMouseEnter = useCallback((node: GraphNode, event: React.MouseEvent) => {
     hoverNode(node.id);
 
-    // Show tooltip
-    if (node.data.type === 'question') {
-      showTooltip(node.data.question_text, 0, 0, node.id);
-    } else if (node.data.type === 'response') {
+    // Show tooltip only for response nodes (not questions)
+    if (node.data.type === 'response') {
       const preview = node.data.speaker_text.slice(0, 100) + (node.data.speaker_text.length > 100 ? '...' : '');
-      showTooltip(preview, 0, 0, node.id);
+      showTooltip(preview, event.clientX, event.clientY, node.id);
     }
   }, [hoverNode, showTooltip]);
 

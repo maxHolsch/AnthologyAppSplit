@@ -30,6 +30,7 @@ export const useInteractionStore = create<InteractionStoreType>()(
       tooltipNode: null,
       tooltipPos: null,
       tooltipContent: null,
+      tooltipTimeout: null,
 
       // ============ Drag Actions ============
 
@@ -99,18 +100,40 @@ export const useInteractionStore = create<InteractionStoreType>()(
       // ============ Tooltip Actions ============
 
       showTooltip: (content: string, x: number, y: number, nodeId?: string) => {
-        set({
-          tooltipContent: content,
-          tooltipNode: nodeId || null,
-          tooltipPos: { x, y }
-        });
+        const { tooltipTimeout } = get();
+
+        // Clear any existing timeout
+        if (tooltipTimeout) {
+          clearTimeout(tooltipTimeout);
+        }
+
+        // Show tooltip after 300ms delay for professional UX
+        const timeout = setTimeout(() => {
+          set({
+            tooltipContent: content,
+            tooltipNode: nodeId || null,
+            tooltipPos: { x, y },
+            tooltipTimeout: null
+          });
+        }, 300);
+
+        set({ tooltipTimeout: timeout });
       },
 
       hideTooltip: () => {
+        const { tooltipTimeout } = get();
+
+        // Clear pending tooltip
+        if (tooltipTimeout) {
+          clearTimeout(tooltipTimeout);
+        }
+
+        // Hide immediately
         set({
           tooltipNode: null,
           tooltipPos: null,
-          tooltipContent: null
+          tooltipContent: null,
+          tooltipTimeout: null
         });
       }
     }),

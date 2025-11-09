@@ -33,8 +33,8 @@ export function ResponseNode({ node, onClick, onMouseEnter, onMouseLeave }: Resp
     onClick?.(node);
   };
 
-  const handleMouseEnter = () => {
-    onMouseEnter?.(node);
+  const handleMouseEnter = (e: React.MouseEvent) => {
+    onMouseEnter?.(node, e);
   };
 
   const handleMouseLeave = () => {

@@ -68,8 +68,8 @@ export function QuestionNode({ node, onClick, onMouseEnter, onMouseLeave }: Ques
     onClick?.(node);
   };
 
-  const handleMouseEnter = () => {
-    onMouseEnter?.(node);
+  const handleMouseEnter = (e: React.MouseEvent) => {
+    onMouseEnter?.(node, e);
   };
 
   const handleMouseLeave = () => {

@@ -1,0 +1,54 @@
+/**
+ * Tooltip Styles
+ * Matches Figma design system with subtle, professional appearance
+ */
+
+.tooltip {
+  /* Positioning */
+  position: fixed;
+  z-index: 10000; /* Above all other content */
+  pointer-events: none; /* Non-interactive, doesn't block clicks */
+
+  /* Box Model */
+  max-width: 300px;
+  padding: 8px 12px;
+
+  /* Visual */
+  background-color: rgba(0, 0, 0, 0.9);
+  color: #FFFFFF;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+
+  /* Typography */
+  font-family: var(--font-primary);
+  font-size: 12px;
+  line-height: 1.4;
+  font-weight: 400;
+
+  /* Animation */
+  animation: tooltipFadeIn 200ms ease-out;
+  opacity: 1;
+
+  /* Text behavior */
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+@keyframes tooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Ensure proper rendering on high-DPI screens */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .tooltip {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
