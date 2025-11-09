@@ -40,33 +40,41 @@ export function D3Visualization() {
   const hideTooltip = useInteractionStore(state => state.hideTooltip);
 
   // Create drag behavior
-  const { createDragBehavior } = useD3Drag(
-    simulation,
-    (node) => {
-      // On drag start, show which node is being dragged
-      console.log('Dragging node:', node.id);
-    },
-    (node) => {
-      // On drag end
-      console.log('Released node:', node.id);
-    }
-  );
+  const { createDragBehavior } = useD3Drag(simulation);
 
   // Apply drag behavior to all node DOM elements
+  // This bridges React-rendered nodes with D3 drag behavior
   useEffect(() => {
-    if (!simulation) return;
+    if (!simulation || nodes.length === 0) return;
 
     const dragBehavior = createDragBehavior();
     if (!dragBehavior) return;
 
-    // Apply drag to all node groups
-    d3.selectAll('.node-group').call(dragBehavior);
+    // Select all node groups rendered by React
+    const nodeGroups = d3.selectAll<SVGGElement, GraphNode>('.node-group');
+
+    // Bind node data to DOM elements via __data__ property
+    // This allows D3 drag behavior to access node data
+    nodeGroups.each(function() {
+      const element = this as SVGGElement;
+      const nodeId = element.getAttribute('data-node-id');
+
+      if (nodeId) {
+        const nodeData = nodes.find(n => n.id === nodeId);
+        if (nodeData) {
+          (element as any).__data__ = nodeData;
+        }
+      }
+    });
+
+    // Apply drag behavior - D3 will use __data__ property
+    nodeGroups.call(dragBehavior);
 
     // Cleanup: remove drag handlers on unmount
     return () => {
       d3.selectAll('.node-group').on('.drag', null);
     };
-  }, [simulation, createDragBehavior]);
+  }, [simulation, createDragBehavior, nodes]);
 
   // Force re-render when simulation ticks
   useEffect(() => {
