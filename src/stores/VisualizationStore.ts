@@ -17,10 +17,12 @@ export const useVisualizationStore = create<VisualizationStoreType>()(
       // ============ Initial State ============
 
       simulation: null,
+      simulationNodes: [], // D3-mutated nodes with positions
       svgRef: null,
       containerRef: null,
       needsUpdate: false,
       isSimulating: false,
+      tickCount: 0, // Increments on each simulation tick
       renderFrameRate: 60,
       nodeCount: 0,
       edgeCount: 0,
@@ -34,18 +36,26 @@ export const useVisualizationStore = create<VisualizationStoreType>()(
           currentSim.stop();
         }
 
-        // Create D3 nodes and links (shallow copies to avoid mutating original data)
-        const d3Nodes = nodes.map(node => ({ ...node }));
-        const d3Links = edges.map(edge => {
-          const sourceId = typeof edge.source === 'string' ? edge.source : edge.source.id;
-          const targetId = typeof edge.target === 'string' ? edge.target : edge.target.id;
+        // Use nodes directly - D3 will mutate them with x, y, vx, vy
+        // This is THE CRITICAL FIX - don't copy, let D3 mutate the actual objects
+        const d3Nodes = nodes;
 
-          return {
-            ...edge,
-            source: sourceId,
-            target: targetId
-          };
-        });
+        const d3Links = edges
+          .filter(edge => edge.source && edge.target) // Filter out edges with null source/target
+          .map(edge => {
+            const sourceId = typeof edge.source === 'string'
+              ? edge.source
+              : edge.source?.id || '';
+            const targetId = typeof edge.target === 'string'
+              ? edge.target
+              : edge.target?.id || '';
+
+            return {
+              ...edge,
+              source: sourceId,
+              target: targetId
+            };
+          });
 
         // Use provided dimensions or defaults
         const centerX = width ? width / 2 : window.innerWidth / 2;
@@ -86,9 +96,10 @@ export const useVisualizationStore = create<VisualizationStoreType>()(
           simulation.tick();
         }
 
-        // Store simulation
+        // Store simulation AND the D3-mutated node array
         set({
           simulation,
+          simulationNodes: d3Nodes, // Store reference to D3's node array
           isSimulating: true,
           nodeCount: nodes.length,
           edgeCount: edges.length
@@ -96,7 +107,10 @@ export const useVisualizationStore = create<VisualizationStoreType>()(
 
         // Listen for simulation events
         simulation.on('tick', () => {
-          set({ needsUpdate: true });
+          set(state => ({
+            needsUpdate: true,
+            tickCount: state.tickCount + 1 // Force React re-render
+          }));
         });
 
         simulation.on('end', () => {
@@ -150,6 +164,17 @@ export const useVisualizationStore = create<VisualizationStoreType>()(
 
       updateComplete: () => {
         set({ needsUpdate: false });
+      },
+
+      getNodePosition: (nodeId: string) => {
+        const { simulationNodes } = get();
+        const node = simulationNodes.find(n => n.id === nodeId);
+
+        if (node && typeof node.x === 'number' && typeof node.y === 'number') {
+          return { x: node.x, y: node.y };
+        }
+
+        return null;
       }
     }),
     {

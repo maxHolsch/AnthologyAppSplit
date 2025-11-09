@@ -28,16 +28,23 @@ export function useD3(
     edgesRef.current = edges;
   }, [nodes, edges]);
 
-  // Initialize simulation on mount
+  // Initialize simulation when nodes are loaded
+  const hasInitialized = useRef(false);
+
   useEffect(() => {
-    if (!simulation && nodes.length > 0) {
+    if (!hasInitialized.current && nodes.length > 0 && edges.length > 0) {
       // Initialize simulation through store (handles all setup)
       initSimulation(nodes, edges, width, height);
+      hasInitialized.current = true;
     }
+  }, [nodes.length, edges.length, initSimulation, width, height]);
 
+  // Cleanup on unmount only
+  useEffect(() => {
     return () => {
-      if (simulation) {
-        stopSimulation();
+      const currentSim = useVisualizationStore.getState().simulation;
+      if (currentSim) {
+        currentSim.stop();
       }
     };
   }, []);

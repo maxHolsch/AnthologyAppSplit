@@ -150,12 +150,14 @@ export interface AnthologyStore {
 export interface VisualizationState {
   // D3 references (not part of React state)
   simulation: any | null; // D3 ForceSimulation instance
+  simulationNodes: GraphNode[]; // D3-mutated node array with positions
   svgRef: SVGSVGElement | null;
   containerRef: SVGGElement | null;
 
   // Render flags
   needsUpdate: boolean;
   isSimulating: boolean;
+  tickCount: number; // Increments on each simulation tick to force re-renders
 
   // Performance
   renderFrameRate: number;
@@ -173,6 +175,7 @@ export interface VisualizationActions {
   setNeedsUpdate: (needsUpdate: boolean) => void;
   requestUpdate: () => void;
   updateComplete: () => void;
+  getNodePosition: (nodeId: string) => { x: number; y: number } | null;
 }
 
 export interface VisualizationStore extends VisualizationState, VisualizationActions {}

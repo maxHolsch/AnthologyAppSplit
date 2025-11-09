@@ -1,4 +1,5 @@
 import { useEffect, useCallback, useMemo } from 'react';
+import * as d3 from 'd3';
 import { useAnthologyStore, useVisualizationStore, useInteractionStore } from '@stores';
 import { useD3Drag } from '@hooks';
 import { QuestionNode } from './QuestionNode';
@@ -19,19 +20,27 @@ export function D3Visualization() {
   const hoverNode = useAnthologyStore(state => state.hoverNode);
   const selectedNodes = useAnthologyStore(state => state.selection.selectedNodes);
 
-  // Convert maps to arrays (memoized to prevent infinite loops)
-  const nodes = useMemo(() => Array.from(nodesMap.values()), [nodesMap]);
+  // Get D3-mutated nodes with positions from VisualizationStore
+  const simulationNodes = useVisualizationStore(state => state.simulationNodes);
   const edges = useMemo(() => Array.from(edgesMap.values()), [edgesMap]);
+
+  // Always call useMemo (never conditional)
+  const fallbackNodes = useMemo(() => Array.from(nodesMap.values()), [nodesMap]);
 
   const simulation = useVisualizationStore(state => state.simulation);
   const needsUpdate = useVisualizationStore(state => state.needsUpdate);
   const setNeedsUpdate = useVisualizationStore(state => state.setNeedsUpdate);
+  const tickCount = useVisualizationStore(state => state.tickCount); // Subscribe to tick updates
+
+  // Use simulationNodes for rendering (these have D3-updated positions)
+  // Fall back to store nodes if simulation hasn't started yet
+  const nodes = simulationNodes.length > 0 ? simulationNodes : fallbackNodes;
 
   const showTooltip = useInteractionStore(state => state.showTooltip);
   const hideTooltip = useInteractionStore(state => state.hideTooltip);
 
   // Create drag behavior
-  useD3Drag(
+  const { createDragBehavior } = useD3Drag(
     simulation,
     (node) => {
       // On drag start, show which node is being dragged
@@ -42,6 +51,22 @@ export function D3Visualization() {
       console.log('Released node:', node.id);
     }
   );
+
+  // Apply drag behavior to all node DOM elements
+  useEffect(() => {
+    if (!simulation) return;
+
+    const dragBehavior = createDragBehavior();
+    if (!dragBehavior) return;
+
+    // Apply drag to all node groups
+    d3.selectAll('.node-group').call(dragBehavior);
+
+    // Cleanup: remove drag handlers on unmount
+    return () => {
+      d3.selectAll('.node-group').on('.drag', null);
+    };
+  }, [simulation, createDragBehavior]);
 
   // Force re-render when simulation ticks
   useEffect(() => {

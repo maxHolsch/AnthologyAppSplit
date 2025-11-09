@@ -41,6 +41,7 @@ export function QuestionNode({ node, onClick, onMouseEnter, onMouseLeave }: Ques
 
   return (
     <g
+      className="node-group"
       transform={`translate(${x}, ${y})`}
       onClick={handleClick}
       onMouseEnter={handleMouseEnter}

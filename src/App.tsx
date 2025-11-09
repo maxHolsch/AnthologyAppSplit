@@ -45,8 +45,8 @@ function App() {
         }
         const data = await response.json();
 
-        // Load data with viewport dimensions
-        await loadData(data, dimensions.width, dimensions.height - 100);
+        // Load data (positions will be calculated by D3 simulation)
+        await loadData(data);
       } catch (error) {
         console.error('Error loading anthology data:', error);
       }

@@ -43,6 +43,7 @@ export function ResponseNode({ node, onClick, onMouseEnter, onMouseLeave }: Resp
 
   return (
     <g
+      className="node-group"
       transform={`translate(${x}, ${y})`}
       onClick={handleClick}
       onMouseEnter={handleMouseEnter}

@@ -69,7 +69,7 @@ interface AnthologyStoreState {
 
 interface AnthologyStoreActions {
   // Data actions
-  loadData: (data: AnthologyData, viewportWidth?: number, viewportHeight?: number) => Promise<void>;
+  loadData: (data: AnthologyData) => Promise<void>;
   processData: () => void;
   getNodeById: (id: string) => GraphNode | undefined;
   getResponsesForQuestion: (questionId: string) => ResponseNode[];
@@ -158,7 +158,7 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
 
       // ============ Data Actions ============
 
-      loadData: async (data: AnthologyData, viewportWidth?: number, viewportHeight?: number) => {
+      loadData: async (data: AnthologyData) => {
         set((state) => ({
           data: {
             ...state.data,
@@ -176,89 +176,28 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
           // Assign colors to conversations
           const colorAssignments = assignConversationColors(data.conversations);
 
-          // Calculate center position (default to 400x300 if not provided)
-          const centerX = viewportWidth ? viewportWidth / 2 : 400;
-          const centerY = viewportHeight ? viewportHeight / 2 : 300;
-
-          // Create graph nodes with adaptive radial initial positions
+          // Create graph nodes (positions will be calculated by D3 force simulation)
           const nodes = new Map<string, GraphNode>();
 
-          // Calculate adaptive radial positions for questions to prevent overlap
-          const questionCount = data.questions.length;
-          const questionCollisionRadius = 100; // Match VisualizationStore collision radius
-
-          // Calculate minimum radius needed to prevent question overlap
-          // Circumference = questionCount × (2 × collisionRadius) for minimum spacing
-          const minCircumference = questionCount * (2 * questionCollisionRadius);
-          const minRadius = minCircumference / (2 * Math.PI);
-
-          // Use larger of calculated min radius or 40% of viewport
-          const baseQuestionRadius = Math.min(centerX, centerY) * 0.4;
-          const questionRadius = Math.max(minRadius, baseQuestionRadius);
-
-          // Add question nodes with adaptive radial distribution
-          data.questions.forEach((question, qIndex) => {
-            const angle = (qIndex / data.questions.length) * 2 * Math.PI;
-            const qx = centerX + Math.cos(angle) * questionRadius;
-            const qy = centerY + Math.sin(angle) * questionRadius;
-
+          // Add question nodes
+          data.questions.forEach((question) => {
             nodes.set(question.id, {
               id: question.id,
               type: 'question',
-              data: question,
-              x: qx,
-              y: qy
+              data: question
             });
           });
 
-          // Add response nodes positioned around their questions with adaptive spacing
+          // Add response nodes (positions will be calculated by D3 simulation)
           data.responses.forEach(response => {
             if (response.type === 'response') {
               const color = colorAssignments.get(response.conversation_id)?.color;
-
-              // Find parent question
-              const parentQuestionId = response.responds_to;
-              const parentQuestion = nodes.get(parentQuestionId);
-
-              let x, y;
-              if (parentQuestion && parentQuestion.x !== undefined && parentQuestion.y !== undefined) {
-                // Position response around its parent question
-                const questionResponses = data.responses.filter(r =>
-                  r.type === 'response' && r.responds_to === parentQuestionId
-                );
-                const responseIndex = questionResponses.findIndex(r => r.id === response.id);
-                const responseCount = questionResponses.length;
-                const angle = (responseIndex / responseCount) * 2 * Math.PI;
-
-                // Adaptive response radius - scale up for many responses to prevent overlap
-                // Base radius 150px, add extra spacing for dense connections (>6 responses)
-                const baseResponseRadius = 150;
-                const responseRadius = baseResponseRadius + (responseCount > 6 ? responseCount * 10 : 0);
-
-                x = parentQuestion.x + Math.cos(angle) * responseRadius;
-                y = parentQuestion.y + Math.sin(angle) * responseRadius;
-              } else {
-                // Orphan responses: distribute across viewport instead of clustering at center
-                const orphanIndex = Array.from(nodes.values()).filter(n =>
-                  n.type === 'response' && !data.questions.find(q =>
-                    q.id === (n.data as ResponseNode).responds_to
-                  )
-                ).length;
-
-                const orphanAngle = (orphanIndex / Math.max(data.responses.length, 1)) * 2 * Math.PI;
-                const orphanRadius = Math.min(centerX, centerY) * 0.6; // Distribute at 60% radius
-
-                x = centerX + Math.cos(orphanAngle) * orphanRadius;
-                y = centerY + Math.sin(orphanAngle) * orphanRadius;
-              }
 
               nodes.set(response.id, {
                 id: response.id,
                 type: 'response',
                 data: response,
-                color,
-                x,
-                y
+                color
               });
             }
           });
@@ -267,7 +206,7 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
           const edges = new Map<string, GraphEdge>();
 
           data.responses.forEach(response => {
-            if (response.type === 'response') {
+            if (response.type === 'response' && response.responds_to) {
               const edgeId = `${response.responds_to}-${response.id}`;
               const color = colorAssignments.get(response.conversation_id)?.color;
 

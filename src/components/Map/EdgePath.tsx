@@ -93,7 +93,7 @@ export function EdgePath({
       arrowPath: chevronPath,
       arrowTransform: `translate(${arrowX}, ${arrowY}) rotate(${arrowAngle})`
     };
-  }, [sourceNode, targetNode]);
+  }, [sourceNode.x, sourceNode.y, targetNode.x, targetNode.y]);
 
   return (
     <g>

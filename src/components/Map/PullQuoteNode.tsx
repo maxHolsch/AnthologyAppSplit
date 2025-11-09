@@ -90,6 +90,7 @@ export function PullQuoteNode({ node, onClick, onMouseEnter, onMouseLeave }: Pul
 
   return (
     <g
+      className="node-group"
       transform={`translate(${x}, ${y})`}
       onClick={handleClick}
       onMouseEnter={handleMouseEnter}
