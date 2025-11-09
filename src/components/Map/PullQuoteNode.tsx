@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useAnthologyStore } from '@stores';
-import { getPullQuoteTextColor, getPullQuoteBackgroundColor } from '@utils/colorUtils';
+import { getPullQuoteTextColor, getPullQuoteBackgroundColor } from '@utils';
 import type { PullQuoteNodeProps } from '@types';
 
 /**

@@ -180,14 +180,23 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
           const centerX = viewportWidth ? viewportWidth / 2 : 400;
           const centerY = viewportHeight ? viewportHeight / 2 : 300;
 
-          // Create graph nodes with radial initial positions
+          // Create graph nodes with adaptive radial initial positions
           const nodes = new Map<string, GraphNode>();
 
-          // Calculate radial positions for questions
-          const questionRadius = Math.min(centerX, centerY) * 0.4; // 40% of viewport
-          const responseRadius = 100;
+          // Calculate adaptive radial positions for questions to prevent overlap
+          const questionCount = data.questions.length;
+          const questionCollisionRadius = 100; // Match VisualizationStore collision radius
 
-          // Add question nodes with radial distribution
+          // Calculate minimum radius needed to prevent question overlap
+          // Circumference = questionCount × (2 × collisionRadius) for minimum spacing
+          const minCircumference = questionCount * (2 * questionCollisionRadius);
+          const minRadius = minCircumference / (2 * Math.PI);
+
+          // Use larger of calculated min radius or 40% of viewport
+          const baseQuestionRadius = Math.min(centerX, centerY) * 0.4;
+          const questionRadius = Math.max(minRadius, baseQuestionRadius);
+
+          // Add question nodes with adaptive radial distribution
           data.questions.forEach((question, qIndex) => {
             const angle = (qIndex / data.questions.length) * 2 * Math.PI;
             const qx = centerX + Math.cos(angle) * questionRadius;
@@ -202,7 +211,7 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
             });
           });
 
-          // Add response nodes positioned around their questions
+          // Add response nodes positioned around their questions with adaptive spacing
           data.responses.forEach(response => {
             if (response.type === 'response') {
               const color = colorAssignments.get(response.conversation_id)?.color;
@@ -218,14 +227,29 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
                   r.type === 'response' && r.responds_to === parentQuestionId
                 );
                 const responseIndex = questionResponses.findIndex(r => r.id === response.id);
-                const angle = (responseIndex / questionResponses.length) * 2 * Math.PI;
+                const responseCount = questionResponses.length;
+                const angle = (responseIndex / responseCount) * 2 * Math.PI;
+
+                // Adaptive response radius - scale up for many responses to prevent overlap
+                // Base radius 150px, add extra spacing for dense connections (>6 responses)
+                const baseResponseRadius = 150;
+                const responseRadius = baseResponseRadius + (responseCount > 6 ? responseCount * 10 : 0);
 
                 x = parentQuestion.x + Math.cos(angle) * responseRadius;
                 y = parentQuestion.y + Math.sin(angle) * responseRadius;
               } else {
-                // Fallback: add some random offset from center
-                x = centerX + (Math.random() - 0.5) * 200;
-                y = centerY + (Math.random() - 0.5) * 200;
+                // Orphan responses: distribute across viewport instead of clustering at center
+                const orphanIndex = Array.from(nodes.values()).filter(n =>
+                  n.type === 'response' && !data.questions.find(q =>
+                    q.id === (n.data as ResponseNode).responds_to
+                  )
+                ).length;
+
+                const orphanAngle = (orphanIndex / Math.max(data.responses.length, 1)) * 2 * Math.PI;
+                const orphanRadius = Math.min(centerX, centerY) * 0.6; // Distribute at 60% radius
+
+                x = centerX + Math.cos(orphanAngle) * orphanRadius;
+                y = centerY + Math.sin(orphanAngle) * orphanRadius;
               }
 
               nodes.set(response.id, {

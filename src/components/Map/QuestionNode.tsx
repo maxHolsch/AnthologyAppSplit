@@ -47,52 +47,49 @@ export function QuestionNode({ node, onClick, onMouseEnter, onMouseLeave }: Ques
       onMouseLeave={handleMouseLeave}
       style={{ cursor: 'pointer' }}
     >
-      {/* Text element with semantic zoom */}
-      <text
-        textAnchor="middle"
-        dominantBaseline="middle"
-        fontSize={12}
-        fontFamily="Hedvig Letters Sans, sans-serif"
-        fontWeight={400}
-        fill="#000000"
-        fillOpacity={opacity}
-        style={{
-          userSelect: 'none',
-          pointerEvents: 'all',
-          transition: 'fill-opacity 200ms ease',
-          transform: `scale(${inverseScale})`,
-          transformOrigin: 'center',
-        }}
-      >
-        {/* Split text into multiple lines if needed */}
-        {questionText.split('\n').map((line: string, i: number) => (
-          <tspan
-            key={i}
-            x={0}
-            dy={i === 0 ? 0 : 16.8} // Line height from Figma specs
-          >
-            {line}
-          </tspan>
-        ))}
-      </text>
+      {/* Semantic zoom group - scales from the exact center point (0, 0) */}
+      <g transform={`scale(${inverseScale})`}>
+        {/* Hover indicator (optional subtle background) */}
+        {isHovered && (
+          <rect
+            x={-90}
+            y={-25}
+            width={180}
+            height={50}
+            rx={25}
+            fill="#F6F6F1"
+            fillOpacity={0.5}
+            pointerEvents="none"
+          />
+        )}
 
-      {/* Hover indicator (optional subtle background) */}
-      {isHovered && (
-        <rect
-          x={-90}
-          y={-25}
-          width={180}
-          height={50}
-          rx={25}
-          fill="#F6F6F1"
-          fillOpacity={0.5}
-          pointerEvents="none"
+        {/* Text element with semantic zoom */}
+        <text
+          textAnchor="middle"
+          dominantBaseline="middle"
+          fontSize={12}
+          fontFamily="Hedvig Letters Sans, sans-serif"
+          fontWeight={400}
+          fill="#000000"
+          fillOpacity={opacity}
           style={{
-            transform: `scale(${inverseScale})`,
-            transformOrigin: 'center',
+            userSelect: 'none',
+            pointerEvents: 'all',
+            transition: 'fill-opacity 200ms ease',
           }}
-        />
-      )}
+        >
+          {/* Split text into multiple lines if needed */}
+          {questionText.split('\n').map((line: string, i: number) => (
+            <tspan
+              key={i}
+              x={0}
+              dy={i === 0 ? 0 : 16.8} // Line height from Figma specs
+            >
+              {line}
+            </tspan>
+          ))}
+        </text>
+      </g>
     </g>
   );
 }

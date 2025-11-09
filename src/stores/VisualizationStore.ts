@@ -64,12 +64,12 @@ export const useVisualizationStore = create<VisualizationStoreType>()(
             .strength(0.05)) // Very weak centering to allow spread
           .force('collision', d3.forceCollide()
             .radius((d: any) => {
-              // Different radius based on node type
-              if (d.type === 'question') return 80; // Increased for more spacing
-              if (d.data?.pull_quote) return 130; // Increased for pull quotes
-              return 40; // Increased for standard nodes
+              // Optimized radii to match visual sizes and prevent overlap
+              if (d.type === 'question') return 100; // Increased for text width coverage
+              if (d.data?.pull_quote) return 120; // ~half of 204px width for pull quote rectangles
+              return 10; // Close to 7px visual radius for standard circle nodes
             })
-            .strength(0.9)) // Stronger collision to prevent overlap
+            .strength(0.9)) // Strong collision to prevent overlap
           .force('x', d3.forceX(centerX).strength(0.02)) // Very weak X centering
           .force('y', d3.forceY(centerY).strength(0.02)); // Very weak Y centering
 

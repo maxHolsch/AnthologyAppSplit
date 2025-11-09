@@ -147,18 +147,7 @@ export function D3Visualization() {
 
       {/* Render nodes (foreground layer) */}
       <g className="nodes">
-        {/* Question nodes */}
-        {questionNodes.map((node: GraphNode) => (
-          <QuestionNode
-            key={node.id}
-            node={node}
-            onClick={handleNodeClick}
-            onMouseEnter={handleNodeMouseEnter}
-            onMouseLeave={handleNodeMouseLeave}
-          />
-        ))}
-
-        {/* Standard response nodes (circles) */}
+        {/* Standard response nodes (circles) - render first (background) */}
         {responseNodesStandard.map((node: GraphNode) => (
           <ResponseNode
             key={node.id}
@@ -169,9 +158,20 @@ export function D3Visualization() {
           />
         ))}
 
-        {/* Pull quote response nodes (rectangles) */}
+        {/* Pull quote response nodes (rectangles) - render second (middle) */}
         {responseNodesWithPullQuote.map((node: GraphNode) => (
           <PullQuoteNode
+            key={node.id}
+            node={node}
+            onClick={handleNodeClick}
+            onMouseEnter={handleNodeMouseEnter}
+            onMouseLeave={handleNodeMouseLeave}
+          />
+        ))}
+
+        {/* Question nodes - render last (foreground/on top) */}
+        {questionNodes.map((node: GraphNode) => (
+          <QuestionNode
             key={node.id}
             node={node}
             onClick={handleNodeClick}
