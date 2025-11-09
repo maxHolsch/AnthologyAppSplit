@@ -1,0 +1,53 @@
+/* ResizeHandle styles */
+
+.resizeHandle {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 16px;
+  cursor: ew-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 11;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: opacity var(--transition-base, 150ms ease);
+}
+
+.resizeHandle:hover {
+  opacity: 1;
+}
+
+.resizeHandle:hover .handleBar {
+  background-color: rgba(0, 0, 0, 0.3);
+  width: 4px;
+}
+
+.handleBar {
+  width: 2px;
+  height: 48px;
+  background-color: rgba(0, 0, 0, 0.1);
+  border-radius: 2px;
+  transition: all var(--transition-base, 150ms ease);
+}
+
+/* Active dragging state */
+.resizeHandle:active .handleBar {
+  background-color: rgba(0, 0, 0, 0.4);
+  width: 4px;
+}
+
+/* Global styles when resizing */
+:global(body.resizing) {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+}
+
+/* Mobile - hide resize handle */
+@media (max-width: 768px) {
+  .resizeHandle {
+    display: none;
+  }
+}

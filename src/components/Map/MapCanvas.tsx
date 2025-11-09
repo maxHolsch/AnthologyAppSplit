@@ -55,8 +55,12 @@ export function MapCanvas({ width = 800, height = 600, className }: MapCanvasPro
   }, [width, height]);
 
   // Handle background click (deselect all)
-  const handleBackgroundClick = () => {
-    clearSelection();
+  const handleBackgroundClick = (e: React.MouseEvent) => {
+    // Only clear selection if clicking directly on the SVG background
+    // Not on any child elements (nodes, edges, etc.)
+    if (e.target === svgRef.current || e.target === containerRef.current) {
+      clearSelection();
+    }
   };
 
   return (

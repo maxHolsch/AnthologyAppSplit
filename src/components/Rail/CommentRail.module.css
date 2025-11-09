@@ -1,0 +1,59 @@
+/* CommentRail container styles */
+
+.rail {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100vh;
+  background-color: var(--color-rail-bg, #F6F6F1);
+  display: flex;
+  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.05);
+  z-index: 10;
+  transition: width var(--transition-smooth, 200ms ease);
+}
+
+.content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.viewContainer {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: var(--spacing-lg, 32px);
+}
+
+/* Custom scrollbar styles */
+.viewContainer::-webkit-scrollbar {
+  width: 8px;
+}
+
+.viewContainer::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.viewContainer::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+  transition: background-color var(--transition-base, 150ms ease);
+}
+
+.viewContainer::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(0, 0, 0, 0.2);
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .rail {
+    width: 100% !important;
+    max-width: 100vw;
+  }
+
+  .viewContainer {
+    padding: var(--spacing-md, 16px);
+  }
+}

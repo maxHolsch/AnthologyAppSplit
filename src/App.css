@@ -46,6 +46,13 @@
   flex: 1;
   overflow: hidden;
   position: relative;
+  display: flex;
+}
+
+.map-container {
+  flex: 1;
+  position: relative;
+  transition: width var(--transition-smooth, 200ms ease);
 }
 
 .map-canvas {

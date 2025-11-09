@@ -16,7 +16,8 @@ import type { GraphNode, GraphEdge } from '@types';
 export function D3Visualization() {
   const nodesMap = useAnthologyStore(state => state.data.nodes);
   const edgesMap = useAnthologyStore(state => state.data.edges);
-  const selectNode = useAnthologyStore(state => state.selectNode);
+  const selectQuestion = useAnthologyStore(state => state.selectQuestion);
+  const selectResponse = useAnthologyStore(state => state.selectResponse);
   const hoverNode = useAnthologyStore(state => state.hoverNode);
   const selectedNodes = useAnthologyStore(state => state.selection.selectedNodes);
 
@@ -83,14 +84,18 @@ export function D3Visualization() {
     }
   }, [needsUpdate, setNeedsUpdate]);
 
-  // Handle node click
+  // Handle node click - differentiate between question and response nodes
   const handleNodeClick = useCallback((node: GraphNode) => {
-    selectNode(node.id);
+    if (node.type === 'question') {
+      selectQuestion(node.id);
+    } else if (node.type === 'response') {
+      selectResponse(node.id);
+    }
 
     // Center on node in future phase (zoom integration)
     // const { centerOnNode } = useD3Zoom(...);
     // centerOnNode(node.x ?? 0, node.y ?? 0, 1.5);
-  }, [selectNode]);
+  }, [selectQuestion, selectResponse]);
 
   // Handle node hover
   const handleNodeMouseEnter = useCallback((node: GraphNode) => {

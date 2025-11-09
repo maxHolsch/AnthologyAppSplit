@@ -1,0 +1,44 @@
+/* QuestionView styles */
+
+.container {
+  width: 100%;
+}
+
+.questionSection {
+  margin-bottom: var(--spacing-lg, 32px);
+  padding-bottom: var(--spacing-lg, 32px);
+  border-bottom: 1px solid var(--color-border-light, rgba(0, 0, 0, 0.05));
+}
+
+.questionText {
+  font-family: var(--font-primary, 'Hedvig Letters Sans', -apple-system, sans-serif);
+  font-size: var(--text-question, 16px);
+  font-weight: 600;
+  color: var(--color-text-primary, #000000);
+  line-height: 1.5;
+  margin: 0 0 var(--spacing-md, 16px) 0;
+}
+
+.responsesSection {
+  width: 100%;
+}
+
+.responseList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm, 8px);
+}
+
+.emptyState {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-xl, 48px) var(--spacing-md, 16px);
+  text-align: center;
+}
+
+.emptyState p {
+  color: var(--color-text-secondary, rgba(0, 0, 0, 0.6));
+  font-size: var(--text-body, 14px);
+  margin: 0;
+}

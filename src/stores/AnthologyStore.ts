@@ -88,6 +88,7 @@ interface AnthologyStoreActions {
   setRailExpanded: (expanded: boolean) => void;
   toggleRail: () => void;
   setRailMode: (mode: RailViewMode) => void;
+  setRailWidth: (width: number) => void;
   setActiveQuestion: (questionId: string | null) => void;
   setActiveResponse: (responseId: string | null) => void;
   setMapTransform: (transform: MapTransform) => void;
@@ -412,6 +413,19 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
           view: {
             ...state.view,
             railMode: mode
+          }
+        }));
+      },
+
+      setRailWidth: (width: number) => {
+        // Constrain width between 320px and 50vw
+        const maxWidth = window.innerWidth * 0.5;
+        const constrainedWidth = Math.max(320, Math.min(width, maxWidth));
+
+        set((state) => ({
+          view: {
+            ...state.view,
+            railWidth: constrainedWidth
           }
         }));
       },

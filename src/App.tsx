@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { MapCanvas } from '@components/Map';
+import { CommentRail } from '@components/Rail';
 import { useAnthologyStore } from '@stores';
 import './App.css';
 
@@ -13,6 +14,8 @@ function App() {
   const edgesMap = useAnthologyStore(state => state.data.edges);
   const isLoading = useAnthologyStore(state => state.data.isLoading);
   const error = useAnthologyStore(state => state.data.loadError);
+  const railWidth = useAnthologyStore(state => state.view.railWidth);
+  const railExpanded = useAnthologyStore(state => state.view.railExpanded);
 
   // Convert maps to arrays (memoized to prevent infinite loops)
   const nodes = useMemo(() => Array.from(nodesMap.values()), [nodesMap]);
@@ -21,6 +24,9 @@ function App() {
     width: window.innerWidth,
     height: window.innerHeight
   });
+
+  // Calculate map width based on rail state
+  const mapWidth = railExpanded ? dimensions.width - railWidth : dimensions.width;
 
   // Handle window resize
   useEffect(() => {
@@ -85,11 +91,14 @@ function App() {
       </header>
 
       <main className="app-main">
-        <MapCanvas
-          width={dimensions.width}
-          height={dimensions.height - 100} // Account for header
-          className="map-canvas"
-        />
+        <div className="map-container" style={{ width: mapWidth }}>
+          <MapCanvas
+            width={mapWidth}
+            height={dimensions.height - 100} // Account for header
+            className="map-canvas"
+          />
+        </div>
+        <CommentRail />
       </main>
     </div>
   );

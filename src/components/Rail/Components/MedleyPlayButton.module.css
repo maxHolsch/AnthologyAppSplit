@@ -1,0 +1,79 @@
+/* MedleyPlayButton styles */
+
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm, 8px);
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-sm, 8px);
+  padding: var(--spacing-sm, 12px) var(--spacing-md, 16px);
+  background-color: var(--color-primary, #4A90E2);
+  color: white;
+  border: none;
+  border-radius: var(--radius-md, 8px);
+  font-family: var(--font-primary, 'Hedvig Letters Sans', -apple-system, sans-serif);
+  font-size: var(--text-body, 14px);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-base, 150ms ease);
+}
+
+.button:hover {
+  background-color: var(--color-primary-hover, #357ABD);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(74, 144, 226, 0.3);
+}
+
+.button:focus-visible {
+  outline: 2px solid var(--color-focus, #4A90E2);
+  outline-offset: 2px;
+}
+
+.button:active {
+  transform: translateY(0);
+}
+
+.iconContainer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+}
+
+.icon {
+  width: 16px;
+  height: 16px;
+}
+
+.label {
+  font-weight: 500;
+}
+
+.count {
+  opacity: 0.9;
+  font-size: var(--text-small, 12px);
+}
+
+.nowPlaying {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs, 4px);
+  padding-left: var(--spacing-xs, 4px);
+  color: var(--color-text-secondary, rgba(0, 0, 0, 0.6));
+  font-size: var(--text-small, 12px);
+}
+
+.shuffleIcon {
+  width: 12px;
+  height: 12px;
+  color: var(--color-primary, #4A90E2);
+}
+
+.nowPlayingText {
+  font-style: italic;
+}
