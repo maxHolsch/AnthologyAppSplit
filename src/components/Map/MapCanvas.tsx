@@ -66,7 +66,7 @@ export function MapCanvas({ width = 800, height = 600, className }: MapCanvasPro
       height={dimensions.height}
       className={className}
       style={{
-        background: '#FFFFFF',
+        background: '#F6F6F1',
         cursor: 'grab',
       }}
       onClick={handleBackgroundClick}

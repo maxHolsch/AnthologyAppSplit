@@ -4,13 +4,12 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  background: #FFFFFF;
+  background: #F6F6F1;
 }
 
 .app-header {
   padding: var(--spacing-md) var(--spacing-lg);
-  background: #FFFFFF;
-  border-bottom: 1px solid #E5E5E5;
+  background: #F6F6F1;
   flex-shrink: 0;
 }
 
