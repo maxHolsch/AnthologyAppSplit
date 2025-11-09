@@ -96,6 +96,7 @@ interface AnthologyStoreActions {
   centerOnNode: (nodeId: string) => void;
 
   // Audio actions
+  setAudioElement: (element: HTMLAudioElement | null) => void;
   play: (nodeId: string) => void;
   pause: () => void;
   stop: () => void;
@@ -103,6 +104,7 @@ interface AnthologyStoreActions {
   setVolume: (volume: number) => void;
   shufflePlay: (nodeIds: string[]) => void;
   updateCurrentTime: (time: number) => void;
+  setPlaybackSpeed: (speed: number) => void;
 }
 
 export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActions>()(
@@ -489,6 +491,15 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
 
       // ============ Audio Actions ============
 
+      setAudioElement: (element: HTMLAudioElement | null) => {
+        set((state) => ({
+          audio: {
+            ...state.audio,
+            audioElement: element
+          }
+        }));
+      },
+
       play: (nodeId: string) => {
         const node = get().data.responseNodes.get(nodeId);
         if (!node) return;
@@ -499,7 +510,8 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
             playbackState: 'playing',
             playbackMode: 'single',
             currentTrack: nodeId,
-            duration: node.audio_end - node.audio_start
+            duration: node.audio_end - node.audio_start,
+            currentTime: 0
           }
         }));
       },
@@ -529,16 +541,23 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
         set((state) => ({
           audio: {
             ...state.audio,
-            currentTime: time
+            currentTime: Math.max(0, Math.min(time, state.audio.duration))
           }
         }));
       },
 
       setVolume: (volume: number) => {
+        const clampedVolume = Math.max(0, Math.min(1, volume));
+        const audioElement = get().audio.audioElement;
+
+        if (audioElement) {
+          audioElement.volume = clampedVolume;
+        }
+
         set((state) => ({
           audio: {
             ...state.audio,
-            volume: Math.max(0, Math.min(1, volume))
+            volume: clampedVolume
           }
         }));
       },
@@ -567,6 +586,22 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
           audio: {
             ...state.audio,
             currentTime: time
+          }
+        }));
+      },
+
+      setPlaybackSpeed: (speed: number) => {
+        const clampedSpeed = Math.max(0.5, Math.min(2, speed));
+        const audioElement = get().audio.audioElement;
+
+        if (audioElement) {
+          audioElement.playbackRate = clampedSpeed;
+        }
+
+        set((state) => ({
+          audio: {
+            ...state.audio,
+            playbackSpeed: clampedSpeed
           }
         }));
       }

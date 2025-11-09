@@ -5,7 +5,8 @@
 import { memo, useCallback, useMemo } from 'react';
 import { useAnthologyStore } from '@stores';
 import { ResponseTile } from '../Components/ResponseTile';
-import { MedleyPlayButton } from '../Components/MedleyPlayButton';
+import { MedleyPlayer } from '@components/Audio/MedleyPlayer';
+import { KaraokeDisplay } from './KaraokeDisplay';
 import styles from './QuestionView.module.css';
 
 export const QuestionView = memo(() => {
@@ -14,10 +15,7 @@ export const QuestionView = memo(() => {
   const responseNodes = useAnthologyStore(state => state.data.responseNodes);
   const selectResponse = useAnthologyStore(state => state.selectResponse);
   const hoverNode = useAnthologyStore(state => state.hoverNode);
-  const audioState = useAnthologyStore(state => state.audio);
-  // const play = useAnthologyStore(state => state.play); // TODO: Phase 5 audio
-  const pause = useAnthologyStore(state => state.pause);
-  const shufflePlay = useAnthologyStore(state => state.shufflePlay);
+  const currentTrack = useAnthologyStore(state => state.audio.currentTrack);
 
   // Get the question data
   const question = activeQuestion ? questionNodes.get(activeQuestion) : null;
@@ -42,16 +40,6 @@ export const QuestionView = memo(() => {
     hoverNode(responseId);
   }, [hoverNode]);
 
-  const handlePlay = useCallback(() => {
-    if (responseIds.length > 0) {
-      shufflePlay(responseIds);
-    }
-  }, [responseIds, shufflePlay]);
-
-  const handlePause = useCallback(() => {
-    pause();
-  }, [pause]);
-
   if (!question) {
     return (
       <div className={styles.emptyState}>
@@ -60,25 +48,22 @@ export const QuestionView = memo(() => {
     );
   }
 
-  const isPlaying = audioState.playbackState === 'playing' &&
-                    audioState.playbackMode === 'shuffle' &&
-                    responseIds.includes(audioState.currentTrack || '');
-
   return (
     <div className={styles.container}>
       <div className={styles.questionSection}>
         <h3 className={styles.questionText}>{question.question_text}</h3>
 
         {responses.length > 0 && (
-          <MedleyPlayButton
-            responseIds={responseIds}
-            isPlaying={isPlaying}
-            currentPlayingId={audioState.currentTrack}
-            onPlay={handlePlay}
-            onPause={handlePause}
-          />
+          <MedleyPlayer responseIds={responseIds} />
         )}
       </div>
+
+      {/* Karaoke Display - Shows when audio is playing */}
+      {currentTrack && (
+        <div className={styles.karaokeSection}>
+          <KaraokeDisplay responseId={currentTrack} />
+        </div>
+      )}
 
       <div className={styles.responsesSection}>
         {responses.length === 0 ? (

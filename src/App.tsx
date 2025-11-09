@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { MapCanvas } from '@components/Map';
 import { CommentRail } from '@components/Rail';
 import { Tooltip } from '@components/UI/Tooltip';
+import { AudioManager } from '@components/Audio/AudioManager';
 import { useAnthologyStore, useInteractionStore } from '@stores';
 import './App.css';
 
@@ -86,6 +87,9 @@ function App() {
 
   return (
     <div className="app">
+      {/* Global audio manager - handles all audio playback */}
+      <AudioManager />
+
       <header className="app-header">
         <h1>Anthology</h1>
         <p className="subtitle">Community Stories Visualized</p>

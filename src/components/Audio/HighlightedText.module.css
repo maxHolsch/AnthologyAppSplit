@@ -1,0 +1,38 @@
+/**
+ * HighlightedText Styles
+ * Styling for word-level audio-synced text highlighting
+ */
+
+.plainText {
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--text-primary, #1a1a1a);
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.highlightedText {
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--text-primary, #1a1a1a);
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.word {
+  display: inline;
+  transition: background-color 0.15s ease, color 0.15s ease;
+  border-radius: 2px;
+  padding: 2px 0;
+}
+
+.word.active {
+  background-color: var(--highlight-bg, #ffeb3b);
+  color: var(--highlight-text, #000);
+  font-weight: 500;
+}
+
+/* Confidence indicator (optional visual feedback) */
+.word[data-confidence="low"] {
+  opacity: 0.8;
+}

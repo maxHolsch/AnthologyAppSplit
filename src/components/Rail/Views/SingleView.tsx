@@ -2,20 +2,17 @@
  * SingleView - Full display of a single response with audio playback
  */
 
-import { memo, useCallback, useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { useAnthologyStore } from '@stores';
 import { QuestionContext } from '../Components/QuestionContext';
-import { ResponsePlayButton } from '../Components/ResponsePlayButton';
+import { AudioPlayer } from '@components/Audio/AudioPlayer';
+import { HighlightedText } from '@components/Audio/HighlightedText';
 import styles from './SingleView.module.css';
 
 export const SingleView = memo(() => {
   const activeResponse = useAnthologyStore(state => state.view.activeResponse);
   const responseNodes = useAnthologyStore(state => state.data.responseNodes);
   const questionNodes = useAnthologyStore(state => state.data.questionNodes);
-  const audioState = useAnthologyStore(state => state.audio);
-  const play = useAnthologyStore(state => state.play);
-  const pause = useAnthologyStore(state => state.pause);
-  const seek = useAnthologyStore(state => state.seek);
 
   // Get the response data
   const response = activeResponse ? responseNodes.get(activeResponse) : null;
@@ -26,20 +23,6 @@ export const SingleView = memo(() => {
     return questionNodes.get(response.responds_to);
   }, [response, questionNodes]);
 
-  const handlePlay = useCallback(() => {
-    if (response) {
-      play(response.id);
-    }
-  }, [response, play]);
-
-  const handlePause = useCallback(() => {
-    pause();
-  }, [pause]);
-
-  const handleSeek = useCallback((time: number) => {
-    seek(time);
-  }, [seek]);
-
   if (!response) {
     return (
       <div className={styles.emptyState}>
@@ -47,20 +30,6 @@ export const SingleView = memo(() => {
       </div>
     );
   }
-
-  const isPlaying = audioState.playbackState === 'playing' &&
-                    audioState.currentTrack === response.id;
-  const duration = response.audio_end - response.audio_start;
-
-  // TODO: Implement word-level highlighting based on transcript timestamps
-  // For now, just display the text
-  const renderResponseText = () => {
-    return (
-      <div className={styles.responseText}>
-        {response.speaker_text}
-      </div>
-    );
-  };
 
   return (
     <div className={styles.container}>
@@ -73,17 +42,11 @@ export const SingleView = memo(() => {
           <h3 className={styles.speakerName}>{response.speaker_name}</h3>
         </div>
 
-        <ResponsePlayButton
-          response={response}
-          isPlaying={isPlaying}
-          currentTime={audioState.currentTime}
-          duration={duration}
-          onPlay={handlePlay}
-          onPause={handlePause}
-          onSeek={handleSeek}
-        />
+        <AudioPlayer response={response} />
 
-        {renderResponseText()}
+        <div className={styles.responseText}>
+          <HighlightedText response={response} />
+        </div>
       </div>
     </div>
   );

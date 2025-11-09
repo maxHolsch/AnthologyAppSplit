@@ -19,6 +19,15 @@
   margin: 0 0 var(--spacing-md, 16px) 0;
 }
 
+.karaokeSection {
+  width: 100%;
+  margin-bottom: var(--spacing-lg, 32px);
+  padding: var(--spacing-md, 16px);
+  background-color: rgba(0, 0, 0, 0.02);
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
 .responsesSection {
   width: 100%;
 }

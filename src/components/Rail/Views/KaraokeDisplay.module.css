@@ -1,0 +1,133 @@
+/**
+ * KaraokeDisplay Styles
+ * Matches Figma Frame 155 design specifications
+ */
+
+.container {
+  /* Frame 155 layout */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 0;
+  gap: 24px;
+  width: 100%;
+  max-width: 316px;
+}
+
+/* Speaker Section - Group 3824 */
+.speakerSection {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 21px;
+}
+
+.speakerIndicator {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.speakerName {
+  font-family: 'Hedvig Letters Sans', sans-serif;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 133%; /* 21px */
+  color: #000000;
+}
+
+/* Question Context Box - Rail Question Embed */
+.questionContext {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  padding: 16px;
+  gap: 10px;
+  width: 100%;
+  border: 1px solid #F2F2F2;
+  border-radius: 8px;
+}
+
+.questionText {
+  width: 100%;
+  margin: 0;
+  font-family: 'Hedvig Letters Sans', sans-serif;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 12px;
+  line-height: 140%; /* 17px */
+  color: rgba(0, 0, 0, 0.5);
+  opacity: 0.8;
+}
+
+/* Karaoke Text Area */
+.textArea {
+  width: 100%;
+  max-height: 456px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.karaokeText,
+.plainText {
+  margin: 0;
+  font-family: 'Hedvig Letters Sans', sans-serif;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 170%; /* 24px */
+  color: rgba(0, 0, 0, 0.8);
+  word-wrap: break-word;
+}
+
+/* Individual Word Styling */
+.word {
+  display: inline;
+  transition: all 200ms ease-in-out;
+  opacity: 0.8;
+}
+
+/* Active Word Highlight */
+.word.active {
+  opacity: 1;
+  background-color: rgba(255, 235, 59, 0.4); /* Yellow highlight */
+  color: rgba(0, 0, 0, 0.95);
+  font-weight: 500;
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+
+/* Low confidence words - slightly faded */
+.word[data-confidence] {
+  opacity: calc(0.6 + (attr(data-confidence number) * 0.4));
+}
+
+/* Scrollbar Styling */
+.textArea::-webkit-scrollbar {
+  width: 6px;
+}
+
+.textArea::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 3px;
+}
+
+.textArea::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+}
+
+.textArea::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .word {
+    transition: none;
+  }
+}
