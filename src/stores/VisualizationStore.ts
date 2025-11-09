@@ -75,11 +75,12 @@ export const useVisualizationStore = create<VisualizationStoreType>()(
           .force('collision', d3.forceCollide()
             .radius((d: any) => {
               // Optimized radii to match visual sizes and prevent overlap
-              if (d.type === 'question') return 100; // Increased for text width coverage
+              // Increased question radius for better spacing between questions
+              if (d.type === 'question') return 130; // Increased from 90 for more spacing between questions
               if (d.data?.pull_quote) return 120; // ~half of 204px width for pull quote rectangles
               return 10; // Close to 7px visual radius for standard circle nodes
             })
-            .strength(0.9)) // Strong collision to prevent overlap
+            .strength(0.95)) // Increased collision strength to enforce spacing
           .force('x', d3.forceX(centerX).strength(0.02)) // Very weak X centering
           .force('y', d3.forceY(centerY).strength(0.02)); // Very weak Y centering
 
