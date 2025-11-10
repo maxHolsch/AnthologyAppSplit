@@ -36,7 +36,7 @@ export const QuestionTile = memo<QuestionTileProps>(({ question, onClick }) => {
       <p className={styles.questionText}>{question.question_text}</p>
       {question.related_responses && (
         <span className={styles.responseCount}>
-          {question.related_responses.length} {question.related_responses.length === 1 ? 'response' : 'responses'}
+          {question.related_responses.length} {question.related_responses.length === 1 ? 'EXCERPT' : 'EXCERPTS'}
         </span>
       )}
     </div>

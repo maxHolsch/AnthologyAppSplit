@@ -18,8 +18,8 @@
   "conversations": [
     {
       "conversation_id": "conv_ca766496",
-      "audio_file": "https://github.com/maxHolsch/Anthology/blob/7ad9bacc1d7e234971fb6d8786d20c20dde17975/recordings/6798.mp3",
-      "duration": "TODO",
+      "audio_file": "./recordings/6798.mp3",
+      "duration": 2754108,
       "color": "#4A90E2",
       "metadata": {
         "title": "Chica Project Peer Leaders December 2024",
@@ -18669,7 +18669,7 @@
     {
       "type": "response",
       "id": "r_021",
-      "responds_to": "q_003)",
+      "responds_to": "q_003",
       "speaker_name": "Christelle",
       "speaker_text": "I could start. So I worry about careers. I'm almost done with my master's, and I do plan to leave my current job. But the way that I see that people are struggling to get jobs, it makes me nervous, and it just makes me kind of depressed that I potentially. I'm working so hard to get something that would help me get a job, but I might not be able to even get a raise from my job for getting another degree. So that kind of makes me sad. I wish there was more financial support in Boston because Boston is just so expensive. And I don't think, like, I don't think Boston offers enough support, especially for young adult. I will pass it on to. You know.",
       "pull_quote": null,
@@ -27643,10 +27643,10 @@
     {
       "type": "response",
       "id": "r_028",
-      "responds_to": "q_004)",
+      "responds_to": "q_004",
       "speaker_name": "Christelle",
       "speaker_text": "I would say definitely more opportunities for young adults, like just showing them things like, what does it mean to start a retirement fund? Because I think most of us, we don't see ourselves retiring. Like, we're just gonna have to work and, you know, hopefully we don't die. But there's Nothing we can do because we're just not rich. I would, yeah, I would say definitely help for young adults. And in terms of healthcare, I do think Boston is lacking a lot with healthcare. Like, you'll call to book an appointment and they're like, we don't have anything until next year. And it's like, do you guys not have doctors? But that's another rant what I think Chica could help with maybe like someone in my shoes. And Miliani, who's also graduating next year. I'm sure job. Looking for a job is already stressful. So I would say having a career fair just so we could have like more of a network session from other companies. And I will pass it on to Miliani.",
-      "pull_quote": null,
+      "pull_quote": "testing Testing Testing!!!",
       "audio_start": 1913430,
       "audio_end": 1980310,
       "conversation_id": "conv_ca766496",
@@ -34888,7 +34888,7 @@
     {
       "type": "response",
       "id": "r_037",
-      "responds_to": "q_005)",
+      "responds_to": "q_005",
       "speaker_name": "Abby",
       "speaker_text": "I'm hearing a lot of people came to Boston for like a better education and better jobs.",
       "pull_quote": null,

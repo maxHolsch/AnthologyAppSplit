@@ -29,6 +29,7 @@ export const ConversationsView = memo(() => {
 
   return (
     <div className={styles.container}>
+      <p className={styles.sectionHeader}>QUESTIONS</p>
       <div className={styles.questionList}>
         {questions.map(question => (
           <QuestionTile

@@ -42,26 +42,35 @@ export function PullQuoteNode({ node, onClick, onMouseEnter, onMouseLeave }: Pul
     opacity = isSelected ? 1 : 0.3; // 30% for unselected
   }
 
-  // Dimensions from Figma
-  const width = 204;
-  const height = 146;
-  const padding = 12;
-  const borderRadius = 8;
-  const textWidth = 180;
-
   // Get pull quote text from node data
   const pullQuoteText = node.data.type === 'response' ? (node.data.pull_quote || '') : '';
 
-  // Split text into lines (simplified - real implementation would need proper text wrapping)
-  const lines = useMemo(() => {
+  // Constants for sizing
+  const padding = 16; // Horizontal and vertical padding
+  const borderRadius = 8;
+  const fontSize = 12;
+  const lineHeight = 16.8;
+  const charWidth = 7; // Approximate width per character in px at fontSize 12
+
+  // Calculate dynamic dimensions based on text content
+  const { width, height, lines } = useMemo(() => {
     const text = pullQuoteText;
     const words = text.split(' ');
     const lines: string[] = [];
     let currentLine = '';
 
-    // Approximate word wrapping (12 chars ≈ 1 word average)
-    const maxCharsPerLine = 30;
+    // Minimum dimensions
+    const minWidth = 150;
+    const minHeight = 80;
 
+    // Calculate optimal width based on text length
+    // Aim for ~30-40 characters per line for readability
+    const idealCharsPerLine = 35;
+
+    // Calculate approximate chars per line to fit within ratio constraint
+    let maxCharsPerLine = idealCharsPerLine;
+
+    // Wrap text into lines
     words.forEach((word: string) => {
       if ((currentLine + word).length > maxCharsPerLine && currentLine.length > 0) {
         lines.push(currentLine.trim());
@@ -75,7 +84,56 @@ export function PullQuoteNode({ node, onClick, onMouseEnter, onMouseLeave }: Pul
       lines.push(currentLine.trim());
     }
 
-    return lines;
+    // Calculate dimensions based on content
+    const longestLine = lines.reduce((max, line) => Math.max(max, line.length), 0);
+    let textWidth = Math.max(longestLine * charWidth, minWidth - (padding * 2));
+    let contentWidth = textWidth + (padding * 2);
+
+    const numLines = lines.length;
+    let contentHeight = (numLines * lineHeight) + (padding * 2);
+    contentHeight = Math.max(contentHeight, minHeight);
+
+    // Apply 3:1 ratio constraint (width ≤ 3 * height)
+    const maxWidth = contentHeight * 3;
+    if (contentWidth > maxWidth) {
+      // Need to reflow text to fit ratio constraint
+      contentWidth = maxWidth;
+      textWidth = contentWidth - (padding * 2);
+
+      // Re-wrap text with new width constraint
+      const newMaxCharsPerLine = Math.floor(textWidth / charWidth);
+      lines.length = 0; // Clear array
+      currentLine = '';
+
+      words.forEach((word: string) => {
+        if ((currentLine + word).length > newMaxCharsPerLine && currentLine.length > 0) {
+          lines.push(currentLine.trim());
+          currentLine = word + ' ';
+        } else {
+          currentLine += word + ' ';
+        }
+      });
+
+      if (currentLine.trim().length > 0) {
+        lines.push(currentLine.trim());
+      }
+
+      // Recalculate height with new line count
+      contentHeight = (lines.length * lineHeight) + (padding * 2);
+      contentHeight = Math.max(contentHeight, minHeight);
+
+      // Ensure we still meet the ratio after recalculation
+      if (contentWidth > contentHeight * 3) {
+        contentWidth = contentHeight * 3;
+        textWidth = contentWidth - (padding * 2);
+      }
+    }
+
+    return {
+      width: contentWidth,
+      height: contentHeight,
+      lines
+    };
   }, [pullQuoteText]);
 
   const handleClick = (e: React.MouseEvent) => {
@@ -177,11 +235,11 @@ export function PullQuoteNode({ node, onClick, onMouseEnter, onMouseLeave }: Pul
         />
       )}
 
-      {/* Pull quote text */}
+      {/* Pull quote text - left-justified with 16px padding */}
       <text
         textAnchor="start"
         dominantBaseline="hanging"
-        fontSize={12}
+        fontSize={fontSize}
         fontFamily="Hedvig Letters Sans, sans-serif"
         fontWeight={400}
         fill={colors.textColor}
@@ -193,8 +251,8 @@ export function PullQuoteNode({ node, onClick, onMouseEnter, onMouseLeave }: Pul
         {lines.map((line, i) => (
           <tspan
             key={i}
-            x={-textWidth / 2}
-            dy={i === 0 ? padding : 16.8} // First line offset by padding, others by line-height
+            x={-width / 2 + padding}
+            dy={i === 0 ? padding : lineHeight}
           >
             {line}
           </tspan>

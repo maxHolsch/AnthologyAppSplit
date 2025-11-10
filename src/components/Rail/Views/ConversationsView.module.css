@@ -2,12 +2,24 @@
 
 .container {
   width: 100%;
+  background-color: #ffffff; /* Ensure white background per Figma */
+}
+
+.sectionHeader {
+  font-family: 'Hedvig Letters Sans', -apple-system, sans-serif;
+  font-size: 11px; /* Match Figma: 11px */
+  line-height: 1.4;
+  color: rgba(0, 0, 0, 0.7); /* 70% opacity per Figma */
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 27px 0; /* Space before question list */
+  font-weight: 400; /* Regular weight */
 }
 
 .questionList {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-sm, 12px);
+  gap: 24px; /* Match Figma: 24px spacing between tiles */
 }
 
 .emptyState {

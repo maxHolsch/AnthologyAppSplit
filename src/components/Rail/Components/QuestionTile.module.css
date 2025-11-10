@@ -1,19 +1,26 @@
 /* QuestionTile styles - Based on Figma design */
+/* Visual Reference: https://www.figma.com/design/8rPqQMt3PEL7MhKhWqtSre/Anthology-III?node-id=94-17536&m=dev */
 
 .tile {
-  background-color: white;
-  border: 1px solid var(--color-border-light, rgba(0, 0, 0, 0.1));
-  border-radius: var(--radius-md, 8px);
-  padding: var(--spacing-md, 16px);
+  /* No background - tiles should be transparent and blend with parent */
+  /* No border or border-radius - seamless appearance */
+  /* No padding - content should be flush */
   cursor: pointer;
   transition: all var(--transition-base, 150ms ease);
   position: relative;
+  /* Add bottom border for subtle separation */
+  border-bottom: 1px solid #ebebeb;
+  padding-bottom: 24px; /* Space before the divider line */
 }
 
+/* Last tile should not have a bottom border */
+.tile:last-child {
+  border-bottom: none;
+}
+
+/* Minimal hover state - no background or shadow changes */
 .tile:hover {
-  background-color: rgba(255, 255, 255, 0.8);
-  border-color: var(--color-border, rgba(0, 0, 0, 0.2));
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  /* Keep it subtle - no background or shadow */
 }
 
 .tile:focus-visible {
@@ -26,16 +33,23 @@
 }
 
 .questionText {
-  font-family: var(--font-primary, 'Hedvig Letters Sans', -apple-system, sans-serif);
-  font-size: var(--text-question, 16px);
-  font-weight: 500;
-  line-height: 1.5;
-  color: var(--color-text-primary, #000000);
-  margin: 0 0 var(--spacing-xs, 4px) 0;
+  font-family: 'Hedvig Letters Sans', -apple-system, sans-serif;
+  font-size: 13px; /* Match Figma: 13px */
+  font-weight: 400; /* Regular weight per Figma */
+  line-height: 1.4; /* Match Figma: 1.4 line height */
+  color: #000000; /* Pure black per Figma */
+  margin: 0 0 16px 0; /* 16px gap between question and response count per Figma */
+  max-width: 262px; /* Match Figma max width */
 }
 
 .responseCount {
-  font-size: var(--text-small, 12px);
-  color: var(--color-text-secondary, rgba(0, 0, 0, 0.6));
+  font-family: 'Hedvig Letters Sans', -apple-system, sans-serif;
+  font-size: 11px; /* Match Figma: 11px */
+  line-height: 1.4;
+  color: rgba(0, 0, 0, 0.4); /* 40% opacity per Figma */
   font-weight: 400;
+  text-transform: uppercase; /* EXCERPTS text is uppercase in Figma */
+  letter-spacing: 0.5px; /* Slight letter spacing for uppercase text */
 }
+
+/* Icon styling - can be added via component if needed */
