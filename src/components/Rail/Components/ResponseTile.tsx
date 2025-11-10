@@ -1,6 +1,6 @@
 /**
  * ResponseTile - Response preview card for the QuestionView
- * Visual Reference: https://www.figma.com/design/3RRAJtxVKX0kbSZT8ouJWa/Anthology-III?node-id=94-17579&m=dev
+ * Visual Reference: https://www.figma.com/design/8rPqQMt3PEL7MhKhWqtSre/Anthology-III--Copy-?node-id=94-17579
  */
 
 import { memo, useCallback } from 'react';
@@ -12,9 +12,15 @@ interface ResponseTileProps {
   response: ResponseNode;
   onClick: (responseId: string) => void;
   onHover: (responseId: string | null) => void;
+  showSeparator?: boolean;
 }
 
-export const ResponseTile = memo<ResponseTileProps>(({ response, onClick, onHover }) => {
+export const ResponseTile = memo<ResponseTileProps>(({
+  response,
+  onClick,
+  onHover,
+  showSeparator = false
+}) => {
   const colorAssignments = useAnthologyStore(state => state.data.colorAssignments);
   const conversationColor = colorAssignments.get(response.conversation_id)?.color || '#999999';
 
@@ -37,44 +43,66 @@ export const ResponseTile = memo<ResponseTileProps>(({ response, onClick, onHove
     }
   }, [onClick, response.id]);
 
-  // Truncate text for preview (approximately 100 characters)
-  const previewText = response.speaker_text.length > 100
-    ? response.speaker_text.substring(0, 100) + '...'
-    : response.speaker_text;
+  // Format duration from audio timestamps
+  const getDuration = () => {
+    if (response.audio_start !== undefined && response.audio_end !== undefined) {
+      const durationMs = response.audio_end - response.audio_start;
+      const seconds = Math.floor(durationMs / 1000);
+      const minutes = Math.floor(seconds / 60);
+      const remainingSeconds = seconds % 60;
+      return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+    }
+    return '0:30'; // Fallback
+  };
+
+  // Truncate text for preview - show more text per Figma
+  const previewText = response.speaker_text.length > 200
+    ? `"...${response.speaker_text.substring(0, 200)}..."`
+    : `"...${response.speaker_text}..."`;
 
   return (
-    <div
-      className={styles.tile}
-      style={{ borderLeftColor: conversationColor }}
-      onClick={handleClick}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-      onKeyDown={handleKeyDown}
-      role="button"
-      tabIndex={0}
-      aria-label={`Response by ${response.speaker_name}`}
-    >
-      <div className={styles.content}>
-        <div className={styles.speakerName}>{response.speaker_name}</div>
+    <>
+      <div
+        className={styles.tile}
+        onClick={handleClick}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        onKeyDown={handleKeyDown}
+        role="button"
+        tabIndex={0}
+        aria-label={`Response by ${response.speaker_name}`}
+      >
+        {/* Speaker Badge with colored dot */}
+        <div className={styles.speakerBadge}>
+          <div
+            className={styles.colorDot}
+            style={{ backgroundColor: conversationColor }}
+          />
+          <span className={styles.speakerName}>{response.speaker_name}</span>
+        </div>
+
+        {/* Play Button with Duration */}
+        <div className={styles.playButton}>
+          <svg
+            className={styles.playIcon}
+            width="12"
+            height="12"
+            viewBox="0 0 12 12"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path d="M3 1.5L10 6L3 10.5V1.5Z" fill="currentColor" />
+          </svg>
+          <span className={styles.duration}>{getDuration()}</span>
+        </div>
+
+        {/* Preview Text */}
         <p className={styles.previewText}>{previewText}</p>
       </div>
-      <div className={styles.playIconContainer}>
-        <svg
-          className={styles.playIcon}
-          width="20"
-          height="20"
-          viewBox="0 0 20 20"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <circle cx="10" cy="10" r="9" stroke="currentColor" strokeWidth="1.5" />
-          <path
-            d="M8 6.5L13.5 10L8 13.5V6.5Z"
-            fill="currentColor"
-          />
-        </svg>
-      </div>
-    </div>
+
+      {/* Separator Line */}
+      {showSeparator && <div className={styles.separator} />}
+    </>
   );
 });
 

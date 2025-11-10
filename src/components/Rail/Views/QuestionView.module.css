@@ -1,53 +1,95 @@
-/* QuestionView styles */
+/* QuestionView styles - Based on Figma design */
 
 .container {
   width: 100%;
+  background-color: #ffffff;
+  position: relative;
 }
 
-.questionSection {
-  margin-bottom: var(--spacing-lg, 32px);
-  padding-bottom: var(--spacing-lg, 32px);
-  border-bottom: 1px solid var(--color-border-light, rgba(0, 0, 0, 0.05));
+/* Back Button Container */
+.backButtonContainer {
+  padding: 32px 32px 0 32px;
+  margin-bottom: 20px;
 }
 
+/* Section Label - "Question" */
+.sectionLabel {
+  font-family: 'Hedvig Letters Sans', -apple-system, sans-serif;
+  font-size: 11px;
+  line-height: 1.4;
+  color: rgba(0, 0, 0, 0.4); /* 40% opacity per Figma */
+  text-transform: none; /* No uppercase for "Question" label */
+  letter-spacing: 0;
+  margin: 0 0 8px 32px; /* Small gap between label and question text */
+  font-weight: 400;
+  padding: 0;
+}
+
+/* Question Text */
 .questionText {
-  font-family: var(--font-primary, 'Hedvig Letters Sans', -apple-system, sans-serif);
-  font-size: var(--text-question, 16px);
-  font-weight: 600;
-  color: var(--color-text-primary, #000000);
-  line-height: 1.5;
-  margin: 0 0 var(--spacing-md, 16px) 0;
+  font-family: 'Hedvig Letters Sans', -apple-system, sans-serif;
+  font-size: 16px;
+  font-weight: 400; /* Regular weight per Figma */
+  color: #000000;
+  line-height: 1.33; /* ~21px line height per Figma */
+  margin: 0 0 22px 0; /* Gap between question and play button */
+  padding: 0 32px;
+  white-space: pre-wrap;
 }
 
+/* Large Play Button Container */
+.playButtonContainer {
+  padding: 0 32px;
+  margin-bottom: 32px;
+}
+
+/* Karaoke Display Section */
 .karaokeSection {
   width: 100%;
-  margin-bottom: var(--spacing-lg, 32px);
-  padding: var(--spacing-md, 16px);
+  margin-bottom: 24px;
+  padding: 16px 32px;
   background-color: rgba(0, 0, 0, 0.02);
   border-radius: 8px;
   border: 1px solid rgba(0, 0, 0, 0.05);
 }
 
+/* Responses Section Label */
+.responsesLabel {
+  font-family: 'Hedvig Letters Sans', -apple-system, sans-serif;
+  font-size: 11px;
+  line-height: 1.4;
+  color: rgba(0, 0, 0, 0.7); /* 70% opacity per Figma */
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 27px 0; /* Match ConversationsView spacing */
+  padding: 0 32px;
+  font-weight: 400;
+}
+
+/* Responses Container */
 .responsesSection {
   width: 100%;
 }
 
+/* Response List */
 .responseList {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-sm, 8px);
+  gap: 24px; /* Spacing between response tiles */
+  padding: 0 32px 32px 32px; /* Bottom padding for scroll */
 }
 
+/* Empty State */
 .emptyState {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: var(--spacing-xl, 48px) var(--spacing-md, 16px);
+  padding: 48px 16px;
   text-align: center;
 }
 
 .emptyState p {
-  color: var(--color-text-secondary, rgba(0, 0, 0, 0.6));
-  font-size: var(--text-body, 14px);
+  color: rgba(0, 0, 0, 0.6);
+  font-size: 14px;
   margin: 0;
 }
