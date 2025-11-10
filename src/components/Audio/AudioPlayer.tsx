@@ -102,12 +102,16 @@ export const AudioPlayer = memo<AudioPlayerProps>(({ response }) => {
       // Load audio if needed
       if (audioElement.src !== audioFilePath) {
         audioElement.src = audioFilePath;
-      }
-
-      // Set position to segment start if not in segment
-      const currentTimeMs = audioElement.currentTime * 1000;
-      if (currentTimeMs < audio_start || currentTimeMs >= audio_end) {
+        // Only reset to start when loading new audio file
         audioElement.currentTime = audio_start / 1000;
+      } else {
+        // Only reset if we're completely outside the segment (not just paused mid-segment)
+        const currentTimeMs = audioElement.currentTime * 1000;
+        // If we're before the start OR significantly after the end, reset to start
+        if (currentTimeMs < audio_start || currentTimeMs > audio_end + 100) {
+          audioElement.currentTime = audio_start / 1000;
+        }
+        // Otherwise, resume from current position (paused state)
       }
 
       // Start playback

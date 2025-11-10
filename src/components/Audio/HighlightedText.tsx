@@ -53,8 +53,8 @@ export const HighlightedText = memo<HighlightedTextProps>(({ response }) => {
           data-confidence={word.confidence}
         >
           {word.text}
-          {/* Add space if word doesn't already have trailing punctuation/space */}
-          {!/[\s,.\!?\-;:]$/.test(word.text) && ' '}
+          {/* Always add space after each word for proper spacing */}
+          {' '}
         </span>
       ))}
     </div>

@@ -8,3 +8,4 @@ export { ResponseTile } from './ResponseTile';
 export { QuestionContext } from './QuestionContext';
 export { MedleyPlayButton } from './MedleyPlayButton';
 export { ResponsePlayButton } from './ResponsePlayButton';
+export { SpeakerHeader } from './SpeakerHeader';
