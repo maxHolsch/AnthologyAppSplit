@@ -20,6 +20,7 @@ export const SingleView = memo(() => {
   const conversations = useAnthologyStore(state => state.data.conversations);
   const speakerColorAssignments = useAnthologyStore(state => state.data.speakerColorAssignments);
   const setRailMode = useAnthologyStore(state => state.setRailMode);
+  const setActiveQuestion = useAnthologyStore(state => state.setActiveQuestion);
   const zoomToFullMap = useAnthologyStore(state => state.zoomToFullMap);
 
   // Get the response data
@@ -67,6 +68,8 @@ export const SingleView = memo(() => {
         // Match selectQuestion behavior: 1.5x scale for question + responses
         centerOnNode(position.x, position.y, 1.5, 750);
       }
+      // Set the active question so QuestionView displays properly
+      setActiveQuestion(parentQuestion.id);
       setRailMode('question');
     } else {
       // Zoom out to full map view
