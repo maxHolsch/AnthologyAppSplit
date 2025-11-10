@@ -5,6 +5,7 @@
 import { memo, useCallback } from 'react';
 import { useAnthologyStore } from '@stores';
 import { QuestionTile } from '../Components/QuestionTile';
+import AnthologyIcon from '../../../assets/icon.svg';
 import styles from './ConversationsView.module.css';
 
 export const ConversationsView = memo(() => {
@@ -29,6 +30,10 @@ export const ConversationsView = memo(() => {
 
   return (
     <div className={styles.container}>
+      <img src={AnthologyIcon} alt="Anthology" className={styles.logo} />
+      <h1 className={styles.mainTitle}>
+        What does the city of Boston sound like unscripted?
+      </h1>
       <p className={styles.sectionHeader}>QUESTIONS</p>
       <div className={styles.questionList}>
         {questions.map(question => (

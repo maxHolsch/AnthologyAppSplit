@@ -4,13 +4,13 @@
 .tile {
   /* No background - tiles should be transparent and blend with parent */
   /* No border or border-radius - seamless appearance */
-  /* No padding - content should be flush */
   cursor: pointer;
   transition: all var(--transition-base, 150ms ease);
   position: relative;
   /* Add bottom border for subtle separation */
   border-bottom: 1px solid #ebebeb;
-  padding-bottom: 24px; /* Space before the divider line */
+  padding-bottom: 32px; /* Space before the divider line */
+  width: 100%; /* Full width of container */
 }
 
 /* Last tile should not have a bottom border */
@@ -34,12 +34,13 @@
 
 .questionText {
   font-family: 'Hedvig Letters Sans', -apple-system, sans-serif;
-  font-size: 13px; /* Match Figma: 13px */
+  font-size: 15px; /* Slightly larger for better readability */
   font-weight: 400; /* Regular weight per Figma */
-  line-height: 1.4; /* Match Figma: 1.4 line height */
+  line-height: 1.5; /* Better line height for readability */
   color: #000000; /* Pure black per Figma */
   margin: 0 0 16px 0; /* 16px gap between question and response count per Figma */
-  max-width: 262px; /* Match Figma max width */
+  max-width: 100%; /* Use full width available */
+  word-wrap: break-word;
 }
 
 .responseCount {
@@ -50,6 +51,13 @@
   font-weight: 400;
   text-transform: uppercase; /* EXCERPTS text is uppercase in Figma */
   letter-spacing: 0.5px; /* Slight letter spacing for uppercase text */
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
-/* Icon styling - can be added via component if needed */
+.dotIcon {
+  width: 7px;
+  height: 7px;
+  flex-shrink: 0;
+}

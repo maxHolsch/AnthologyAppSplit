@@ -1,8 +1,29 @@
-/* ConversationsView styles */
+/* ConversationsView styles - Based on Figma design */
 
 .container {
   width: 100%;
-  background-color: #ffffff; /* Ensure white background per Figma */
+  background-color: #ffffff; /* Pure white background per Figma */
+  position: relative;
+}
+
+.logo {
+  width: 24px;
+  height: 24px;
+  position: absolute;
+  top: 32px;
+  left: 32px;
+}
+
+.mainTitle {
+  font-family: 'Hedvig Letters Sans', -apple-system, sans-serif;
+  font-size: 20px; /* Match Figma: 20px */
+  line-height: 1.33;
+  color: #000000;
+  font-weight: 400; /* Regular weight */
+  margin: 0;
+  padding: 80px 32px 0 32px; /* Top padding positions it correctly, left/right padding 32px */
+  max-width: 320px; /* Increased width for longer text */
+  white-space: pre-wrap;
 }
 
 .sectionHeader {
@@ -12,14 +33,15 @@
   color: rgba(0, 0, 0, 0.7); /* 70% opacity per Figma */
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  margin: 0 0 27px 0; /* Space before question list */
+  margin: 40px 32px 27px 32px; /* Spacing from title to section header */
   font-weight: 400; /* Regular weight */
 }
 
 .questionList {
   display: flex;
   flex-direction: column;
-  gap: 24px; /* Match Figma: 24px spacing between tiles */
+  gap: 32px; /* Increased spacing between tiles per Figma */
+  padding: 0 32px; /* Left/right padding to align with design */
 }
 
 .emptyState {

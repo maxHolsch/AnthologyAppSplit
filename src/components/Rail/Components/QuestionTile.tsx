@@ -5,6 +5,7 @@
 
 import { memo } from 'react';
 import type { QuestionNode } from '@types';
+import DotIcon from '../../../assets/dot.svg';
 import styles from './QuestionTile.module.css';
 
 interface QuestionTileProps {
@@ -35,9 +36,10 @@ export const QuestionTile = memo<QuestionTileProps>(({ question, onClick }) => {
     >
       <p className={styles.questionText}>{question.question_text}</p>
       {question.related_responses && (
-        <span className={styles.responseCount}>
-          {question.related_responses.length} {question.related_responses.length === 1 ? 'EXCERPT' : 'EXCERPTS'}
-        </span>
+        <div className={styles.responseCount}>
+          <img src={DotIcon} alt="" className={styles.dotIcon} />
+          <span>{question.related_responses.length} {question.related_responses.length === 1 ? 'EXCERPT' : 'EXCERPTS'}</span>
+        </div>
       )}
     </div>
   );
