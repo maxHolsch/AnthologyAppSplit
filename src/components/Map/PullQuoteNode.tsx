@@ -61,7 +61,7 @@ export function PullQuoteNode({ node, onClick, onMouseEnter, onMouseLeave }: Pul
 
     // Minimum dimensions
     const minWidth = 150;
-    const minHeight = 80;
+    // Removed minHeight to allow content to determine height with consistent padding
 
     // Calculate optimal width based on text length
     // Aim for ~30-40 characters per line for readability
@@ -90,44 +90,9 @@ export function PullQuoteNode({ node, onClick, onMouseEnter, onMouseLeave }: Pul
     let contentWidth = textWidth + (padding * 2);
 
     const numLines = lines.length;
-    let contentHeight = (numLines * lineHeight) + (padding * 2);
-    contentHeight = Math.max(contentHeight, minHeight);
-
-    // Apply 3:1 ratio constraint (width ≤ 3 * height)
-    const maxWidth = contentHeight * 3;
-    if (contentWidth > maxWidth) {
-      // Need to reflow text to fit ratio constraint
-      contentWidth = maxWidth;
-      textWidth = contentWidth - (padding * 2);
-
-      // Re-wrap text with new width constraint
-      const newMaxCharsPerLine = Math.floor(textWidth / charWidth);
-      lines.length = 0; // Clear array
-      currentLine = '';
-
-      words.forEach((word: string) => {
-        if ((currentLine + word).length > newMaxCharsPerLine && currentLine.length > 0) {
-          lines.push(currentLine.trim());
-          currentLine = word + ' ';
-        } else {
-          currentLine += word + ' ';
-        }
-      });
-
-      if (currentLine.trim().length > 0) {
-        lines.push(currentLine.trim());
-      }
-
-      // Recalculate height with new line count
-      contentHeight = (lines.length * lineHeight) + (padding * 2);
-      contentHeight = Math.max(contentHeight, minHeight);
-
-      // Ensure we still meet the ratio after recalculation
-      if (contentWidth > contentHeight * 3) {
-        contentWidth = contentHeight * 3;
-        textWidth = contentWidth - (padding * 2);
-      }
-    }
+    // Calculate actual text height: fontSize for first line + lineHeight for subsequent lines
+    const textHeight = fontSize + ((numLines - 1) * lineHeight);
+    let contentHeight = textHeight + (padding * 2);
 
     return {
       width: contentWidth,
@@ -243,6 +208,7 @@ export function PullQuoteNode({ node, onClick, onMouseEnter, onMouseLeave }: Pul
         fontFamily="Hedvig Letters Sans, sans-serif"
         fontWeight={400}
         fill={colors.textColor}
+        y={-height / 2 + padding}
         style={{
           userSelect: 'none',
           pointerEvents: 'none',
@@ -252,7 +218,7 @@ export function PullQuoteNode({ node, onClick, onMouseEnter, onMouseLeave }: Pul
           <tspan
             key={i}
             x={-width / 2 + padding}
-            dy={i === 0 ? padding : lineHeight}
+            dy={i === 0 ? 0 : lineHeight}
           >
             {line}
           </tspan>
