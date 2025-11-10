@@ -9,6 +9,10 @@
   padding: 32px;
 }
 
+.container > :first-child {
+  margin-bottom: 24px;
+}
+
 .content {
   display: flex;
   flex-direction: column;
@@ -22,8 +26,8 @@
 }
 
 .responseText {
-  font-family: var(--font-primary, 'Hedvig Letters Sans', -apple-system, sans-serif);
-  font-size: 14px;
+  font-family: 'Hedvig Letters Sans', -apple-system, sans-serif;
+  font-size: 13px;
   line-height: 1.7;
   color: rgba(0, 0, 0, 0.8);
   min-width: 100%;

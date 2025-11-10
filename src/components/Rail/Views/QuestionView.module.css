@@ -9,18 +9,18 @@
 /* Back Button Container */
 .backButtonContainer {
   padding: 32px 32px 0 32px;
-  margin-bottom: 20px;
+  margin-bottom: 0;
 }
 
 /* Section Label - "Question" */
 .sectionLabel {
   font-family: 'Hedvig Letters Sans', -apple-system, sans-serif;
-  font-size: 11px;
+  font-size: 16px;
   line-height: 1.4;
   color: rgba(0, 0, 0, 0.4); /* 40% opacity per Figma */
   text-transform: none; /* No uppercase for "Question" label */
   letter-spacing: 0;
-  margin: 0 0 8px 32px; /* Small gap between label and question text */
+  margin: 24px 0 8px 32px; /* Gap from back button and gap to question text */
   font-weight: 400;
   padding: 0;
 }

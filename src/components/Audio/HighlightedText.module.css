@@ -4,7 +4,8 @@
  */
 
 .plainText {
-  font-size: 16px;
+  font-family: 'Hedvig Letters Sans', -apple-system, sans-serif;
+  font-size: 13px;
   line-height: 1.6;
   color: var(--text-primary, #1a1a1a);
   white-space: pre-wrap;
@@ -12,7 +13,8 @@
 }
 
 .highlightedText {
-  font-size: 16px;
+  font-family: 'Hedvig Letters Sans', -apple-system, sans-serif;
+  font-size: 13px;
   line-height: 1.6;
   color: var(--text-primary, #1a1a1a);
   white-space: pre-wrap;

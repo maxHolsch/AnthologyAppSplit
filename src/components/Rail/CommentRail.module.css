@@ -7,7 +7,6 @@
   height: 100vh;
   background-color: #ffffff; /* Pure white background per Figma */
   display: flex;
-  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.05);
   z-index: 10;
   transition: width var(--transition-smooth, 200ms ease);
 }

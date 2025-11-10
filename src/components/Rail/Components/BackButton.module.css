@@ -1,13 +1,14 @@
-/* BackButton styles - Matches Figma node-id=94-17555 */
+/* BackButton styles - Matches Figma node-id=94-17556 */
 
 .backButton {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   width: 32px;
   height: 32px;
-  padding: 0;
-  background-color: rgba(0, 0, 0, 0.05);
+  padding: 6px;
+  background-color: #F6F6F1;
   border: none;
   border-radius: 50%;
   cursor: pointer;
@@ -16,7 +17,7 @@
 }
 
 .backButton:hover {
-  background-color: rgba(0, 0, 0, 0.1);
+  background-color: #d8d8d8;
 }
 
 .backButton:focus-visible {
@@ -29,9 +30,9 @@
 }
 
 .icon {
-  width: 16px;
-  height: 16px;
-  color: rgba(0, 0, 0, 0.7);
+  width: 80%;
+  height: 80%;
+  color: rgba(0, 0, 0, 0.8);
 }
 
 .label {
