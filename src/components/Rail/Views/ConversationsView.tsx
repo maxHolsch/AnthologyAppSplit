@@ -32,7 +32,7 @@ export const ConversationsView = memo(() => {
     <div className={styles.container}>
       <img src={AnthologyIcon} alt="Anthology" className={styles.logo} />
       <h1 className={styles.mainTitle}>
-        What does the city of Boston sound like unscripted?
+        Highlights from the Chica Peer Leaders conversation
       </h1>
       <p className={styles.sectionHeader}>QUESTIONS</p>
       <div className={styles.questionList}>
