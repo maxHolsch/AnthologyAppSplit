@@ -5,6 +5,7 @@
 
 import { memo, useMemo } from 'react';
 import { useAnthologyStore } from '@stores';
+import { useVisualizationStore } from '@stores';
 import { BackButton } from '../Components/BackButton';
 import { SpeakerHeader } from '../Components/SpeakerHeader';
 import { QuestionContext } from '../Components/QuestionContext';
@@ -19,6 +20,7 @@ export const SingleView = memo(() => {
   const conversations = useAnthologyStore(state => state.data.conversations);
   const speakerColorAssignments = useAnthologyStore(state => state.data.speakerColorAssignments);
   const setRailMode = useAnthologyStore(state => state.setRailMode);
+  const zoomToFullMap = useAnthologyStore(state => state.zoomToFullMap);
 
   // Get the response data
   const response = activeResponse ? responseNodes.get(activeResponse) : null;
@@ -56,8 +58,19 @@ export const SingleView = memo(() => {
 
   const handleBack = () => {
     if (parentQuestion) {
+      // Zoom to parent question node before changing rail mode
+      const vizStore = useVisualizationStore.getState();
+      const position = vizStore.getNodePosition(parentQuestion.id);
+      const centerOnNode = vizStore.centerOnNode;
+
+      if (position && centerOnNode) {
+        // Match selectQuestion behavior: 1.5x scale for question + responses
+        centerOnNode(position.x, position.y, 1.5, 750);
+      }
       setRailMode('question');
     } else {
+      // Zoom out to full map view
+      zoomToFullMap();
       setRailMode('conversations');
     }
   };
