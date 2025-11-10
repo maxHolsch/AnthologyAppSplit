@@ -1,29 +1,36 @@
-/* QuestionContext styles */
+/* QuestionContext styles - Matches Figma node-id=211-362 */
 
-.context {
-  background-color: rgba(0, 0, 0, 0.02);
-  border-left: 2px solid var(--color-border, rgba(0, 0, 0, 0.1));
-  padding: var(--spacing-sm, 12px) var(--spacing-md, 16px);
-  margin-bottom: var(--spacing-lg, 32px);
-  border-radius: var(--radius-sm, 4px);
+.container {
+  display: flex;
+  align-items: flex-start;
+}
+
+.content {
+  border: 1px solid #f2f2f2;
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .label {
-  font-family: var(--font-primary, 'Hedvig Letters Sans', -apple-system, sans-serif);
-  font-size: var(--text-small, 12px);
-  font-weight: 500;
-  color: var(--color-text-secondary, rgba(0, 0, 0, 0.6));
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  display: block;
-  margin-bottom: var(--spacing-xs, 4px);
+  font-family: 'Hedvig Letters Sans', -apple-system, sans-serif;
+  font-size: 12px;
+  line-height: 1.4;
+  color: rgba(0, 0, 0, 0.5);
+  margin: 0;
+  font-weight: 400;
 }
 
 .questionText {
-  font-family: var(--font-primary, 'Hedvig Letters Sans', -apple-system, sans-serif);
-  font-size: var(--text-body, 14px);
-  line-height: 1.5;
-  color: var(--color-text-secondary, rgba(0, 0, 0, 0.8));
+  font-family: 'Hedvig Letters Sans', -apple-system, sans-serif;
+  font-size: 12px;
+  line-height: 1.4;
+  color: rgba(0, 0, 0, 0.8);
   margin: 0;
-  font-style: italic;
+  opacity: 0.8;
+  font-weight: 400;
 }

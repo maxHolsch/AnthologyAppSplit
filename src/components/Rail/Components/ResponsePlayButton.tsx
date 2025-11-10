@@ -26,26 +26,31 @@ export const ResponsePlayButton = memo<ResponsePlayButtonProps>(({
   onPause,
   onSeek
 }) => {
-  const progressBarRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
-  const handlePlayPause = () => {
-    if (isPlaying) {
-      onPause();
-    } else {
-      onPlay();
-    }
-  };
+  const handleClick = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
+    if (!buttonRef.current) return;
 
-  const handleProgressClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (!progressBarRef.current) return;
-
-    const rect = progressBarRef.current.getBoundingClientRect();
+    const rect = buttonRef.current.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
     const percentage = clickX / rect.width;
-    const newTime = percentage * duration;
-
-    onSeek(newTime);
-  }, [duration, onSeek]);
+    
+    // If clicked in first 44px (icon area), toggle play/pause
+    if (clickX < 44) {
+      if (isPlaying) {
+        onPause();
+      } else {
+        onPlay();
+      }
+    } else {
+      // Otherwise seek to position
+      const newTime = percentage * duration;
+      onSeek(newTime);
+      if (!isPlaying) {
+        onPlay();
+      }
+    }
+  }, [duration, onSeek, isPlaying, onPlay, onPause]);
 
   // Calculate progress percentage
   const progressPercentage = duration > 0 ? (currentTime / duration) * 100 : 0;
@@ -63,60 +68,53 @@ export const ResponsePlayButton = memo<ResponsePlayButtonProps>(({
   return (
     <div className={styles.container}>
       <button
+        ref={buttonRef}
         className={styles.playButton}
-        onClick={handlePlayPause}
+        onClick={handleClick}
         aria-label={isPlaying ? 'Pause' : 'Play'}
       >
-        {isPlaying ? (
-          <svg
-            className={styles.icon}
-            width="20"
-            height="20"
-            viewBox="0 0 20 20"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <rect x="5" y="4" width="4" height="12" fill="currentColor" />
-            <rect x="11" y="4" width="4" height="12" fill="currentColor" />
-          </svg>
-        ) : (
-          <svg
-            className={styles.icon}
-            width="20"
-            height="20"
-            viewBox="0 0 20 20"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path d="M6 4L15 10L6 16V4Z" fill="currentColor" />
-          </svg>
-        )}
-      </button>
-
-      <div className={styles.progressContainer}>
+        {/* Progress fill - fills button from left to right */}
         <div
-          ref={progressBarRef}
-          className={styles.progressBar}
-          onClick={handleProgressClick}
-          role="slider"
-          aria-label="Audio progress"
-          aria-valuemin={0}
-          aria-valuemax={duration}
-          aria-valuenow={currentTime}
-        >
-          <div
-            className={styles.progressFill}
-            style={{ width: `${progressPercentage}%` }}
-          />
-          <div
-            className={styles.progressThumb}
-            style={{ left: `${progressPercentage}%` }}
-          />
+          className={styles.progressFill}
+          style={{ width: `${progressPercentage}%` }}
+        />
+        
+        {/* Button content sits above progress fill */}
+        <div className={styles.buttonContent}>
+          {isPlaying ? (
+            <svg
+              className={styles.icon}
+              width="12"
+              height="12"
+              viewBox="0 0 12 12"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <rect x="2" y="2" width="3" height="8" fill="currentColor" />
+              <rect x="7" y="2" width="3" height="8" fill="currentColor" />
+            </svg>
+          ) : (
+            <svg
+              className={styles.icon}
+              width="12"
+              height="12"
+              viewBox="0 0 12 12"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path d="M3 1.5L10 6L3 10.5V1.5Z" fill="currentColor" />
+            </svg>
+          )}
+          
+          <span className={styles.progressContainer}>
+            {isPlaying ? 'Listening' : 'Listen'}
+          </span>
+          
+          <span className={styles.timeRemaining}>
+            {formatTime(timeRemaining)}
+          </span>
         </div>
-        <span className={styles.timeRemaining}>
-          -{formatTime(timeRemaining)}
-        </span>
-      </div>
+      </button>
     </div>
   );
 });
