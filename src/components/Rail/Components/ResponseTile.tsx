@@ -21,8 +21,14 @@ export const ResponseTile = memo<ResponseTileProps>(({
   onHover,
   showSeparator = false
 }) => {
+  const speakerColorAssignments = useAnthologyStore(state => state.data.speakerColorAssignments);
   const colorAssignments = useAnthologyStore(state => state.data.colorAssignments);
-  const conversationColor = colorAssignments.get(response.conversation_id)?.color || '#999999';
+
+  // Get speaker color from speaker assignments, fallback to conversation color
+  const speakerColorKey = `${response.conversation_id}:${response.speaker_name}`;
+  const speakerColor = speakerColorAssignments.get(speakerColorKey)?.color ||
+                        colorAssignments.get(response.conversation_id)?.color ||
+                        '#999999';
 
   const handleClick = useCallback(() => {
     onClick(response.id);
@@ -76,7 +82,7 @@ export const ResponseTile = memo<ResponseTileProps>(({
         <div className={styles.speakerBadge}>
           <div
             className={styles.colorDot}
-            style={{ backgroundColor: conversationColor }}
+            style={{ backgroundColor: speakerColor }}
           />
           <span className={styles.speakerName}>{response.speaker_name}</span>
         </div>

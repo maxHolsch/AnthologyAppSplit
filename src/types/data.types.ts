@@ -9,6 +9,7 @@ export interface ConversationMetadata {
   title?: string;
   date?: string;
   participants: string[];
+  speaker_colors?: Record<string, string>; // speaker name → color mapping
   location?: string;
   facilitator?: string;
   topics?: string[];
@@ -145,6 +146,13 @@ export interface ProcessedEdge extends GraphEdge {
 // ================== Color Assignment ==================
 
 export interface ColorAssignment {
+  conversation_id: string;
+  color: string;
+  index: number;
+}
+
+export interface SpeakerColorAssignment {
+  speaker_name: string;
   conversation_id: string;
   color: string;
   index: number;

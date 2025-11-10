@@ -15,6 +15,7 @@ import type {
   ViewState,
   MapTransform,
   ColorAssignment,
+  SpeakerColorAssignment,
   RailViewMode
 } from '@types';
 import type {
@@ -48,6 +49,33 @@ const assignConversationColors = (conversations: Conversation[]): Map<string, Co
       conversation_id: conv.conversation_id,
       color,
       index
+    });
+  });
+
+  return assignments;
+};
+
+// Helper function to assign colors to speakers within conversations
+const assignSpeakerColorsFromConversations = (
+  conversations: Conversation[]
+): Map<string, SpeakerColorAssignment> => {
+  const assignments = new Map<string, SpeakerColorAssignment>();
+
+  conversations.forEach((conv) => {
+    const speakerColors = conv.metadata.speaker_colors || {};
+    const participants = conv.metadata.participants || [];
+
+    participants.forEach((speaker, index) => {
+      // Use color from metadata if available, otherwise assign from palette
+      const color = speakerColors[speaker] || DEFAULT_COLORS[index % DEFAULT_COLORS.length];
+      const key = `${conv.conversation_id}:${speaker}`;
+
+      assignments.set(key, {
+        speaker_name: speaker,
+        conversation_id: conv.conversation_id,
+        color,
+        index
+      });
     });
   });
 
@@ -121,6 +149,7 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
         responseNodes: new Map(),
         conversations: new Map(),
         colorAssignments: new Map(),
+        speakerColorAssignments: new Map(),
         isLoading: false,
         loadError: null
       },
@@ -177,8 +206,9 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
           const responseMap = new Map(data.responses.map(r => [r.id, r]));
           const conversationMap = new Map(data.conversations.map(c => [c.conversation_id, c]));
 
-          // Assign colors to conversations
+          // Assign colors to conversations and speakers
           const colorAssignments = assignConversationColors(data.conversations);
+          const speakerColorAssignments = assignSpeakerColorsFromConversations(data.conversations);
 
           // Create graph nodes (positions will be calculated by D3 force simulation)
           const nodes = new Map<string, GraphNode>();
@@ -195,7 +225,9 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
           // Add response nodes (positions will be calculated by D3 simulation)
           data.responses.forEach(response => {
             if (response.type === 'response') {
-              const color = colorAssignments.get(response.conversation_id)?.color;
+              // Use speaker color instead of conversation color
+              const speakerColorKey = `${response.conversation_id}:${response.speaker_name}`;
+              const color = speakerColorAssignments.get(speakerColorKey)?.color;
 
               nodes.set(response.id, {
                 id: response.id,
@@ -239,6 +271,7 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
               responseNodes: responseMap,
               conversations: conversationMap,
               colorAssignments,
+              speakerColorAssignments,
               isLoading: false
             }
           }));
@@ -290,6 +323,7 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
             responseNodes: new Map(),
             conversations: new Map(),
             colorAssignments: new Map(),
+            speakerColorAssignments: new Map(),
             isLoading: false,
             loadError: null
           },

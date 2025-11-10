@@ -33,6 +33,7 @@ export type {
   ProcessedNode,
   ProcessedEdge,
   ColorAssignment,
+  SpeakerColorAssignment,
 
   // Selection
   SelectionState,

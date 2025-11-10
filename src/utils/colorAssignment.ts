@@ -2,7 +2,7 @@
  * Color assignment utilities for multi-conversation visualization
  */
 
-import type { Conversation, ColorAssignment } from '@types';
+import type { Conversation, ColorAssignment, SpeakerColorAssignment } from '@types';
 
 /**
  * Default color palette optimized for accessibility
@@ -107,6 +107,38 @@ export const assignColors = (
       conversation_id: conv.conversation_id,
       color,
       index
+    });
+  });
+
+  return assignments;
+};
+
+/**
+ * Assigns colors to speakers within each conversation
+ * Key format: "conversationId:speakerName"
+ */
+export const assignSpeakerColors = (
+  conversations: Conversation[],
+  scheme: keyof typeof COLOR_SCHEMES = 'default'
+): Map<string, SpeakerColorAssignment> => {
+  const palette = COLOR_SCHEMES[scheme];
+  const assignments = new Map<string, SpeakerColorAssignment>();
+
+  conversations.forEach((conv) => {
+    const speakerColors = conv.metadata.speaker_colors || {};
+    const participants = conv.metadata.participants || [];
+
+    participants.forEach((speaker, index) => {
+      // Use color from metadata if available, otherwise assign from palette
+      const color = speakerColors[speaker] || palette[index % palette.length];
+      const key = `${conv.conversation_id}:${speaker}`;
+
+      assignments.set(key, {
+        speaker_name: speaker,
+        conversation_id: conv.conversation_id,
+        color,
+        index
+      });
     });
   });
 

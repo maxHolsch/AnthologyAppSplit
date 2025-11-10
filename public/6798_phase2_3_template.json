@@ -36,6 +36,16 @@
         ],
         "location": "Boston",
         "facilitator": "Sarah",
+        "speaker_colors": {
+          "Sarah": "#FF5F1F",
+          "Nina": "#6CB7FA",
+          "Christelle": "#CC82E7",
+          "Gabby": "#6CC686",
+          "Abby": "#F7ACEA",
+          "Nicole": "#FFB84D",
+          "Miliani": "#7B68EE",
+          "Lauren": "#FF6B6B"
+        },
         "topics": [
           "Life in Boston - what it is today, and what they hope it can be."
         ],

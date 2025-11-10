@@ -14,6 +14,7 @@ import type {
   ViewState,
   MapTransform,
   ColorAssignment,
+  SpeakerColorAssignment,
   RailViewMode
 } from './data.types';
 
@@ -77,7 +78,8 @@ export interface DataState {
 
   // Conversation data
   conversations: Map<string, Conversation>;
-  colorAssignments: Map<string, ColorAssignment>;
+  colorAssignments: Map<string, ColorAssignment>; // Kept for backward compatibility
+  speakerColorAssignments: Map<string, SpeakerColorAssignment>; // Speaker colors keyed by "conversationId:speakerName"
 
   // Loading state
   isLoading: boolean;
