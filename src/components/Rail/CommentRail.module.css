@@ -24,7 +24,7 @@
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: var(--spacing-lg, 32px);
+  padding: 0 var(--spacing-lg, 32px) var(--spacing-lg, 32px) var(--spacing-lg, 32px); /* Remove top padding */
 }
 
 /* Custom scrollbar styles */
@@ -54,6 +54,6 @@
   }
 
   .viewContainer {
-    padding: var(--spacing-md, 16px);
+    padding: 0 var(--spacing-md, 16px) var(--spacing-md, 16px) var(--spacing-md, 16px); /* Remove top padding on mobile too */
   }
 }

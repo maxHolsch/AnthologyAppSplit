@@ -90,20 +90,11 @@ function App() {
       {/* Global audio manager - handles all audio playback */}
       <AudioManager />
 
-      <header className="app-header">
-        <h1>Anthology</h1>
-        <p className="subtitle">Community Stories Visualized</p>
-        <div className="stats">
-          <span>{nodes.length} nodes</span>
-          <span>{edges.length} connections</span>
-        </div>
-      </header>
-
       <main className="app-main">
         <div className="map-container" style={{ width: mapWidth }}>
           <MapCanvas
             width={mapWidth}
-            height={dimensions.height - 100} // Account for header
+            height={dimensions.height} // Full viewport height
             className="map-canvas"
           />
         </div>

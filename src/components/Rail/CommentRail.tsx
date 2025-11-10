@@ -9,7 +9,6 @@ import { ConversationsView } from './Views/ConversationsView';
 import { QuestionView } from './Views/QuestionView';
 import { SingleView } from './Views/SingleView';
 import { ResizeHandle } from './ResizeHandle';
-import { RailHeader } from './RailHeader';
 import styles from './CommentRail.module.css';
 
 export const CommentRail = memo(() => {
@@ -44,7 +43,6 @@ export const CommentRail = memo(() => {
     >
       <ResizeHandle />
       <div className={styles.content}>
-        <RailHeader />
         <div className={styles.viewContainer}>
           {renderView()}
         </div>
