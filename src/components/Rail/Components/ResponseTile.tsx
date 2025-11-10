@@ -26,9 +26,14 @@ export const ResponseTile = memo<ResponseTileProps>(({
 
   // Get speaker color from speaker assignments, fallback to conversation color
   const speakerColorKey = `${response.conversation_id}:${response.speaker_name}`;
-  const speakerColor = speakerColorAssignments.get(speakerColorKey)?.color ||
-                        colorAssignments.get(response.conversation_id)?.color ||
-                        '#999999';
+  const colorScheme = speakerColorAssignments.get(speakerColorKey)?.color ||
+                      colorAssignments.get(response.conversation_id)?.color ||
+                      '#999999';
+
+  // Handle SpeakerColorScheme objects (extract circle property for the dot)
+  const speakerColor = typeof colorScheme === 'string'
+    ? colorScheme
+    : colorScheme.circle;
 
   const handleClick = useCallback(() => {
     onClick(response.id);

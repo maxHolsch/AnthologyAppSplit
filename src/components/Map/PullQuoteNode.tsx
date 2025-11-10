@@ -31,7 +31,7 @@ export function PullQuoteNode({ node, onClick, onMouseEnter, onMouseLeave }: Pul
   const speakerColorKey = conversationId && speakerName ? `${conversationId}:${speakerName}` : null;
   const speakerColorScheme = speakerColorKey ? speakerColorAssignments.get(speakerColorKey)?.color : null;
 
-  const colorScheme = node.color || speakerColorScheme || conversation?.color || '#FF5F1F';
+  const colorScheme = node.color || speakerColorScheme || conversation?.color || '#999999'; // Default to grey
 
   // Get appropriate colors based on selection state
   const anySelected = selectedNodes.size > 0;

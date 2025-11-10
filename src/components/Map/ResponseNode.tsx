@@ -30,7 +30,7 @@ export function ResponseNode({ node, onClick, onMouseEnter, onMouseLeave }: Resp
   const speakerColorKey = conversationId && speakerName ? `${conversationId}:${speakerName}` : null;
   const speakerColorScheme = speakerColorKey ? speakerColorAssignments.get(speakerColorKey)?.color : null;
 
-  const colorScheme = node.color || speakerColorScheme || conversation?.color || '#FF5F1F'; // Default to orange
+  const colorScheme = node.color || speakerColorScheme || conversation?.color || '#999999'; // Default to grey
 
   // Get appropriate color based on selection state (no opacity adjustment needed)
   const anySelected = selectedNodes.size > 0;
