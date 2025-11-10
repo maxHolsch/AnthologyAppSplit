@@ -20,6 +20,7 @@ export const QuestionView = memo(() => {
   const currentTrack = useAnthologyStore(state => state.audio.currentTrack);
   const playbackState = useAnthologyStore(state => state.audio.playbackState);
   const setRailMode = useAnthologyStore(state => state.setRailMode);
+  const zoomToFullMap = useAnthologyStore(state => state.zoomToFullMap);
 
   // Get the question data
   const question = activeQuestion ? questionNodes.get(activeQuestion) : null;
@@ -37,8 +38,10 @@ export const QuestionView = memo(() => {
   }, [responses]);
 
   const handleBackClick = useCallback(() => {
+    // Zoom out to full map view before changing rail mode
+    zoomToFullMap();
     setRailMode('conversations');
-  }, [setRailMode]);
+  }, [zoomToFullMap, setRailMode]);
 
   const handleResponseClick = useCallback((responseId: string) => {
     selectResponse(responseId);

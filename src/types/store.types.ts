@@ -158,6 +158,7 @@ export interface VisualizationState {
 
   // Zoom utilities
   centerOnNode: ((nodeX: number, nodeY: number, targetScale?: number, duration?: number) => void) | null;
+  resetZoom: ((duration?: number) => void) | null;
 
   // Render flags
   needsUpdate: boolean;
@@ -182,6 +183,7 @@ export interface VisualizationActions {
   updateComplete: () => void;
   getNodePosition: (nodeId: string) => { x: number; y: number } | null;
   setCenterOnNode: (fn: ((nodeX: number, nodeY: number, targetScale?: number, duration?: number) => void) | null) => void;
+  setResetZoom: (fn: ((duration?: number) => void) | null) => void;
 }
 
 export interface VisualizationStore extends VisualizationState, VisualizationActions {}

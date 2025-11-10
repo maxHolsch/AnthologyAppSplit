@@ -1,6 +1,6 @@
 import { useEffect, useCallback, useRef } from 'react';
 import * as d3 from 'd3';
-import { useAnthologyStore } from '@stores';
+import { useAnthologyStore, useVisualizationStore } from '@stores';
 
 export interface ZoomConfig {
   minZoom?: number;
@@ -127,21 +127,79 @@ export function useD3Zoom(
     zoomTo(scale, x, y, duration);
   }, [mapTransform.k, zoomTo]);
 
-  // Reset zoom to initial state
+  // Reset zoom to show all nodes (zoom out to full map view)
   const resetZoom = useCallback((duration: number = 750) => {
     if (!svgRef.current || !zoomBehaviorRef.current) return;
 
     const svg = d3.select(svgRef.current);
-    const svgRect = svg.node()!.getBoundingClientRect();
+    const svgRect = svgRef.current.getBoundingClientRect();
+
+    // Get simulation nodes from VisualizationStore
+    const vizStore = useVisualizationStore.getState();
+    const simulationNodes = vizStore.simulationNodes;
+
+    if (!simulationNodes || simulationNodes.length === 0) {
+      // Fallback to minimum zoom if no nodes
+      const transform = d3.zoomIdentity.scale(minZoom);
+      svg.transition()
+        .duration(duration)
+        .call(zoomBehaviorRef.current.transform, transform);
+      return;
+    }
+
+    // Calculate bounding box of all nodes using their simulation positions
+    let minX = Infinity, maxX = -Infinity;
+    let minY = Infinity, maxY = -Infinity;
+
+    simulationNodes.forEach((node: any) => {
+      if (typeof node.x === 'number' && typeof node.y === 'number') {
+        // Add buffer for node sizes (questions are larger)
+        const buffer = node.type === 'question' ? 150 : 80;
+
+        minX = Math.min(minX, node.x - buffer);
+        maxX = Math.max(maxX, node.x + buffer);
+        minY = Math.min(minY, node.y - buffer);
+        maxY = Math.max(maxY, node.y + buffer);
+      }
+    });
+
+    // Ensure we have valid bounds
+    if (!isFinite(minX) || !isFinite(maxX) || !isFinite(minY) || !isFinite(maxY)) {
+      const transform = d3.zoomIdentity.scale(minZoom);
+      svg.transition()
+        .duration(duration)
+        .call(zoomBehaviorRef.current.transform, transform);
+      return;
+    }
+
+    const boundsWidth = maxX - minX;
+    const boundsHeight = maxY - minY;
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+
+    // Calculate scale to fit all nodes with padding
+    const padding = 100;
+    const scale = Math.max(
+      minZoom,
+      Math.min(
+        (svgRect.width - padding * 2) / boundsWidth,
+        (svgRect.height - padding * 2) / boundsHeight,
+        initialZoom
+      )
+    );
+
+    // Calculate translation to center the bounds
+    const x = svgRect.width / 2 - centerX * scale;
+    const y = svgRect.height / 2 - centerY * scale;
 
     const transform = d3.zoomIdentity
-      .translate(svgRect.width / 2, svgRect.height / 2)
-      .scale(initialZoom);
+      .translate(x, y)
+      .scale(scale);
 
     svg.transition()
       .duration(duration)
       .call(zoomBehaviorRef.current.transform, transform);
-  }, [initialZoom]);
+  }, [minZoom, initialZoom]);
 
   return {
     zoomTo,

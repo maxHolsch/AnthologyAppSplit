@@ -122,6 +122,7 @@ interface AnthologyStoreActions {
   setActiveResponse: (responseId: string | null) => void;
   setMapTransform: (transform: MapTransform) => void;
   centerOnNode: (nodeId: string) => void;
+  zoomToFullMap: () => void;
 
   // Audio actions
   setAudioElement: (element: HTMLAudioElement | null) => void;
@@ -528,6 +529,16 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
         // This will be implemented when we have the D3 visualization
         // It will calculate the transform needed to center on the node
         console.log('Center on node:', nodeId);
+      },
+
+      zoomToFullMap: () => {
+        // Reset zoom to show full map - calls the resetZoom function from D3 zoom hook
+        const vizStore = useVisualizationStore.getState();
+        const resetZoom = vizStore.resetZoom;
+
+        if (resetZoom) {
+          resetZoom(750); // 750ms smooth animation
+        }
       },
 
       // ============ Audio Actions ============
