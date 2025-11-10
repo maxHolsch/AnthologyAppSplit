@@ -37,14 +37,70 @@
         "location": "Boston",
         "facilitator": "Sarah",
         "speaker_colors": {
-          "Sarah": "#FF5F1F",
-          "Nina": "#6CB7FA",
-          "Christelle": "#CC82E7",
-          "Gabby": "#6CC686",
-          "Abby": "#F7ACEA",
-          "Nicole": "#FFB84D",
-          "Miliani": "#7B68EE",
-          "Lauren": "#FF6B6B"
+          "Sarah": {
+            "circle": "#FE8250",
+            "fadedCircle": "#FFE0D3",
+            "quoteRectangle": "#FFE0D3",
+            "fadedQuoteRectangle": "#FFE0D3",
+            "quoteText": "#DB3F00",
+            "fadedQuoteText": "#DB3F00"
+          },
+          "Nina": {
+            "circle": "#6CB7FA",
+            "fadedCircle": "#E6F1FA",
+            "quoteRectangle": "#E6F1FA",
+            "fadedQuoteRectangle": "#E6F1FA",
+            "quoteText": "#0061B7",
+            "fadedQuoteText": "#0061B7"
+          },
+          "Christelle": {
+            "circle": "#CC82E7",
+            "fadedCircle": "#F6DDFF",
+            "quoteRectangle": "#F6DDFF",
+            "fadedQuoteRectangle": "#F6DDFF",
+            "quoteText": "#5D0184",
+            "fadedQuoteText": "#5D0184"
+          },
+          "Gabby": {
+            "circle": "#6CC686",
+            "fadedCircle": "#E2F6E8",
+            "quoteRectangle": "#E2F6E8",
+            "fadedQuoteRectangle": "#E2F6E8",
+            "quoteText": "#168637",
+            "fadedQuoteText": "#168637"
+          },
+          "Abby": {
+            "circle": "#F7ACEA",
+            "fadedCircle": "#FFEDF8",
+            "quoteRectangle": "#FFEDF8",
+            "fadedQuoteRectangle": "#FFEDF8",
+            "quoteText": "#CF5996",
+            "fadedQuoteText": "#CF5996"
+          },
+          "Nicole": {
+            "circle": "#DB8C7C",
+            "fadedCircle": "#FBEDEA",
+            "quoteRectangle": "#FBEDEA",
+            "fadedQuoteRectangle": "#FBEDEA",
+            "quoteText": "#C64126",
+            "fadedQuoteText": "#C64126"
+          },
+          "Miliani": {
+            "circle": "#83CAC0",
+            "fadedCircle": "#E1F2F0",
+            "quoteRectangle": "#E1F2F0",
+            "fadedQuoteRectangle": "#E1F2F0",
+            "quoteText": "#2C9183",
+            "fadedQuoteText": "#2C9183"
+          },
+          "Lauren": {
+            "circle": "#FE8250",
+            "fadedCircle": "#FFE0D3",
+            "quoteRectangle": "#FFE0D3",
+            "fadedQuoteRectangle": "#FFE0D3",
+            "quoteText": "#DB3F00",
+            "fadedQuoteText": "#DB3F00"
+          }
         },
         "topics": [
           "Life in Boston - what it is today, and what they hope it can be."

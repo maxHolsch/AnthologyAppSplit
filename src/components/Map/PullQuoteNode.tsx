@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useAnthologyStore } from '@stores';
-import { getPullQuoteTextColor, getPullQuoteBackgroundColor } from '@utils';
+import { getQuoteBackgroundColor, getQuoteTextColor } from '@utils/colorUtils';
 import type { PullQuoteNodeProps } from '@types';
 
 /**
@@ -23,30 +23,27 @@ export function PullQuoteNode({ node, onClick, onMouseEnter, onMouseLeave }: Pul
   const x = node.x ?? 0;
   const y = node.y ?? 0;
 
-  // Get speaker color from node, speaker assignments, or fallback to conversation color
+  // Get speaker color scheme from node, speaker assignments, or fallback to conversation color
   const conversationId = node.data.type === 'response' ? node.data.conversation_id : null;
   const speakerName = node.data.type === 'response' ? node.data.speaker_name : null;
   const conversation = conversationId ? conversations.get(conversationId) : null;
 
   const speakerColorKey = conversationId && speakerName ? `${conversationId}:${speakerName}` : null;
-  const speakerColor = speakerColorKey ? speakerColorAssignments.get(speakerColorKey)?.color : null;
+  const speakerColorScheme = speakerColorKey ? speakerColorAssignments.get(speakerColorKey)?.color : null;
 
-  const baseColor = node.color || speakerColor || conversation?.color || '#FF5F1F';
+  const colorScheme = node.color || speakerColorScheme || conversation?.color || '#FF5F1F';
 
-  // Calculate colors based on Figma specs
+  // Get appropriate colors based on selection state
+  const anySelected = selectedNodes.size > 0;
   const colors = useMemo(() => {
-    // Use Figma-exact colors or calculated fallback
-    const bgColor = getPullQuoteBackgroundColor(baseColor);
-    const textColor = getPullQuoteTextColor(baseColor);
+    const bgColor = getQuoteBackgroundColor(colorScheme, isSelected, anySelected);
+    const textColor = getQuoteTextColor(colorScheme, isSelected, anySelected);
 
     return { bgColor, textColor };
-  }, [baseColor]);
+  }, [colorScheme, isSelected, anySelected]);
 
-  // Calculate opacity based on selection state
-  let opacity = 1;
-  if (selectedNodes.size > 0) {
-    opacity = isSelected ? 1 : 0.3; // 30% for unselected
-  }
+  // Calculate text opacity (0.3 for faded, 1 for selected or no selection)
+  const textOpacity = anySelected && !isSelected ? 0.3 : 1;
 
   // Get pull quote text from node data
   const pullQuoteText = node.data.type === 'response' ? (node.data.pull_quote || '') : '';
@@ -155,6 +152,9 @@ export function PullQuoteNode({ node, onClick, onMouseEnter, onMouseLeave }: Pul
     onMouseLeave?.(node);
   };
 
+  // Get base circle color for stroke effects (selected state)
+  const baseColor = typeof colorScheme === 'string' ? colorScheme : (colorScheme.circle || '#FF5F1F');
+
   return (
     <g
       className="node-group"
@@ -164,7 +164,6 @@ export function PullQuoteNode({ node, onClick, onMouseEnter, onMouseLeave }: Pul
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       style={{ cursor: 'pointer' }}
-      opacity={opacity}
     >
       {/* Pulsing border for playing state */}
       {isPlaying && (
@@ -221,7 +220,7 @@ export function PullQuoteNode({ node, onClick, onMouseEnter, onMouseLeave }: Pul
         fill={colors.bgColor}
         style={{
           pointerEvents: 'all',
-          transition: 'opacity 200ms ease',
+          transition: 'fill 200ms ease',
         }}
       />
 
@@ -249,9 +248,11 @@ export function PullQuoteNode({ node, onClick, onMouseEnter, onMouseLeave }: Pul
         fontFamily="Hedvig Letters Sans, sans-serif"
         fontWeight={400}
         fill={colors.textColor}
+        opacity={textOpacity}
         style={{
           userSelect: 'none',
           pointerEvents: 'none',
+          transition: 'fill 200ms ease, opacity 200ms ease',
         }}
       >
         {lines.map((line, i) => (

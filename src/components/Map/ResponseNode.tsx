@@ -1,5 +1,6 @@
 import { useAnthologyStore } from '@stores';
 import type { ResponseNodeProps } from '@types';
+import { getCircleColor } from '@utils/colorUtils';
 
 /**
  * Response node component - circular nodes for standard responses
@@ -21,21 +22,19 @@ export function ResponseNode({ node, onClick, onMouseEnter, onMouseLeave }: Resp
   const x = node.x ?? 0;
   const y = node.y ?? 0;
 
-  // Get speaker color from node, speaker assignments, or fallback to conversation color
+  // Get speaker color scheme from node, speaker assignments, or fallback to conversation color
   const conversationId = node.data.type === 'response' ? node.data.conversation_id : null;
   const speakerName = node.data.type === 'response' ? node.data.speaker_name : null;
   const conversation = conversationId ? conversations.get(conversationId) : null;
 
   const speakerColorKey = conversationId && speakerName ? `${conversationId}:${speakerName}` : null;
-  const speakerColor = speakerColorKey ? speakerColorAssignments.get(speakerColorKey)?.color : null;
+  const speakerColorScheme = speakerColorKey ? speakerColorAssignments.get(speakerColorKey)?.color : null;
 
-  const color = node.color || speakerColor || conversation?.color || '#FF5F1F'; // Default to orange
+  const colorScheme = node.color || speakerColorScheme || conversation?.color || '#FF5F1F'; // Default to orange
 
-  // Calculate opacity based on selection state
-  let opacity = 1;
-  if (selectedNodes.size > 0) {
-    opacity = isSelected ? 1 : 0.3; // 30% for unselected when something is selected
-  }
+  // Get appropriate color based on selection state (no opacity adjustment needed)
+  const anySelected = selectedNodes.size > 0;
+  const color = getCircleColor(colorScheme, isSelected, anySelected);
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -101,10 +100,9 @@ export function ResponseNode({ node, onClick, onMouseEnter, onMouseLeave }: Resp
       <circle
         r={7} // 14px diameter = 7px radius
         fill={color}
-        fillOpacity={opacity}
         style={{
           pointerEvents: 'all',
-          transition: 'fill-opacity 200ms ease',
+          transition: 'fill 200ms ease',
         }}
       />
 

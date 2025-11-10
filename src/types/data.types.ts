@@ -5,11 +5,23 @@
 
 // ================== Conversation Types ==================
 
+/**
+ * Color scheme for a speaker with separate colors for different visual states
+ */
+export interface SpeakerColorScheme {
+  circle: string; // Circle node selected state
+  fadedCircle: string; // Circle node faded state
+  quoteRectangle: string; // Pull quote background selected state
+  fadedQuoteRectangle: string; // Pull quote background faded state
+  quoteText: string; // Pull quote text selected state
+  fadedQuoteText: string; // Pull quote text faded state (includes opacity)
+}
+
 export interface ConversationMetadata {
   title?: string;
   date?: string;
   participants: string[];
-  speaker_colors?: Record<string, string>; // speaker name → color mapping
+  speaker_colors?: Record<string, string | SpeakerColorScheme>; // speaker name → color or color scheme
   location?: string;
   facilitator?: string;
   topics?: string[];
@@ -154,7 +166,7 @@ export interface ColorAssignment {
 export interface SpeakerColorAssignment {
   speaker_name: string;
   conversation_id: string;
-  color: string;
+  color: string | SpeakerColorScheme; // Support both old and new formats
   index: number;
 }
 
