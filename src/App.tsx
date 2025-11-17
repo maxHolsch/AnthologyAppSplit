@@ -16,9 +16,6 @@ function App() {
   const edgesMap = useAnthologyStore(state => state.data.edges);
   const isLoading = useAnthologyStore(state => state.data.isLoading);
   const error = useAnthologyStore(state => state.data.loadError);
-  const railWidth = useAnthologyStore(state => state.view.railWidth);
-  const railExpanded = useAnthologyStore(state => state.view.railExpanded);
-
   // Tooltip state
   const tooltipContent = useInteractionStore(state => state.tooltipContent);
   const tooltipPos = useInteractionStore(state => state.tooltipPos);
@@ -31,8 +28,8 @@ function App() {
     height: window.innerHeight
   });
 
-  // Calculate map width based on rail state
-  const mapWidth = railExpanded ? dimensions.width - railWidth : dimensions.width;
+  // Map now takes full width since rail floats on top
+  const mapWidth = dimensions.width;
 
   // Handle window resize
   useEffect(() => {

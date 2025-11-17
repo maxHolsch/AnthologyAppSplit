@@ -2,13 +2,15 @@
 
 .rail {
   position: fixed;
-  top: 0;
-  right: 0;
-  height: 100vh;
+  top: 64px;
+  right: 64px;
+  bottom: 64px;
+  height: calc(100vh - 128px); /* 64px top + 64px bottom */
   background-color: #ffffff; /* Pure white background per Figma */
   display: flex;
   z-index: 10;
   transition: width var(--transition-smooth, 200ms ease);
+  border-radius: 16px; /* Rounded corners on all sides */
 }
 
 .content {
@@ -23,26 +25,18 @@
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 0 var(--spacing-lg, 32px) var(--spacing-lg, 32px) var(--spacing-lg, 32px); /* Remove top padding */
+  padding: var(--spacing-lg, 32px);
 }
 
-/* Custom scrollbar styles */
+/* Custom scrollbar styles - hidden */
 .viewContainer::-webkit-scrollbar {
-  width: 8px;
+  width: 0px;
+  display: none;
 }
 
-.viewContainer::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.viewContainer::-webkit-scrollbar-thumb {
-  background-color: rgba(0, 0, 0, 0.1);
-  border-radius: 4px;
-  transition: background-color var(--transition-base, 150ms ease);
-}
-
-.viewContainer::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(0, 0, 0, 0.2);
+.viewContainer {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
 }
 
 /* Mobile responsiveness */
