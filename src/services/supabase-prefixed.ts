@@ -800,6 +800,13 @@ export const AdminService = {
       ? await RecordingService.upload(recordingFile, recordingDurationMs)
       : null;
 
+    // If we attach a recording to the response, we must also provide a valid audio range.
+    // The DB enforces this via the `valid_audio_range` CHECK constraint.
+    const hasRecording = !!recording?.id;
+    if (hasRecording && (!recordingDurationMs || recordingDurationMs <= 0)) {
+      throw new Error('recordingDurationMs is required (> 0) when attaching a recording to a response');
+    }
+
     // Next turn_number
     const { data: last, error: lastErr } = await supabase
       .from('anthology_responses')
@@ -823,9 +830,9 @@ export const AdminService = {
         speaker_id: speaker.id,
         speaker_name: respondentName,
         speaker_text: speakerText,
-        recording_id: recording?.id,
-        audio_start_ms: 0,
-        audio_end_ms: recordingDurationMs ?? 0,
+        recording_id: hasRecording ? recording!.id : null,
+        audio_start_ms: hasRecording ? 0 : null,
+        audio_end_ms: hasRecording ? recordingDurationMs! : null,
         turn_number: nextTurn,
       })
       .select('*')
