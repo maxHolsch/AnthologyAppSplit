@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useAnthologyStore } from '@stores';
-import { getQuoteBackgroundColor, getQuoteTextColor } from '@utils/colorUtils';
+import { getQuoteBackgroundColor, getQuoteTextColor } from '@utils';
 import type { PullQuoteNodeProps } from '@types';
 
 /**
@@ -41,9 +41,6 @@ export function PullQuoteNode({ node, onClick, onMouseEnter, onMouseLeave }: Pul
 
     return { bgColor, textColor };
   }, [colorScheme, isSelected, anySelected]);
-
-  // Calculate text opacity (0.3 for faded, 1 for selected or no selection)
-  const textOpacity = anySelected && !isSelected ? 0.3 : 1;
 
   // Get pull quote text from node data
   const pullQuoteText = node.data.type === 'response' ? (node.data.pull_quote || '') : '';

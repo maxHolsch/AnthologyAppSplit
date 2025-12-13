@@ -6,7 +6,7 @@
  */
 
 import { memo, useCallback } from 'react';
-import { useAnthologyStore } from '@stores/AnthologyStore';
+import { useAnthologyStore } from '@stores';
 import { MedleyPlayButton } from '@components/Rail/Components/MedleyPlayButton';
 
 interface MedleyPlayerProps {

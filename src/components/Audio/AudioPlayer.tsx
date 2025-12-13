@@ -6,7 +6,7 @@
  */
 
 import { memo, useCallback, useEffect, useRef } from 'react';
-import { useAnthologyStore } from '@stores/AnthologyStore';
+import { useAnthologyStore } from '@stores';
 import { ResponsePlayButton } from '@components/Rail/Components/ResponsePlayButton';
 import type { ResponseNode } from '@types';
 
@@ -57,17 +57,34 @@ export const AudioPlayer = memo<AudioPlayerProps>(({ response }) => {
 
   // Handle actual audio playback when store state changes
   useEffect(() => {
-    if (!audioElement || !currentTrack) return;
+    if (!audioElement || !currentTrack) {
+      console.log('🔊 Audio Debug: Missing audioElement or currentTrack', { audioElement: !!audioElement, currentTrack });
+      return;
+    }
 
     const currentNode = responseNodes.get(currentTrack);
-    if (!currentNode) return;
+    if (!currentNode) {
+      console.error('🔊 Audio Error: Current node not found', { currentTrack, availableNodes: Array.from(responseNodes.keys()) });
+      return;
+    }
 
     const conversation = conversations.get(currentNode.conversation_id);
-    if (!conversation) return;
+    if (!conversation) {
+      console.error('🔊 Audio Error: Conversation not found', { conversation_id: currentNode.conversation_id, availableConversations: Array.from(conversations.keys()) });
+      return;
+    }
 
     // Use the audio_file from conversation data, removing the leading "./"
     const audioFilePath = conversation.audio_file.replace('./', '/');
     const { audio_start, audio_end } = currentNode;
+
+    console.log('🔊 Audio Debug: Attempting to play', {
+      audioFilePath,
+      audio_start,
+      audio_end,
+      currentNode: currentNode.id,
+      conversation: conversation.conversation_id
+    });
 
     // Monitor playback and auto-stop at segment end
     const monitorPlayback = () => {
@@ -101,6 +118,10 @@ export const AudioPlayer = memo<AudioPlayerProps>(({ response }) => {
     if (playbackState === 'playing') {
       // Load audio if needed
       if (audioElement.src !== audioFilePath) {
+        console.log('🔊 Audio Debug: Loading new audio file', {
+          oldSrc: audioElement.src,
+          newSrc: audioFilePath
+        });
         audioElement.src = audioFilePath;
         // Only reset to start when loading new audio file
         audioElement.currentTime = audio_start / 1000;
@@ -109,13 +130,21 @@ export const AudioPlayer = memo<AudioPlayerProps>(({ response }) => {
         const currentTimeMs = audioElement.currentTime * 1000;
         // If we're before the start OR significantly after the end, reset to start
         if (currentTimeMs < audio_start || currentTimeMs > audio_end + 100) {
+          console.log('🔊 Audio Debug: Resetting to start', { currentTimeMs, audio_start });
           audioElement.currentTime = audio_start / 1000;
         }
         // Otherwise, resume from current position (paused state)
       }
 
       // Start playback
-      audioElement.play().catch(console.error);
+      console.log('🔊 Audio Debug: Calling play()');
+      audioElement.play()
+        .then(() => {
+          console.log('✅ Audio Debug: Play succeeded');
+        })
+        .catch((error) => {
+          console.error('❌ Audio Error: Play failed', error);
+        });
 
       // Start monitoring
       if (!rafRef.current) {

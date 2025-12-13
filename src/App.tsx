@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { MapCanvas } from '@components/Map';
 import { CommentRail } from '@components/Rail';
 import { Tooltip } from '@components/UI/Tooltip';
@@ -12,17 +12,12 @@ import './App.css';
  */
 function App() {
   const loadData = useAnthologyStore(state => state.loadData);
-  const nodesMap = useAnthologyStore(state => state.data.nodes);
-  const edgesMap = useAnthologyStore(state => state.data.edges);
   const isLoading = useAnthologyStore(state => state.data.isLoading);
   const error = useAnthologyStore(state => state.data.loadError);
   // Tooltip state
   const tooltipContent = useInteractionStore(state => state.tooltipContent);
   const tooltipPos = useInteractionStore(state => state.tooltipPos);
 
-  // Convert maps to arrays (memoized to prevent infinite loops)
-  const nodes = useMemo(() => Array.from(nodesMap.values()), [nodesMap]);
-  const edges = useMemo(() => Array.from(edgesMap.values()), [edgesMap]);
   const [dimensions, setDimensions] = useState({
     width: window.innerWidth,
     height: window.innerHeight
@@ -44,20 +39,46 @@ function App() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Load real data from 6798_phase2_3_template.json
+  // Load data from Supabase (with JSON fallback)
   useEffect(() => {
     const loadAnthologyData = async () => {
       try {
+        // Try loading from Supabase first
+        const { GraphDataService } = await import('@/services/supabase-prefixed');
+        const data = await GraphDataService.loadAll();
+
+        if (data.conversations.length > 0) {
+          console.log('✅ Loaded data from Supabase');
+          console.log('🔊 Audio Debug: Conversations loaded:', data.conversations.map(c => ({
+            id: c.conversation_id,
+            audio_file: c.audio_file,
+            title: c.metadata.title
+          })));
+          await loadData(data);
+          return;
+        }
+
+        // Fallback to JSON if Supabase has no data
+        console.warn('⚠️  No data in Supabase, falling back to JSON');
         const response = await fetch('/6798_phase2_3_template.json');
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
-        const data = await response.json();
+        const jsonData = await response.json();
+        await loadData(jsonData);
 
-        // Load data (positions will be calculated by D3 simulation)
-        await loadData(data);
       } catch (error) {
         console.error('Error loading anthology data:', error);
+
+        // Final fallback to JSON
+        try {
+          console.log('📄 Attempting JSON fallback...');
+          const response = await fetch('/6798_phase2_3_template.json');
+          const jsonData = await response.json();
+          await loadData(jsonData);
+        } catch (fallbackError) {
+          console.error('Failed to load from both Supabase and JSON:', fallbackError);
+        }
       }
     };
 

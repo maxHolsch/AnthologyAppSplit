@@ -11,8 +11,8 @@
  */
 
 import { useEffect, useRef, useCallback } from 'react';
-import { useAnthologyStore } from '@stores/AnthologyStore';
-import { clampToSegment } from '@utils/audioUtils';
+import { useAnthologyStore } from '@stores';
+import { clampToSegment } from '@utils';
 
 interface UseAudioManagerOptions {
   conversationId: string;
@@ -28,7 +28,6 @@ interface UseAudioManagerOptions {
  */
 export function useAudioManager(options: UseAudioManagerOptions) {
   const {
-    conversationId,
     audioFilePath,
     audioStart,
     audioEnd,
@@ -41,10 +40,10 @@ export function useAudioManager(options: UseAudioManagerOptions) {
   const rafRef = useRef<number | null>(null);
   const isSeekingRef = useRef(false);
 
-  // Store actions
+  // Store state and actions
   const playbackState = useAnthologyStore(state => state.audio.playbackState);
   const currentTrack = useAnthologyStore(state => state.audio.currentTrack);
-  const updateCurrentTime = useAnthologyStore(state => state.audio.updateCurrentTime);
+  const updateCurrentTime = useAnthologyStore(state => state.updateCurrentTime);
 
   /**
    * Initialize audio element

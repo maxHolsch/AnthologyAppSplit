@@ -6,8 +6,8 @@
  */
 
 import { memo } from 'react';
-import { useAnthologyStore } from '@stores/AnthologyStore';
-import { useWordHighlighting } from '@hooks/useWordHighlighting';
+import { useAnthologyStore } from '@stores';
+import { useWordHighlighting } from '@hooks';
 import type { ResponseNode } from '@types';
 import styles from './HighlightedText.module.css';
 

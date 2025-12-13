@@ -1,6 +1,6 @@
 import { useAnthologyStore } from '@stores';
 import type { ResponseNodeProps } from '@types';
-import { getCircleColor } from '@utils/colorUtils';
+import { getCircleColor } from '@utils';
 
 /**
  * Response node component - circular nodes for standard responses

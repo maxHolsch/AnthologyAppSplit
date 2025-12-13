@@ -9,8 +9,8 @@
  */
 
 import { memo, useMemo } from 'react';
-import { useAnthologyStore } from '@stores/AnthologyStore';
-import { useWordHighlighting } from '@hooks/useWordHighlighting';
+import { useAnthologyStore } from '@stores';
+import { useWordHighlighting } from '@hooks';
 import styles from './KaraokeDisplay.module.css';
 
 interface KaraokeDisplayProps {
@@ -40,7 +40,7 @@ export const KaraokeDisplay = memo<KaraokeDisplayProps>(({ responseId }) => {
 
   // Use word highlighting hook if word timestamps available
   // Only highlight when actively playing (not paused or idle)
-  const { words, hasActiveWord } = useWordHighlighting({
+  const { words } = useWordHighlighting({
     wordTimestamps: response.word_timestamps,
     currentTime: currentTime,
     audioStart: response.audio_start,

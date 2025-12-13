@@ -228,7 +228,10 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
             if (response.type === 'response') {
               // Use speaker color instead of conversation color
               const speakerColorKey = `${response.conversation_id}:${response.speaker_name}`;
-              const color = speakerColorAssignments.get(speakerColorKey)?.color;
+              const colorValue = speakerColorAssignments.get(speakerColorKey)?.color;
+
+              // Normalize color to string - extract 'circle' if it's a SpeakerColorScheme object
+              const color = typeof colorValue === 'string' ? colorValue : colorValue?.circle;
 
               nodes.set(response.id, {
                 id: response.id,

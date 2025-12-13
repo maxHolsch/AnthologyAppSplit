@@ -3,7 +3,7 @@
  * Helper functions for audio playback, time formatting, and word synchronization
  */
 
-import type { WordTimestamp } from '@types/data.types';
+import type { WordTimestamp } from '@types';
 
 /**
  * Maps a conversation ID to its audio file path

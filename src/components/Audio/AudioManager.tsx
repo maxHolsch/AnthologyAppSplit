@@ -7,7 +7,7 @@
  */
 
 import { useEffect, useRef } from 'react';
-import { useAnthologyStore } from '@stores/AnthologyStore';
+import { useAnthologyStore } from '@stores';
 
 export const AudioManager: React.FC = () => {
   const audioRef = useRef<HTMLAudioElement | null>(null);

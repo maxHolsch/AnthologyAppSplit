@@ -147,8 +147,8 @@ export function getQuoteBackgroundColor(
  */
 export function getQuoteTextColor(
   colorScheme: string | SpeakerColorScheme,
-  isSelected: boolean,
-  anySelected: boolean
+  _isSelected: boolean,
+  _anySelected: boolean
 ): string {
   // Handle old format (single color string)
   if (typeof colorScheme === 'string') {

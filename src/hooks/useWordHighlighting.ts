@@ -11,8 +11,8 @@
  */
 
 import { useMemo, useRef } from 'react';
-import type { WordTimestamp } from '@types/data.types';
-import { findCurrentWord } from '@utils/audioUtils';
+import type { WordTimestamp } from '@types';
+import { findCurrentWord } from '@utils';
 
 interface UseWordHighlightingOptions {
   wordTimestamps: WordTimestamp[] | undefined;
