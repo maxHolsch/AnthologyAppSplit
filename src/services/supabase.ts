@@ -7,10 +7,8 @@
 import { createClient } from '@supabase/supabase-js';
 import type {
   Conversation,
-  Question,
+  QuestionNode,
   ResponseNode,
-  GraphNode,
-  GraphEdge,
   WordTimestamp
 } from '@/types/data.types';
 
@@ -28,6 +26,14 @@ if (!supabaseUrl || !supabaseAnonKey) {
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // ============================================
+// STORAGE
+// ============================================
+
+// NOTE: Supabase bucket names are case-sensitive. Default bucket used by this
+// project is "Recordings".
+const RECORDINGS_BUCKET = import.meta.env.VITE_SUPABASE_RECORDINGS_BUCKET || 'Recordings';
+
+// ============================================
 // DATABASE TYPES
 // ============================================
 
@@ -38,22 +44,6 @@ interface DbRecording {
   duration_ms: number;
   file_size_bytes?: number;
   mime_type?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-interface DbConversation {
-  id: string;
-  legacy_id?: string;
-  title: string;
-  date?: string;
-  location?: string;
-  facilitator?: string;
-  color: string;
-  topics?: string[];
-  participants?: string[];
-  source_transcript?: string;
-  metadata?: any;
   created_at: string;
   updated_at: string;
 }
@@ -72,39 +62,6 @@ interface DbSpeaker {
   updated_at: string;
 }
 
-interface DbQuestion {
-  id: string;
-  legacy_id?: string;
-  conversation_id: string;
-  question_text: string;
-  facilitator?: string;
-  recording_id?: string;
-  audio_start_ms?: number;
-  audio_end_ms?: number;
-  notes?: string;
-  metadata?: any;
-  created_at: string;
-  updated_at: string;
-}
-
-interface DbResponse {
-  id: string;
-  legacy_id?: string;
-  conversation_id: string;
-  responds_to_question_id?: string;
-  responds_to_response_id?: string;
-  speaker_id?: string;
-  speaker_name: string;
-  speaker_text: string;
-  pull_quote?: string;
-  recording_id?: string;
-  audio_start_ms?: number;
-  audio_end_ms?: number;
-  turn_number?: number;
-  metadata?: any;
-  created_at: string;
-  updated_at: string;
-}
 
 interface DbWordTimestamp {
   id: string;
@@ -165,18 +122,25 @@ export const RecordingService = {
   async upload(file: File): Promise<DbRecording | null> {
     // Upload to Supabase Storage
     const fileName = `${Date.now()}_${file.name}`;
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('recordings')
-      .upload(fileName, file);
+    const { error: uploadError } = await supabase.storage
+      .from(RECORDINGS_BUCKET)
+      .upload(fileName, file, {
+        contentType: file.type || undefined,
+      });
 
     if (uploadError) {
+      if (typeof uploadError.message === 'string' && uploadError.message.includes('row-level security')) {
+        console.error(
+          `Supabase Storage RLS blocked upload. Ensure you have an INSERT policy on storage.objects for bucket "${RECORDINGS_BUCKET}".`
+        );
+      }
       console.error('Error uploading recording:', uploadError);
       return null;
     }
 
     // Get public URL
     const { data: publicUrlData } = supabase.storage
-      .from('recordings')
+      .from(RECORDINGS_BUCKET)
       .getPublicUrl(fileName);
 
     // Create database entry
@@ -193,6 +157,12 @@ export const RecordingService = {
       .single();
 
     if (error) {
+      // With RLS enabled, anon key inserts will fail unless you add an INSERT policy.
+      if ((error as any)?.code === '42501' || (error as any)?.message?.includes('row-level security')) {
+        console.error(
+          'Database RLS blocked insert into recordings. Add an INSERT policy for the anon/public role if you want browser uploads to create DB rows.'
+        );
+      }
       console.error('Error creating recording entry:', error);
       return null;
     }
@@ -330,7 +300,7 @@ export const QuestionService = {
   /**
    * Get all questions for a conversation
    */
-  async getByConversation(conversationId: string): Promise<Question[]> {
+  async getByConversation(conversationId: string): Promise<QuestionNode[]> {
     const { data, error } = await supabase
       .from('questions')
       .select(`
@@ -485,7 +455,7 @@ export const GraphDataService = {
       }
 
       // Load questions and responses for all conversations
-      const allQuestions: Question[] = [];
+      const allQuestions: QuestionNode[] = [];
       const allResponses: ResponseNode[] = [];
 
       for (const conv of conversations) {

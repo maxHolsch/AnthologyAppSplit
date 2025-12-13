@@ -54,8 +54,12 @@ export const AudioManager: React.FC = () => {
     const conversation = conversations.get(currentNode.conversation_id);
     if (!conversation) return;
 
-    // Use the audio_file from conversation data, removing the leading "./"
-    const audioFilePath = conversation.audio_file.replace('./', '/');
+    // Prefer per-response recording if present; otherwise fall back to the conversation audio.
+    // Note: conversation audio_file may be a relative path like "./recordings/1635.mp3".
+    const audioFilePathRaw = currentNode.path_to_recording || conversation.audio_file;
+    const audioFilePath = audioFilePathRaw.startsWith('./')
+      ? audioFilePathRaw.replace('./', '/')
+      : audioFilePathRaw;
     const { audio_start, audio_end } = currentNode;
 
     // Monitor playback and auto-stop at segment end

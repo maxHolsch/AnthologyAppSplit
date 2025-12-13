@@ -213,6 +213,7 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
 
           // Create graph nodes (positions will be calculated by D3 force simulation)
           const nodes = new Map<string, GraphNode>();
+          const idAliases = new Map<string, string>(); // db uuid -> canonical node id
 
           // Add question nodes
           data.questions.forEach((question) => {
@@ -221,6 +222,11 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
               type: 'question',
               data: question
             });
+
+            const dbId = (question as any)?._db_id;
+            if (typeof dbId === 'string' && dbId.length > 0) {
+              idAliases.set(dbId, question.id);
+            }
           });
 
           // Add response nodes (positions will be calculated by D3 simulation)
@@ -239,6 +245,11 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
                 data: response,
                 color
               });
+
+              const dbId = (response as any)?._db_id;
+              if (typeof dbId === 'string' && dbId.length > 0) {
+                idAliases.set(dbId, response.id);
+              }
             }
           });
 
@@ -255,10 +266,27 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
                 : [response.responds_to];
 
               respondsToArray.forEach(questionId => {
-                const edgeId = `${questionId}-${response.id}`;
+                const resolvedTargetId = nodes.has(questionId)
+                  ? questionId
+                  : (idAliases.get(questionId) || questionId);
+
+                if (!nodes.has(resolvedTargetId)) {
+                  // If we still can't resolve the target, skip creating an edge.
+                  // This prevents invisible edges filtered out later by VisualizationStore.
+                  console.warn('Skipping edge: target node not found', {
+                    sourceId: response.id,
+                    targetId: questionId,
+                    resolvedTargetId,
+                  });
+                  return;
+                }
+
+                // Direction: new response -> the node it responds to
+                // (so the arrow head lands on the parent node)
+                const edgeId = `${response.id}-${resolvedTargetId}`;
                 edges.set(edgeId, {
-                  source: questionId,
-                  target: response.id,
+                  source: response.id,
+                  target: resolvedTargetId,
                   color
                 });
               });

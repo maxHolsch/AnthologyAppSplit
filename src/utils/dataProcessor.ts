@@ -151,8 +151,9 @@ export const createGraphEdges = (
     if (response.responds_to) {
       const color = colorAssignments.get(response.conversation_id)?.color;
       edges.push({
-        source: response.responds_to,
-        target: response.id,
+        // Direction: new response -> the node it responds to
+        source: response.id,
+        target: response.responds_to,
         color
       });
     }

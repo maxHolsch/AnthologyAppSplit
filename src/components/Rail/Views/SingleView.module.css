@@ -25,6 +25,23 @@
   align-items: center;
 }
 
+.respondButton {
+  align-self: flex-start;
+  appearance: none;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  background: #fff;
+  color: rgba(0, 0, 0, 0.85);
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.respondButton:hover {
+  background: rgba(0, 0, 0, 0.03);
+}
+
 .responseText {
   font-family: 'Hedvig Letters Sans', -apple-system, sans-serif;
   font-size: 13px;

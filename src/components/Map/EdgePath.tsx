@@ -10,7 +10,7 @@ export function EdgePath({
   sourceNode,
   targetNode,
   opacity = 1,
-  color: _color
+  color = '#000000'
 }: EdgePathProps) {
   // Calculate Bezier curve path and arrow position
   const { path, arrowPath, arrowTransform } = useMemo(() => {
@@ -100,9 +100,9 @@ export function EdgePath({
       <path
         d={path}
         fill="none"
-        stroke="#000000"
-        strokeWidth={1}
-        strokeOpacity={0.1 * opacity}
+        stroke={color}
+        strokeWidth={1.25}
+        strokeOpacity={0.35 * opacity}
         strokeLinecap="round"
         pointerEvents="none"
         style={{ transition: 'stroke-opacity 200ms ease' }}
@@ -110,9 +110,9 @@ export function EdgePath({
       <path
         d={arrowPath}
         fill="none"
-        stroke="#000000"
-        strokeWidth={1}
-        strokeOpacity={0.1 * opacity}
+        stroke={color}
+        strokeWidth={1.25}
+        strokeOpacity={0.35 * opacity}
         strokeLinecap="round"
         strokeLinejoin="round"
         pointerEvents="none"

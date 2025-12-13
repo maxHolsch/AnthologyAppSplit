@@ -3,12 +3,13 @@
  * Visual Reference: https://www.figma.com/design/3RRAJtxVKX0kbSZT8ouJWa/Anthology-III?node-id=207-1114&m=dev
  */
 
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { useAnthologyStore } from '@stores';
 import { useVisualizationStore } from '@stores';
 import { BackButton } from '../Components/BackButton';
 import { SpeakerHeader } from '../Components/SpeakerHeader';
 import { QuestionContext } from '../Components/QuestionContext';
+import { RespondModal } from '../Components/RespondModal';
 import { AudioPlayer } from '@components/Audio/AudioPlayer';
 import { HighlightedText } from '@components/Audio/HighlightedText';
 import styles from './SingleView.module.css';
@@ -25,6 +26,8 @@ export const SingleView = memo(() => {
 
   // Get the response data
   const response = activeResponse ? responseNodes.get(activeResponse) : null;
+
+  const [respondOpen, setRespondOpen] = useState(false);
 
   // Get the parent question
   const parentQuestion = useMemo(() => {
@@ -94,6 +97,20 @@ export const SingleView = memo(() => {
         <SpeakerHeader
           speakerName={response.speaker_name}
           color={speakerColor}
+        />
+
+        <button
+          className={styles.respondButton}
+          onClick={() => setRespondOpen(true)}
+          type="button"
+        >
+          Respond to {response.speaker_name}
+        </button>
+
+        <RespondModal
+          open={respondOpen}
+          targetResponse={response}
+          onClose={() => setRespondOpen(false)}
         />
 
         {parentQuestion && (

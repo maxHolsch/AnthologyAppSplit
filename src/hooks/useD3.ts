@@ -17,6 +17,8 @@ export function useD3(
   const simulation = useVisualizationStore(state => state.simulation);
   const initSimulation = useVisualizationStore(state => state.initSimulation);
   const updateSimulation = useVisualizationStore(state => state.updateSimulation);
+  const simNodeCount = useVisualizationStore(state => state.nodeCount);
+  const simEdgeCount = useVisualizationStore(state => state.edgeCount);
 
   const nodesRef = useRef<GraphNode[]>(nodes);
   const edgesRef = useRef<GraphEdge[]>(edges);
@@ -50,10 +52,19 @@ export function useD3(
 
   // Update simulation when nodes/edges change
   useEffect(() => {
-    if (simulation && nodes.length > 0) {
-      updateSimulation();
+    if (!simulation || nodes.length === 0) return;
+
+    // If the data set changed (e.g. a new response node was added), re-initialize
+    // the simulation so new nodes/edges actually appear.
+    if (nodes.length !== simNodeCount || edges.length !== simEdgeCount) {
+      initSimulation(nodes, edges, width, height);
+      hasInitialized.current = true;
+      return;
     }
-  }, [nodes.length, edges.length, simulation, updateSimulation]);
+
+    // Otherwise just reheat
+    updateSimulation();
+  }, [nodes.length, edges.length, simulation, simNodeCount, simEdgeCount, initSimulation, updateSimulation, width, height]);
 
   // Update center force when dimensions change
   useEffect(() => {

@@ -61,6 +61,10 @@ export interface ResponseNode {
   audio_start: number; // timestamp in milliseconds
   audio_end: number; // timestamp in milliseconds
   conversation_id: string; // Reference to parent conversation
+  /** Optional: when a response has its own standalone recording (not a segment of the conversation audio). */
+  path_to_recording?: string;
+  /** Optional ordering metadata (used by DB-backed datasets). */
+  turn_number?: number;
   word_timestamps?: WordTimestamp[]; // For word-level highlighting
 }
 
