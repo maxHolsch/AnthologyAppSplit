@@ -2,7 +2,7 @@ import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import type { ResponseNode, WordTimestamp } from '@types';
 import { useAudioRecorder } from '@hooks';
 import { transcribeAudioUrl } from '@/services/transcription';
-import { AdminService, GraphDataService, RecordingService } from '@/services/supabase-prefixed';
+import { AdminService, GraphDataService, RecordingService } from '@/services/supabase';
 import { useAnthologyStore } from '@stores';
 import styles from './RespondModal.module.css';
 

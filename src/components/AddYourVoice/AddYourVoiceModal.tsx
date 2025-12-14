@@ -3,7 +3,7 @@ import { useAudioRecorder } from '@hooks';
 import { useAnthologyStore } from '@stores';
 import { transcribeAudioUrl } from '@/services/transcription';
 import { judgeQuestionPlacement } from '@/services/questionPlacement';
-import { AdminService, GraphDataService, RecordingService } from '@/services/supabase-prefixed';
+import { AdminService, GraphDataService, RecordingService } from '@/services/supabase';
 import type { QuestionNode, ResponseNode, WordTimestamp } from '@types';
 import styles from './AddYourVoiceModal.module.css';
 

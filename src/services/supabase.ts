@@ -1,7 +1,8 @@
 /**
  * Supabase Service Layer
  *
- * Provides typed methods to interact with Anthology database
+ * Canonical Anthology service layer.
+ * Uses prefixed tables: "anthology_*".
  */
 
 import { createClient } from '@supabase/supabase-js';
@@ -12,6 +13,8 @@ import type {
   WordTimestamp
 } from '@/types/data.types';
 
+import { DEFAULT_PALETTE, hexToRgba, darkenColor } from '@/utils/colorAssignment';
+
 // ============================================
 // SUPABASE CLIENT
 // ============================================
@@ -20,7 +23,7 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn('⚠️  Supabase credentials not found. Using fallback JSON mode.');
+  console.warn('⚠️  Supabase credentials not found. Check anthology-app/.env');
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
@@ -29,9 +32,26 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 // STORAGE
 // ============================================
 
-// NOTE: Supabase bucket names are case-sensitive. Default bucket used by this
-// project is "Recordings".
+// NOTE: Supabase bucket names are case-sensitive. This project uses the bucket
+// named "Recordings" (capital R) in the Supabase dashboard.
 const RECORDINGS_BUCKET = import.meta.env.VITE_SUPABASE_RECORDINGS_BUCKET || 'Recordings';
+
+// ============================================
+// COLOR HELPERS (for new speakers)
+// ============================================
+
+const pickSpeakerBaseColor = (index: number) => DEFAULT_PALETTE[index % DEFAULT_PALETTE.length];
+
+const buildSpeakerColors = (base: string) => {
+  return {
+    circle_color: base,
+    faded_circle_color: hexToRgba(base, 0.35),
+    quote_rectangle_color: hexToRgba(base, 0.15),
+    faded_quote_rectangle_color: hexToRgba(base, 0.08),
+    quote_text_color: darkenColor(base, 0.4),
+    faded_quote_text_color: darkenColor(base, 0.4),
+  };
+};
 
 // ============================================
 // DATABASE TYPES
@@ -63,6 +83,25 @@ interface DbSpeaker {
 }
 
 
+interface DbResponse {
+  id: string;
+  legacy_id?: string;
+  conversation_id: string;
+  responds_to_question_id?: string;
+  responds_to_response_id?: string;
+  speaker_id?: string;
+  speaker_name: string;
+  speaker_text: string;
+  pull_quote?: string;
+  recording_id?: string;
+  audio_start_ms?: number;
+  audio_end_ms?: number;
+  turn_number?: number;
+  metadata?: any;
+  created_at: string;
+  updated_at: string;
+}
+
 interface DbWordTimestamp {
   id: string;
   response_id?: string;
@@ -86,7 +125,7 @@ export const RecordingService = {
    */
   async getById(id: string): Promise<DbRecording | null> {
     const { data, error } = await supabase
-      .from('recordings')
+      .from('anthology_recordings')
       .select('*')
       .eq('id', id)
       .single();
@@ -104,7 +143,7 @@ export const RecordingService = {
    */
   async getAll(): Promise<DbRecording[]> {
     const { data, error } = await supabase
-      .from('recordings')
+      .from('anthology_recordings')
       .select('*')
       .order('created_at', { ascending: false });
 
@@ -119,7 +158,7 @@ export const RecordingService = {
   /**
    * Upload new recording
    */
-  async upload(file: File): Promise<DbRecording | null> {
+  async upload(file: File, durationMs?: number): Promise<DbRecording | null> {
     // Upload to Supabase Storage
     const fileName = `${Date.now()}_${file.name}`;
     const { error: uploadError } = await supabase.storage
@@ -145,13 +184,13 @@ export const RecordingService = {
 
     // Create database entry
     const { data, error } = await supabase
-      .from('recordings')
+      .from('anthology_recordings')
       .insert({
         file_path: publicUrlData.publicUrl,
         file_name: fileName,
         file_size_bytes: file.size,
         mime_type: file.type,
-        duration_ms: 0 // You'll need to extract this from the audio file
+        duration_ms: durationMs ?? 0
       })
       .select()
       .single();
@@ -160,7 +199,7 @@ export const RecordingService = {
       // With RLS enabled, anon key inserts will fail unless you add an INSERT policy.
       if ((error as any)?.code === '42501' || (error as any)?.message?.includes('row-level security')) {
         console.error(
-          'Database RLS blocked insert into recordings. Add an INSERT policy for the anon/public role if you want browser uploads to create DB rows.'
+          'Database RLS blocked insert into anthology_recordings. Add an INSERT policy for the anon/public role if you want browser uploads to create DB rows.'
         );
       }
       console.error('Error creating recording entry:', error);
@@ -169,6 +208,64 @@ export const RecordingService = {
 
     return data;
   }
+};
+
+// ============================================
+// SPEAKER SERVICE
+// ============================================
+
+export const SpeakerService = {
+  /**
+   * Ensure a speaker exists in anthology_speakers for this conversation.
+   * Returns the speaker row.
+   */
+  async ensureSpeaker(conversationDbId: string, speakerName: string): Promise<DbSpeaker> {
+    // 1) Try to find existing
+    const { data: existing, error: existingErr } = await supabase
+      .from('anthology_speakers')
+      .select('*')
+      .eq('conversation_id', conversationDbId)
+      .eq('name', speakerName)
+      .maybeSingle();
+
+    if (existingErr) {
+      throw existingErr;
+    }
+
+    if (existing) {
+      return existing as DbSpeaker;
+    }
+
+    // 2) Count existing speakers to choose a color
+    const { data: allSpeakers, error: listErr } = await supabase
+      .from('anthology_speakers')
+      .select('id')
+      .eq('conversation_id', conversationDbId);
+
+    if (listErr) {
+      throw listErr;
+    }
+
+    const index = (allSpeakers?.length ?? 0);
+    const base = pickSpeakerBaseColor(index);
+    const colors = buildSpeakerColors(base);
+
+    const { data: created, error: createErr } = await supabase
+      .from('anthology_speakers')
+      .insert({
+        conversation_id: conversationDbId,
+        name: speakerName,
+        ...colors,
+      })
+      .select('*')
+      .single();
+
+    if (createErr) {
+      throw createErr;
+    }
+
+    return created as DbSpeaker;
+  },
 };
 
 // ============================================
@@ -181,11 +278,13 @@ export const ConversationService = {
    */
   async getAll(): Promise<Conversation[]> {
     const { data: conversations, error: convError } = await supabase
-      .from('conversations')
+      .from('anthology_conversations')
       .select(`
         *,
-        conversation_recordings!inner (
-          recording:recordings (*)
+        anthology_conversation_recordings!inner (
+          is_primary,
+          recording_id,
+          anthology_recordings (*)
         )
       `)
       .order('created_at', { ascending: false });
@@ -197,12 +296,13 @@ export const ConversationService = {
 
     // Transform to Conversation type
     return conversations.map((conv: any) => {
-      const primaryRecording = conv.conversation_recordings.find(
+      const primaryRecordingLink = conv.anthology_conversation_recordings.find(
         (cr: any) => cr.is_primary
-      )?.recording;
+      );
+      const primaryRecording = primaryRecordingLink?.anthology_recordings;
 
       return {
-        conversation_id: conv.id,
+        conversation_id: conv.legacy_id || conv.id, // Use legacy_id for compatibility
         audio_file: primaryRecording?.file_path || '',
         duration: primaryRecording?.duration_ms || 0,
         color: conv.color,
@@ -214,8 +314,10 @@ export const ConversationService = {
           facilitator: conv.facilitator,
           topics: conv.topics || [],
           source_transcript: conv.source_transcript,
+          speaker_colors: conv.metadata?.speaker_colors,
           ...conv.metadata
-        }
+        },
+        _db_id: conv.id // Store the actual UUID for database queries
       };
     });
   },
@@ -225,11 +327,11 @@ export const ConversationService = {
    */
   async getById(id: string): Promise<Conversation | null> {
     const { data, error } = await supabase
-      .from('conversations')
+      .from('anthology_conversations')
       .select(`
         *,
-        conversation_recordings (
-          recording:recordings (*)
+        anthology_conversation_recordings (
+          recording:anthology_recordings (*)
         )
       `)
       .eq('id', id)
@@ -240,7 +342,7 @@ export const ConversationService = {
       return null;
     }
 
-    const primaryRecording = data.conversation_recordings.find(
+    const primaryRecording = data.anthology_conversation_recordings.find(
       (cr: any) => cr.is_primary
     )?.recording;
 
@@ -267,7 +369,7 @@ export const ConversationService = {
    */
   async getSpeakers(conversationId: string): Promise<Map<string, any>> {
     const { data, error } = await supabase
-      .from('speakers')
+      .from('anthology_speakers')
       .select('*')
       .eq('conversation_id', conversationId);
 
@@ -302,10 +404,10 @@ export const QuestionService = {
    */
   async getByConversation(conversationId: string): Promise<QuestionNode[]> {
     const { data, error } = await supabase
-      .from('questions')
+      .from('anthology_questions')
       .select(`
         *,
-        recording:recordings (*)
+        recording:anthology_recordings (*)
       `)
       .eq('conversation_id', conversationId)
       .order('created_at');
@@ -318,6 +420,7 @@ export const QuestionService = {
     return data.map((q: any) => ({
       type: 'question' as const,
       id: q.legacy_id || q.id,
+      _db_id: q.id,
       question_text: q.question_text,
       related_responses: [], // Will be populated when loading responses
       path_to_recording: q.recording?.file_path,
@@ -333,11 +436,11 @@ export const QuestionService = {
    */
   async getResponses(questionId: string): Promise<ResponseNode[]> {
     const { data, error } = await supabase
-      .from('responses')
+      .from('anthology_responses')
       .select(`
         *,
-        recording:recordings (*),
-        speaker:speakers (*)
+        recording:anthology_recordings (*),
+        speaker:anthology_speakers (*)
       `)
       .eq('responds_to_question_id', questionId)
       .order('turn_number');
@@ -373,11 +476,12 @@ export const ResponseService = {
    */
   async getByConversation(conversationId: string): Promise<ResponseNode[]> {
     const { data, error } = await supabase
-      .from('responses')
+      .from('anthology_responses')
       .select(`
         *,
-        recording:recordings (*),
-        speaker:speakers (*)
+        recording:anthology_recordings (*),
+        speaker:anthology_speakers (*),
+        conversation:anthology_conversations!conversation_id (id, legacy_id)
       `)
       .eq('conversation_id', conversationId)
       .order('turn_number');
@@ -388,22 +492,25 @@ export const ResponseService = {
     }
 
     return data.map((r: any) => {
-      const respondsTo = r.responds_to_question_id
-        ? `q_${r.responds_to_question_id}`
-        : r.responds_to_response_id
-        ? `r_${r.responds_to_response_id}`
-        : '';
+      // IMPORTANT:
+      // - We intentionally do NOT expand the parent question/response relationship here.
+      //   PostgREST relationship names can vary across Supabase projects, and self-joins
+      //   often fail with PGRST200 (schema cache mismatch).
+      // - Instead, we return the raw FK UUID in `responds_to` and canonicalize it inside
+      //   GraphDataService.loadAll() once we have all questions/responses loaded.
+      const respondsToFk = (r.responds_to_question_id || r.responds_to_response_id || '') as string;
 
       return {
         type: 'response' as const,
         id: r.legacy_id || r.id,
-        responds_to: respondsTo,
+        _db_id: r.id,
+        responds_to: respondsToFk,
         speaker_name: r.speaker_name,
         speaker_text: r.speaker_text,
         pull_quote: r.pull_quote,
         audio_start: r.audio_start_ms,
         audio_end: r.audio_end_ms,
-        conversation_id: r.conversation_id,
+        conversation_id: r.conversation?.legacy_id || r.conversation?.id || r.conversation_id,
         path_to_recording: r.recording?.file_path,
         turn_number: r.turn_number
       };
@@ -415,7 +522,7 @@ export const ResponseService = {
    */
   async getWordTimestamps(responseId: string): Promise<WordTimestamp[]> {
     const { data, error } = await supabase
-      .from('word_timestamps')
+      .from('anthology_word_timestamps')
       .select('*')
       .eq('response_id', responseId)
       .order('word_order');
@@ -459,11 +566,14 @@ export const GraphDataService = {
       const allResponses: ResponseNode[] = [];
 
       for (const conv of conversations) {
-        const questions = await QuestionService.getByConversation(conv.conversation_id);
-        const responses = await ResponseService.getByConversation(conv.conversation_id);
+        // Use the database UUID for queries, not the legacy_id
+        const dbId = (conv as any)._db_id || conv.conversation_id;
+
+        const questions = await QuestionService.getByConversation(dbId);
+        const responses = await ResponseService.getByConversation(dbId);
 
         // Get speaker colors for this conversation
-        const speakers = await ConversationService.getSpeakers(conv.conversation_id);
+        const speakers = await ConversationService.getSpeakers(dbId);
 
         // Add speaker colors to conversation metadata
         if (speakers.size > 0) {
@@ -475,6 +585,94 @@ export const GraphDataService = {
       }
 
       // Link questions to responses
+      // Canonicalize `responds_to`.
+      // ResponseService returns raw FK UUIDs in `responds_to` to avoid PostgREST
+      // relationship expansion issues (especially self-joins). Once we have the full
+      // dataset, convert those UUIDs into the canonical node IDs used throughout the app
+      // (legacy_id when present, otherwise UUID).
+      const questionDbIdToCanonicalId = new Map<string, string>();
+      allQuestions.forEach((q: any) => {
+        const dbId = q?._db_id;
+        if (typeof dbId === 'string' && dbId.length > 0) {
+          questionDbIdToCanonicalId.set(dbId, q.id);
+        }
+      });
+
+      const responseDbIdToCanonicalId = new Map<string, string>();
+      allResponses.forEach((r: any) => {
+        const dbId = r?._db_id;
+        if (typeof dbId === 'string' && dbId.length > 0) {
+          responseDbIdToCanonicalId.set(dbId, r.id);
+        }
+      });
+
+      const canonicalizeNodeId = (maybeDbId: string) => {
+        return (
+          questionDbIdToCanonicalId.get(maybeDbId) ||
+          responseDbIdToCanonicalId.get(maybeDbId) ||
+          maybeDbId
+        );
+      };
+
+      const canonicalResponses = allResponses.map((r) => ({
+        ...r,
+        responds_to: canonicalizeNodeId(r.responds_to)
+      }));
+
+      // Attach word timestamps (for karaoke highlighting) when available.
+      // We fetch in batches to avoid a per-response query.
+      const responseDbIds = canonicalResponses
+        .map((r: any) => r?._db_id)
+        .filter((id: any): id is string => typeof id === 'string' && id.length > 0);
+
+      if (responseDbIds.length > 0) {
+        const byResponseDbId = new Map<string, WordTimestamp[]>();
+
+        const batchSize = 500;
+        for (let i = 0; i < responseDbIds.length; i += batchSize) {
+          const batch = responseDbIds.slice(i, i + batchSize);
+          const { data: words, error: wordsErr } = await supabase
+            .from('anthology_word_timestamps')
+            .select('*')
+            .in('response_id', batch)
+            .order('response_id', { ascending: true })
+            .order('word_order', { ascending: true });
+
+          if (wordsErr) {
+            console.warn('Failed to load word timestamps:', wordsErr);
+            break;
+          }
+
+          (words || []).forEach((w: any) => {
+            const responseId = w.response_id as string | undefined;
+            if (!responseId) return;
+            const arr = byResponseDbId.get(responseId) || [];
+            arr.push({
+              text: w.text,
+              start: w.start_ms,
+              end: w.end_ms,
+              confidence: w.confidence || 0,
+              speaker: w.speaker || '',
+            });
+            byResponseDbId.set(responseId, arr);
+          });
+        }
+
+        canonicalResponses.forEach((r: any) => {
+          if (Array.isArray(r.word_timestamps) && r.word_timestamps.length > 0) return;
+          const dbId = r?._db_id;
+          if (typeof dbId !== 'string') return;
+          const words = byResponseDbId.get(dbId);
+          if (words && words.length > 0) {
+            r.word_timestamps = words;
+          }
+        });
+      }
+
+      allResponses.length = 0;
+      allResponses.push(...canonicalResponses);
+
+      // Link questions to responses (question-only)
       allQuestions.forEach((q) => {
         q.related_responses = allResponses
           .filter((r) => r.responds_to === q.id)
@@ -499,17 +697,17 @@ export const GraphDataService = {
     const channels = [
       supabase
         .channel('conversations-changes')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations' }, callback)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'anthology_conversations' }, callback)
         .subscribe(),
 
       supabase
         .channel('questions-changes')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'questions' }, callback)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'anthology_questions' }, callback)
         .subscribe(),
 
       supabase
         .channel('responses-changes')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'responses' }, callback)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'anthology_responses' }, callback)
         .subscribe()
     ];
 
@@ -554,7 +752,7 @@ export const AdminService = {
 
     // 2. Get or create speaker
     const { data: speaker } = await supabase
-      .from('speakers')
+      .from('anthology_speakers')
       .select('id')
       .eq('conversation_id', conversationId)
       .eq('name', speakerName)
@@ -562,7 +760,7 @@ export const AdminService = {
 
     // 3. Create response
     const { data: response, error } = await supabase
-      .from('responses')
+      .from('anthology_responses')
       .insert({
         conversation_id: conversationId,
         responds_to_question_id: questionId,
@@ -584,4 +782,260 @@ export const AdminService = {
 
     return response;
   }
+  ,
+
+  /**
+   * Add a new response that responds to another response (node-to-node reply).
+   * This is used by the UI "Respond to {speaker}" flow.
+   */
+  async addResponseToResponse({
+    conversationId,
+    parentResponseId,
+    respondentName,
+    speakerText,
+    recordingFile,
+    recordingId,
+    recordingDurationMs,
+    wordTimestamps,
+  }: {
+    conversationId: string; // legacy id or db uuid
+    parentResponseId: string; // legacy id or db uuid
+    respondentName: string;
+    speakerText: string;
+    recordingFile?: File;
+    recordingId?: string;
+    recordingDurationMs?: number;
+    wordTimestamps?: WordTimestamp[];
+  }) {
+    // Resolve conversation DB id (UUID)
+    const conversationDbId = await (async () => {
+      // If this is already a UUID, this query will likely fail; then we fallback to using it as-is.
+      const { data, error } = await supabase
+        .from('anthology_conversations')
+        .select('id')
+        .eq('legacy_id', conversationId)
+        .maybeSingle();
+
+      if (error) {
+        throw error;
+      }
+      return data?.id || conversationId;
+    })();
+
+    // Resolve parent response DB id (UUID)
+    const parentResponseDbId = await (async () => {
+      const { data, error } = await supabase
+        .from('anthology_responses')
+        .select('id')
+        .eq('legacy_id', parentResponseId)
+        .maybeSingle();
+
+      if (error) {
+        throw error;
+      }
+      return data?.id || parentResponseId;
+    })();
+
+    // Ensure speaker exists
+    const speaker = await SpeakerService.ensureSpeaker(conversationDbId, respondentName);
+
+    // Optional: upload recording (unless caller provided an existing recordingId)
+    const recording = recordingId
+      ? ({ id: recordingId } as DbRecording)
+      : recordingFile
+      ? await RecordingService.upload(recordingFile, recordingDurationMs)
+      : null;
+
+    // If we attach a recording to the response, we must also provide a valid audio range.
+    // The DB enforces this via the `valid_audio_range` CHECK constraint.
+    const hasRecording = !!recording?.id;
+    if (hasRecording && (!recordingDurationMs || recordingDurationMs <= 0)) {
+      throw new Error('recordingDurationMs is required (> 0) when attaching a recording to a response');
+    }
+
+    // Next turn_number
+    const { data: last, error: lastErr } = await supabase
+      .from('anthology_responses')
+      .select('turn_number')
+      .eq('conversation_id', conversationDbId)
+      .order('turn_number', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (lastErr) {
+      throw lastErr;
+    }
+
+    const nextTurn = (last?.turn_number ?? 0) + 1;
+
+    const { data: response, error } = await supabase
+      .from('anthology_responses')
+      .insert({
+        conversation_id: conversationDbId,
+        responds_to_response_id: parentResponseDbId,
+        speaker_id: speaker.id,
+        speaker_name: respondentName,
+        speaker_text: speakerText,
+        recording_id: hasRecording ? recording!.id : null,
+        audio_start_ms: hasRecording ? 0 : null,
+        audio_end_ms: hasRecording ? recordingDurationMs! : null,
+        turn_number: nextTurn,
+      })
+      .select('*')
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    // Persist word timestamps (for karaoke highlighting)
+    if (Array.isArray(wordTimestamps) && wordTimestamps.length > 0) {
+      const rows = wordTimestamps
+        .filter((w) => typeof w.text === 'string' && typeof w.start === 'number' && typeof w.end === 'number')
+        .map((w, idx) => ({
+          response_id: response.id,
+          text: w.text,
+          start_ms: w.start,
+          end_ms: w.end,
+          confidence: typeof w.confidence === 'number' ? w.confidence : null,
+          speaker: typeof w.speaker === 'string' ? w.speaker : null,
+          word_order: idx,
+        }));
+
+      if (rows.length > 0) {
+        const { error: wordsErr } = await supabase.from('anthology_word_timestamps').insert(rows);
+        if (wordsErr) {
+          console.warn('Failed to insert word timestamps (karaoke will fallback to plain text):', wordsErr);
+        }
+      }
+    }
+
+    return response as DbResponse;
+  },
+  
+  /**
+   * Add a new response that responds to a QUESTION node.
+   * Used by the global "Add your voice" flow.
+   */
+  async addResponseToQuestion({
+    conversationId,
+    questionId,
+    respondentName,
+    speakerText,
+    recordingFile,
+    recordingId,
+    recordingDurationMs,
+    wordTimestamps,
+  }: {
+    conversationId: string; // legacy id or db uuid
+    questionId: string; // legacy id or db uuid
+    respondentName: string;
+    speakerText: string;
+    recordingFile?: File;
+    recordingId?: string;
+    recordingDurationMs?: number;
+    wordTimestamps?: WordTimestamp[];
+  }) {
+    // Resolve conversation DB id (UUID)
+    const conversationDbId = await (async () => {
+      const { data, error } = await supabase
+        .from('anthology_conversations')
+        .select('id')
+        .eq('legacy_id', conversationId)
+        .maybeSingle();
+
+      if (error) {
+        throw error;
+      }
+      return data?.id || conversationId;
+    })();
+
+    // Resolve question DB id (UUID)
+    const questionDbId = await (async () => {
+      const { data, error } = await supabase
+        .from('anthology_questions')
+        .select('id')
+        .eq('legacy_id', questionId)
+        .maybeSingle();
+
+      if (error) {
+        throw error;
+      }
+      return data?.id || questionId;
+    })();
+
+    // Ensure speaker exists
+    const speaker = await SpeakerService.ensureSpeaker(conversationDbId, respondentName);
+
+    // Optional: upload recording (unless caller provided an existing recordingId)
+    const recording = recordingId
+      ? ({ id: recordingId } as DbRecording)
+      : recordingFile
+      ? await RecordingService.upload(recordingFile, recordingDurationMs)
+      : null;
+
+    const hasRecording = !!recording?.id;
+    if (hasRecording && (!recordingDurationMs || recordingDurationMs <= 0)) {
+      throw new Error('recordingDurationMs is required (> 0) when attaching a recording to a response');
+    }
+
+    // Next turn_number
+    const { data: last, error: lastErr } = await supabase
+      .from('anthology_responses')
+      .select('turn_number')
+      .eq('conversation_id', conversationDbId)
+      .order('turn_number', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (lastErr) {
+      throw lastErr;
+    }
+
+    const nextTurn = (last?.turn_number ?? 0) + 1;
+
+    const { data: response, error } = await supabase
+      .from('anthology_responses')
+      .insert({
+        conversation_id: conversationDbId,
+        responds_to_question_id: questionDbId,
+        speaker_id: speaker.id,
+        speaker_name: respondentName,
+        speaker_text: speakerText,
+        recording_id: hasRecording ? recording!.id : null,
+        audio_start_ms: hasRecording ? 0 : null,
+        audio_end_ms: hasRecording ? recordingDurationMs! : null,
+        turn_number: nextTurn,
+      })
+      .select('*')
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    // Persist word timestamps (for karaoke highlighting)
+    if (Array.isArray(wordTimestamps) && wordTimestamps.length > 0) {
+      const rows = wordTimestamps
+        .filter((w) => typeof w.text === 'string' && typeof w.start === 'number' && typeof w.end === 'number')
+        .map((w, idx) => ({
+          response_id: response.id,
+          text: w.text,
+          start_ms: w.start,
+          end_ms: w.end,
+          confidence: typeof w.confidence === 'number' ? w.confidence : null,
+          speaker: typeof w.speaker === 'string' ? w.speaker : null,
+          word_order: idx,
+        }));
+
+      if (rows.length > 0) {
+        const { error: wordsErr } = await supabase.from('anthology_word_timestamps').insert(rows);
+        if (wordsErr) {
+          console.warn('Failed to insert word timestamps (karaoke will fallback to plain text):', wordsErr);
+        }
+      }
+    }
+
+    return response as DbResponse;
+  },
 };

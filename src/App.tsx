@@ -5,6 +5,7 @@ import { Tooltip } from '@components/UI/Tooltip';
 import { AudioManager } from '@components/Audio/AudioManager';
 import { AddYourVoiceButton } from '@/components/AddYourVoice/AddYourVoiceButton';
 import { useAnthologyStore, useInteractionStore } from '@stores';
+import { GraphDataService } from '@/services/supabase';
 import './App.css';
 
 /**
@@ -45,16 +46,10 @@ function App() {
     const loadAnthologyData = async () => {
       try {
         // Try loading from Supabase first
-        const { GraphDataService } = await import('@/services/supabase-prefixed');
         const data = await GraphDataService.loadAll();
 
         if (data.conversations.length > 0) {
           console.log('✅ Loaded data from Supabase');
-          console.log('🔊 Audio Debug: Conversations loaded:', data.conversations.map(c => ({
-            id: c.conversation_id,
-            audio_file: c.audio_file,
-            title: c.metadata.title
-          })));
           await loadData(data);
           return;
         }
