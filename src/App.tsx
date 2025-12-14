@@ -3,6 +3,7 @@ import { MapCanvas } from '@components/Map';
 import { CommentRail } from '@components/Rail';
 import { Tooltip } from '@components/UI/Tooltip';
 import { AudioManager } from '@components/Audio/AudioManager';
+import { AddYourVoiceButton } from '@/components/AddYourVoice/AddYourVoiceButton';
 import { useAnthologyStore, useInteractionStore } from '@stores';
 import './App.css';
 
@@ -107,6 +108,9 @@ function App() {
     <div className="app">
       {/* Global audio manager - handles all audio playback */}
       <AudioManager />
+
+      {/* Global "add your vioce" entry point */}
+      <AddYourVoiceButton />
 
       <main className="app-main">
         <div className="map-container" style={{ width: mapWidth }}>

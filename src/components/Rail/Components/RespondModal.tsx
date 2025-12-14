@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
-import type { ResponseNode } from '@types';
+import type { ResponseNode, WordTimestamp } from '@types';
 import { useAudioRecorder } from '@hooks';
 import { transcribeAudioUrl } from '@/services/transcription';
 import { AdminService, GraphDataService, RecordingService } from '@/services/supabase-prefixed';
@@ -114,6 +114,18 @@ export const RespondModal = memo<RespondModalProps>(({ open, targetResponse, onC
         const transcript = await transcribeAudioUrl(uploaded.file_path);
         const speakerText = transcript.text || '';
 
+        const wordTimestamps: WordTimestamp[] = Array.isArray(transcript.words)
+          ? transcript.words
+              .filter((w) => typeof w?.text === 'string' && typeof w?.start === 'number' && typeof w?.end === 'number')
+              .map((w) => ({
+                text: w.text,
+                start: w.start,
+                end: w.end,
+                confidence: typeof w.confidence === 'number' ? w.confidence : undefined,
+                speaker: trimmedName,
+              }))
+          : [];
+
         // 3) Insert response (responds-to-response)
         const created = await AdminService.addResponseToResponse({
           conversationId,
@@ -122,6 +134,7 @@ export const RespondModal = memo<RespondModalProps>(({ open, targetResponse, onC
           speakerText,
           recordingId: uploaded.id,
           recordingDurationMs: durationMs,
+          wordTimestamps,
         });
 
         // 4) Reload graph + select the newly-created response

@@ -5,7 +5,7 @@
  * Manages audio playback for individual response nodes using the global audio element.
  */
 
-import { memo, useCallback, useEffect, useRef } from 'react';
+import { memo, useCallback } from 'react';
 import { useAnthologyStore } from '@stores';
 import { ResponsePlayButton } from '@components/Rail/Components/ResponsePlayButton';
 import type { ResponseNode } from '@types';
@@ -19,17 +19,9 @@ export const AudioPlayer = memo<AudioPlayerProps>(({ response }) => {
   const currentTrack = useAnthologyStore((state) => state.audio.currentTrack);
   const playbackState = useAnthologyStore((state) => state.audio.playbackState);
   const currentTime = useAnthologyStore((state) => state.audio.currentTime);
-  const audioElement = useAnthologyStore((state) => state.audio.audioElement);
   const play = useAnthologyStore((state) => state.play);
   const pause = useAnthologyStore((state) => state.pause);
   const seek = useAnthologyStore((state) => state.seek);
-  const updateCurrentTime = useAnthologyStore((state) => state.updateCurrentTime);
-  const stop = useAnthologyStore((state) => state.stop);
-
-  const responseNodes = useAnthologyStore((state) => state.data.responseNodes);
-  const conversations = useAnthologyStore((state) => state.data.conversations);
-
-  const rafRef = useRef<number | null>(null);
 
   // Check if this response is currently playing
   const isPlaying = currentTrack === response.id && playbackState === 'playing';
@@ -54,147 +46,6 @@ export const AudioPlayer = memo<AudioPlayerProps>(({ response }) => {
     },
     [seek]
   );
-
-  // Handle actual audio playback when store state changes
-  useEffect(() => {
-    if (!audioElement || !currentTrack) {
-      console.log('🔊 Audio Debug: Missing audioElement or currentTrack', { audioElement: !!audioElement, currentTrack });
-      return;
-    }
-
-    const currentNode = responseNodes.get(currentTrack);
-    if (!currentNode) {
-      console.error('🔊 Audio Error: Current node not found', { currentTrack, availableNodes: Array.from(responseNodes.keys()) });
-      return;
-    }
-
-    const conversation = conversations.get(currentNode.conversation_id);
-    if (!conversation) {
-      console.error('🔊 Audio Error: Conversation not found', { conversation_id: currentNode.conversation_id, availableConversations: Array.from(conversations.keys()) });
-      return;
-    }
-
-    // Prefer per-response recording if present; otherwise fall back to the conversation audio.
-    // Note: conversation audio_file may be a relative path like "./recordings/1635.mp3".
-    const audioFilePathRaw = currentNode.path_to_recording || conversation.audio_file;
-    const audioFilePath = audioFilePathRaw.startsWith('./')
-      ? audioFilePathRaw.replace('./', '/')
-      : audioFilePathRaw;
-    const { audio_start, audio_end } = currentNode;
-
-    console.log('🔊 Audio Debug: Attempting to play', {
-      audioFilePath,
-      audio_start,
-      audio_end,
-      currentNode: currentNode.id,
-      conversation: conversation.conversation_id
-    });
-
-    // Monitor playback and auto-stop at segment end
-    const monitorPlayback = () => {
-      if (!audioElement || audioElement.paused) {
-        rafRef.current = null;
-        return;
-      }
-
-      const currentTimeMs = audioElement.currentTime * 1000;
-      const relativeTime = currentTimeMs - audio_start;
-      updateCurrentTime(Math.max(0, relativeTime));
-
-      // Check if we've reached segment end
-      if (currentTimeMs >= audio_end) {
-        audioElement.pause();
-        // Keep the audio at the end position (don't rewind)
-        // Keep currentTime at the end so the last word stays highlighted
-        const finalRelativeTime = audio_end - audio_start;
-        updateCurrentTime(finalRelativeTime);
-        // Don't call stop() - keep currentTrack so karaoke display stays visible
-        // Just pause the playback state
-        pause();
-        rafRef.current = null;
-        return;
-      }
-
-      rafRef.current = requestAnimationFrame(monitorPlayback);
-    };
-
-    // Handle playback state
-    if (playbackState === 'playing') {
-      // Load audio if needed
-      if (audioElement.src !== audioFilePath) {
-        console.log('🔊 Audio Debug: Loading new audio file', {
-          oldSrc: audioElement.src,
-          newSrc: audioFilePath
-        });
-        audioElement.src = audioFilePath;
-        // Only reset to start when loading new audio file
-        audioElement.currentTime = audio_start / 1000;
-      } else {
-        // Only reset if we're completely outside the segment (not just paused mid-segment)
-        const currentTimeMs = audioElement.currentTime * 1000;
-        // If we're before the start OR significantly after the end, reset to start
-        if (currentTimeMs < audio_start || currentTimeMs > audio_end + 100) {
-          console.log('🔊 Audio Debug: Resetting to start', { currentTimeMs, audio_start });
-          audioElement.currentTime = audio_start / 1000;
-        }
-        // Otherwise, resume from current position (paused state)
-      }
-
-      // Start playback
-      console.log('🔊 Audio Debug: Calling play()');
-      audioElement.play()
-        .then(() => {
-          console.log('✅ Audio Debug: Play succeeded');
-        })
-        .catch((error) => {
-          console.error('❌ Audio Error: Play failed', error);
-        });
-
-      // Start monitoring
-      if (!rafRef.current) {
-        rafRef.current = requestAnimationFrame(monitorPlayback);
-      }
-    } else if (playbackState === 'paused') {
-      audioElement.pause();
-      if (rafRef.current) {
-        cancelAnimationFrame(rafRef.current);
-        rafRef.current = null;
-      }
-    } else if (playbackState === 'idle') {
-      audioElement.pause();
-      audioElement.currentTime = audio_start / 1000;
-      updateCurrentTime(0);
-      if (rafRef.current) {
-        cancelAnimationFrame(rafRef.current);
-        rafRef.current = null;
-      }
-    }
-
-    // Cleanup on unmount or state change
-    return () => {
-      if (rafRef.current) {
-        cancelAnimationFrame(rafRef.current);
-        rafRef.current = null;
-      }
-    };
-  }, [audioElement, currentTrack, playbackState, responseNodes, conversations, updateCurrentTime, stop]);
-
-  // Handle seek operations
-  useEffect(() => {
-    if (!audioElement || currentTrack !== response.id) return;
-
-    const currentNode = responseNodes.get(currentTrack);
-    if (!currentNode) return;
-
-    const { audio_start } = currentNode;
-    const absoluteTime = audio_start + currentTime;
-
-    // Only update if significantly different (avoid feedback loop)
-    const currentAudioTime = audioElement.currentTime * 1000;
-    if (Math.abs(currentAudioTime - absoluteTime) > 100) {
-      audioElement.currentTime = absoluteTime / 1000;
-    }
-  }, [audioElement, currentTrack, currentTime, response.id, responseNodes]);
 
   return (
     <ResponsePlayButton

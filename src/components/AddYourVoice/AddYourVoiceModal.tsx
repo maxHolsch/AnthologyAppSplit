@@ -1,0 +1,354 @@
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { useAudioRecorder } from '@hooks';
+import { useAnthologyStore } from '@stores';
+import { transcribeAudioUrl } from '@/services/transcription';
+import { judgeQuestionPlacement } from '@/services/questionPlacement';
+import { AdminService, GraphDataService, RecordingService } from '@/services/supabase-prefixed';
+import type { QuestionNode, ResponseNode, WordTimestamp } from '@types';
+import styles from './AddYourVoiceModal.module.css';
+
+type Stage = 'record' | 'review';
+
+async function getAudioDurationMs(blob: Blob): Promise<number> {
+  const url = URL.createObjectURL(blob);
+  try {
+    const audio = document.createElement('audio');
+    audio.preload = 'metadata';
+    audio.src = url;
+    await new Promise<void>((resolve, reject) => {
+      audio.onloadedmetadata = () => resolve();
+      audio.onerror = () => reject(new Error('Failed to load audio metadata'));
+    });
+    const durationSec = Number.isFinite(audio.duration) ? audio.duration : 0;
+    return Math.max(0, Math.round(durationSec * 1000));
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+function pickFileName(mimeType: string | null) {
+  const base = `voice_${Date.now()}`;
+  if (!mimeType) return `${base}.webm`;
+  if (mimeType.includes('mp4')) return `${base}.m4a`;
+  if (mimeType.includes('ogg')) return `${base}.ogg`;
+  return `${base}.webm`;
+}
+
+function inferConversationIdForQuestion(questionId: string, responses: Map<string, ResponseNode>, rawConversations: any) {
+  for (const r of responses.values()) {
+    if (r.responds_to === questionId && typeof r.conversation_id === 'string' && r.conversation_id.length > 0) {
+      return r.conversation_id;
+    }
+  }
+
+  const conv0 = rawConversations?.[0]?.conversation_id;
+  return typeof conv0 === 'string' ? conv0 : '';
+}
+
+export interface AddYourVoiceModalProps {
+  open: boolean;
+  onClose: () => void;
+}
+
+export const AddYourVoiceModal = memo<AddYourVoiceModalProps>(({ open, onClose }) => {
+  const [stage, setStage] = useState<Stage>('record');
+  const [name, setName] = useState('');
+  const [transcript, setTranscript] = useState('');
+  const [reason, setReason] = useState<string>('');
+  const [selectedQuestionId, setSelectedQuestionId] = useState<string>('');
+  const [uploadedRecordingId, setUploadedRecordingId] = useState<string>('');
+  const [recordingDurationMs, setRecordingDurationMs] = useState<number>(0);
+  const [wordTimestamps, setWordTimestamps] = useState<WordTimestamp[]>([]);
+  const [isWorking, setIsWorking] = useState(false);
+  const [status, setStatus] = useState<string>('');
+  const [error, setError] = useState<string | null>(null);
+
+  const recorder = useAudioRecorder();
+
+  const loadData = useAnthologyStore((s) => s.loadData);
+  const selectResponse = useAnthologyStore((s) => s.selectResponse);
+  const questionNodes = useAnthologyStore((s) => s.data.questionNodes);
+  const responseNodes = useAnthologyStore((s) => s.data.responseNodes);
+  const rawConversations = useAnthologyStore((s) => s.data.rawData?.conversations);
+
+  const questionsArray = useMemo(() => {
+    const arr = Array.from(questionNodes.values()) as QuestionNode[];
+    // Keep stable ordering for dropdown.
+    return arr.sort((a, b) => (a.question_text || '').localeCompare(b.question_text || ''));
+  }, [questionNodes]);
+
+  const audioPreviewUrl = useMemo(() => {
+    if (!recorder.audioBlob) return null;
+    return URL.createObjectURL(recorder.audioBlob);
+  }, [recorder.audioBlob]);
+
+  useEffect(() => {
+    return () => {
+      if (audioPreviewUrl) URL.revokeObjectURL(audioPreviewUrl);
+    };
+  }, [audioPreviewUrl]);
+
+  useEffect(() => {
+    if (!open) {
+      setStage('record');
+      setName('');
+      setTranscript('');
+      setReason('');
+      setSelectedQuestionId('');
+      setUploadedRecordingId('');
+      setRecordingDurationMs(0);
+      setWordTimestamps([]);
+      setIsWorking(false);
+      setStatus('');
+      setError(null);
+      recorder.reset();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  const close = useCallback(() => {
+    onClose();
+  }, [onClose]);
+
+  const runTranscribeAndSuggest = useCallback(async () => {
+    setError(null);
+    setStatus('');
+
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      setError('Please enter your name.');
+      return;
+    }
+    if (!recorder.audioBlob) {
+      setError('Please record audio first.');
+      return;
+    }
+    if (questionsArray.length === 0) {
+      setError('No question nodes are loaded yet.');
+      return;
+    }
+
+    setIsWorking(true);
+    try {
+      setStatus('Uploading recording…');
+      const durationMs = await getAudioDurationMs(recorder.audioBlob);
+      const file = new File([recorder.audioBlob], pickFileName(recorder.mimeType), {
+        type: recorder.audioBlob.type || recorder.mimeType || 'audio/webm',
+      });
+
+      const uploaded = await RecordingService.upload(file, durationMs);
+      if (!uploaded) {
+        throw new Error('Failed to upload recording to Supabase.');
+      }
+
+      setUploadedRecordingId(uploaded.id);
+      setRecordingDurationMs(durationMs);
+
+      setStatus('Transcribing with AssemblyAI…');
+      const transcription = await transcribeAudioUrl(uploaded.file_path);
+      const text = (transcription.text || '').trim();
+      if (!text) {
+        throw new Error('Transcription returned empty text.');
+      }
+      setTranscript(text);
+
+      const words = Array.isArray(transcription.words) ? transcription.words : [];
+      setWordTimestamps(
+        words
+          .filter((w) => typeof w?.text === 'string' && typeof w?.start === 'number' && typeof w?.end === 'number')
+          .map((w) => ({
+            text: w.text,
+            start: w.start,
+            end: w.end,
+            confidence: typeof w.confidence === 'number' ? w.confidence : undefined,
+            speaker: trimmedName,
+          }))
+      );
+
+      setStatus('Asking the LLM to suggest the best question…');
+      const placement = await judgeQuestionPlacement(
+        text,
+        questionsArray.map((q) => ({ id: q.id, text: q.question_text }))
+      );
+
+      setSelectedQuestionId(placement.bestQuestionId);
+      setReason(placement.reason || '');
+
+      setStage('review');
+      setStatus('');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to transcribe/suggest');
+      setStatus('');
+    } finally {
+      setIsWorking(false);
+    }
+  }, [name, recorder.audioBlob, recorder.mimeType, questionsArray]);
+
+  const handleSubmit = useCallback(async () => {
+    setError(null);
+    setStatus('');
+
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      setError('Please enter your name.');
+      return;
+    }
+    if (!selectedQuestionId) {
+      setError('Please choose a question node.');
+      return;
+    }
+    if (!transcript.trim()) {
+      setError('Missing transcript. Please transcribe first.');
+      return;
+    }
+
+    setIsWorking(true);
+    try {
+      if (!uploadedRecordingId || !recordingDurationMs) {
+        throw new Error('Missing uploaded recording metadata. Please transcribe again.');
+      }
+
+      const conversationId = inferConversationIdForQuestion(selectedQuestionId, responseNodes, rawConversations);
+      if (!conversationId) {
+        throw new Error('Could not infer conversation for selected question.');
+      }
+
+      setStatus('Saving response…');
+      const created = await AdminService.addResponseToQuestion({
+        conversationId,
+        questionId: selectedQuestionId,
+        respondentName: trimmedName,
+        speakerText: transcript.trim(),
+        recordingId: uploadedRecordingId,
+        recordingDurationMs,
+        wordTimestamps,
+      });
+
+      setStatus('Refreshing graph…');
+      const graph = await GraphDataService.loadAll();
+      await loadData(graph);
+      selectResponse(created.legacy_id || created.id);
+
+      close();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to submit');
+      setStatus('');
+    } finally {
+      setIsWorking(false);
+    }
+  }, [name, selectedQuestionId, transcript, uploadedRecordingId, recordingDurationMs, wordTimestamps, responseNodes, rawConversations, loadData, selectResponse, close]);
+
+  if (!open) return null;
+
+  return (
+    <div className={styles.overlay} role="dialog" aria-modal="true">
+      <div className={styles.modal}>
+        <div className={styles.header}>
+          <h3 className={styles.title}>Add your voice</h3>
+          <button className={styles.closeButton} onClick={close} aria-label="Close">
+            ×
+          </button>
+        </div>
+
+        <div className={styles.body}>
+          {stage === 'record' && (
+            <>
+              <div className={styles.row}>
+                {recorder.state !== 'recording' ? (
+                  <button className={styles.primaryButton} onClick={() => recorder.start()} disabled={isWorking}>
+                    Start recording
+                  </button>
+                ) : (
+                  <button className={styles.dangerButton} onClick={() => recorder.stop()} disabled={isWorking}>
+                    Stop recording
+                  </button>
+                )}
+                <button
+                  className={styles.secondaryButton}
+                  onClick={() => recorder.reset()}
+                  disabled={isWorking || recorder.state === 'recording'}
+                >
+                  Reset
+                </button>
+              </div>
+
+              {recorder.error && <div className={styles.error}>{recorder.error}</div>}
+              {audioPreviewUrl && <audio controls src={audioPreviewUrl} style={{ width: '100%' }} />}
+
+              <input
+                className={styles.input}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Your name"
+                disabled={isWorking}
+              />
+
+              <div className={styles.hint}>
+                We’ll upload your recording, transcribe it with AssemblyAI, then suggest a question node to attach it to.
+              </div>
+
+              <div className={styles.row}>
+                <button
+                  className={styles.primaryButton}
+                  onClick={runTranscribeAndSuggest}
+                  disabled={isWorking || recorder.state === 'recording' || !recorder.audioBlob}
+                >
+                  Transcribe & suggest
+                </button>
+                <button className={styles.secondaryButton} onClick={close} disabled={isWorking}>
+                  Cancel
+                </button>
+              </div>
+            </>
+          )}
+
+          {stage === 'review' && (
+            <>
+              <div>
+                <div className={styles.label}>Transcript</div>
+                <textarea className={styles.textarea} value={transcript} readOnly />
+              </div>
+
+              <div>
+                <div className={styles.label}>Suggested question</div>
+                <select
+                  className={styles.select}
+                  value={selectedQuestionId}
+                  onChange={(e) => setSelectedQuestionId(e.target.value)}
+                  disabled={isWorking}
+                >
+                  {questionsArray.map((q) => (
+                    <option key={q.id} value={q.id}>
+                      {q.question_text}
+                    </option>
+                  ))}
+                </select>
+                {reason && <div className={styles.hint}>{reason}</div>}
+              </div>
+
+              <div className={styles.row}>
+                <button className={styles.secondaryButton} onClick={() => setStage('record')} disabled={isWorking}>
+                  Back
+                </button>
+              </div>
+
+              <div className={styles.row}>
+                <button className={styles.primaryButton} onClick={handleSubmit} disabled={isWorking}>
+                  Submit
+                </button>
+                <button className={styles.secondaryButton} onClick={close} disabled={isWorking}>
+                  Cancel
+                </button>
+              </div>
+            </>
+          )}
+
+          {error && <div className={styles.error}>{error}</div>}
+          {isWorking && status && <div className={styles.loading}>{status}</div>}
+        </div>
+      </div>
+    </div>
+  );
+});
+
+AddYourVoiceModal.displayName = 'AddYourVoiceModal';

@@ -625,6 +625,56 @@ export const GraphDataService = {
         responds_to: canonicalizeNodeId(r.responds_to)
       }));
 
+      // Attach word timestamps (for karaoke highlighting) when available.
+      // We fetch in batches to avoid a per-response query.
+      const responseDbIds = canonicalResponses
+        .map((r: any) => r?._db_id)
+        .filter((id: any): id is string => typeof id === 'string' && id.length > 0);
+
+      if (responseDbIds.length > 0) {
+        const byResponseDbId = new Map<string, WordTimestamp[]>();
+
+        const batchSize = 500;
+        for (let i = 0; i < responseDbIds.length; i += batchSize) {
+          const batch = responseDbIds.slice(i, i + batchSize);
+          const { data: words, error: wordsErr } = await supabase
+            .from('anthology_word_timestamps')
+            .select('*')
+            .in('response_id', batch)
+            .order('response_id', { ascending: true })
+            .order('word_order', { ascending: true });
+
+          if (wordsErr) {
+            console.warn('Failed to load word timestamps:', wordsErr);
+            break;
+          }
+
+          (words || []).forEach((w: any) => {
+            const responseId = w.response_id as string | undefined;
+            if (!responseId) return;
+            const arr = byResponseDbId.get(responseId) || [];
+            arr.push({
+              text: w.text,
+              start: w.start_ms,
+              end: w.end_ms,
+              confidence: w.confidence || 0,
+              speaker: w.speaker || '',
+            });
+            byResponseDbId.set(responseId, arr);
+          });
+        }
+
+        canonicalResponses.forEach((r: any) => {
+          if (Array.isArray(r.word_timestamps) && r.word_timestamps.length > 0) return;
+          const dbId = r?._db_id;
+          if (typeof dbId !== 'string') return;
+          const words = byResponseDbId.get(dbId);
+          if (words && words.length > 0) {
+            r.word_timestamps = words;
+          }
+        });
+      }
+
       allResponses.length = 0;
       allResponses.push(...canonicalResponses);
 
@@ -752,6 +802,7 @@ export const AdminService = {
     recordingFile,
     recordingId,
     recordingDurationMs,
+    wordTimestamps,
   }: {
     conversationId: string; // legacy id or db uuid
     parentResponseId: string; // legacy id or db uuid
@@ -760,6 +811,7 @@ export const AdminService = {
     recordingFile?: File;
     recordingId?: string;
     recordingDurationMs?: number;
+    wordTimestamps?: WordTimestamp[];
   }) {
     // Resolve conversation DB id (UUID)
     const conversationDbId = await (async () => {
@@ -840,6 +892,154 @@ export const AdminService = {
 
     if (error) {
       throw error;
+    }
+
+    // Persist word timestamps (for karaoke highlighting)
+    if (Array.isArray(wordTimestamps) && wordTimestamps.length > 0) {
+      const rows = wordTimestamps
+        .filter((w) => typeof w.text === 'string' && typeof w.start === 'number' && typeof w.end === 'number')
+        .map((w, idx) => ({
+          response_id: response.id,
+          text: w.text,
+          start_ms: w.start,
+          end_ms: w.end,
+          confidence: typeof w.confidence === 'number' ? w.confidence : null,
+          speaker: typeof w.speaker === 'string' ? w.speaker : null,
+          word_order: idx,
+        }));
+
+      if (rows.length > 0) {
+        const { error: wordsErr } = await supabase.from('anthology_word_timestamps').insert(rows);
+        if (wordsErr) {
+          console.warn('Failed to insert word timestamps (karaoke will fallback to plain text):', wordsErr);
+        }
+      }
+    }
+
+    return response as DbResponse;
+  },
+  
+  /**
+   * Add a new response that responds to a QUESTION node.
+   * Used by the global "Add your voice" flow.
+   */
+  async addResponseToQuestion({
+    conversationId,
+    questionId,
+    respondentName,
+    speakerText,
+    recordingFile,
+    recordingId,
+    recordingDurationMs,
+    wordTimestamps,
+  }: {
+    conversationId: string; // legacy id or db uuid
+    questionId: string; // legacy id or db uuid
+    respondentName: string;
+    speakerText: string;
+    recordingFile?: File;
+    recordingId?: string;
+    recordingDurationMs?: number;
+    wordTimestamps?: WordTimestamp[];
+  }) {
+    // Resolve conversation DB id (UUID)
+    const conversationDbId = await (async () => {
+      const { data, error } = await supabase
+        .from('anthology_conversations')
+        .select('id')
+        .eq('legacy_id', conversationId)
+        .maybeSingle();
+
+      if (error) {
+        throw error;
+      }
+      return data?.id || conversationId;
+    })();
+
+    // Resolve question DB id (UUID)
+    const questionDbId = await (async () => {
+      const { data, error } = await supabase
+        .from('anthology_questions')
+        .select('id')
+        .eq('legacy_id', questionId)
+        .maybeSingle();
+
+      if (error) {
+        throw error;
+      }
+      return data?.id || questionId;
+    })();
+
+    // Ensure speaker exists
+    const speaker = await SpeakerService.ensureSpeaker(conversationDbId, respondentName);
+
+    // Optional: upload recording (unless caller provided an existing recordingId)
+    const recording = recordingId
+      ? ({ id: recordingId } as DbRecording)
+      : recordingFile
+      ? await RecordingService.upload(recordingFile, recordingDurationMs)
+      : null;
+
+    const hasRecording = !!recording?.id;
+    if (hasRecording && (!recordingDurationMs || recordingDurationMs <= 0)) {
+      throw new Error('recordingDurationMs is required (> 0) when attaching a recording to a response');
+    }
+
+    // Next turn_number
+    const { data: last, error: lastErr } = await supabase
+      .from('anthology_responses')
+      .select('turn_number')
+      .eq('conversation_id', conversationDbId)
+      .order('turn_number', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (lastErr) {
+      throw lastErr;
+    }
+
+    const nextTurn = (last?.turn_number ?? 0) + 1;
+
+    const { data: response, error } = await supabase
+      .from('anthology_responses')
+      .insert({
+        conversation_id: conversationDbId,
+        responds_to_question_id: questionDbId,
+        speaker_id: speaker.id,
+        speaker_name: respondentName,
+        speaker_text: speakerText,
+        recording_id: hasRecording ? recording!.id : null,
+        audio_start_ms: hasRecording ? 0 : null,
+        audio_end_ms: hasRecording ? recordingDurationMs! : null,
+        turn_number: nextTurn,
+      })
+      .select('*')
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    // Persist word timestamps (for karaoke highlighting)
+    if (Array.isArray(wordTimestamps) && wordTimestamps.length > 0) {
+      const rows = wordTimestamps
+        .filter((w) => typeof w.text === 'string' && typeof w.start === 'number' && typeof w.end === 'number')
+        .map((w, idx) => ({
+          response_id: response.id,
+          text: w.text,
+          start_ms: w.start,
+          end_ms: w.end,
+          confidence: typeof w.confidence === 'number' ? w.confidence : null,
+          speaker: typeof w.speaker === 'string' ? w.speaker : null,
+          word_order: idx,
+        }));
+
+      if (rows.length > 0) {
+        const { error: wordsErr } = await supabase.from('anthology_word_timestamps').insert(rows);
+        if (wordsErr) {
+          console.warn('Failed to insert word timestamps (karaoke will fallback to plain text):', wordsErr);
+        }
+      }
     }
 
     return response as DbResponse;
