@@ -29,6 +29,28 @@ if (!supabaseUrl || !supabaseAnonKey) {
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // ============================================
+// ANTHOLOGY HELPERS (multi-anthology support)
+// ============================================
+
+async function getAnthologyIdForConversation(conversationDbId: string): Promise<string> {
+  const { data, error } = await supabase
+    .from('anthology_conversations')
+    .select('anthology_id')
+    .eq('id', conversationDbId)
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  if (!data?.anthology_id) {
+    throw new Error('Conversation has no anthology_id (schema migration may be incomplete)');
+  }
+
+  return data.anthology_id as string;
+}
+
+// ============================================
 // STORAGE
 // ============================================
 
@@ -219,11 +241,18 @@ export const SpeakerService = {
    * Ensure a speaker exists in anthology_speakers for this conversation.
    * Returns the speaker row.
    */
-  async ensureSpeaker(conversationDbId: string, speakerName: string): Promise<DbSpeaker> {
+  async ensureSpeaker(
+    conversationDbId: string,
+    speakerName: string,
+    opts?: { anthologyId?: string }
+  ): Promise<DbSpeaker> {
+    const anthologyId = opts?.anthologyId || (await getAnthologyIdForConversation(conversationDbId));
+
     // 1) Try to find existing
     const { data: existing, error: existingErr } = await supabase
       .from('anthology_speakers')
       .select('*')
+      .eq('anthology_id', anthologyId)
       .eq('conversation_id', conversationDbId)
       .eq('name', speakerName)
       .maybeSingle();
@@ -240,6 +269,7 @@ export const SpeakerService = {
     const { data: allSpeakers, error: listErr } = await supabase
       .from('anthology_speakers')
       .select('id')
+      .eq('anthology_id', anthologyId)
       .eq('conversation_id', conversationDbId);
 
     if (listErr) {
@@ -253,6 +283,7 @@ export const SpeakerService = {
     const { data: created, error: createErr } = await supabase
       .from('anthology_speakers')
       .insert({
+        anthology_id: anthologyId,
         conversation_id: conversationDbId,
         name: speakerName,
         ...colors,
@@ -744,6 +775,8 @@ export const AdminService = {
     audioStartMs?: number;
     audioEndMs: number;
   }) {
+    const anthologyId = await getAnthologyIdForConversation(conversationId);
+
     // 1. Upload recording
     const recording = await RecordingService.upload(recordingFile);
     if (!recording) {
@@ -754,6 +787,7 @@ export const AdminService = {
     const { data: speaker } = await supabase
       .from('anthology_speakers')
       .select('id')
+      .eq('anthology_id', anthologyId)
       .eq('conversation_id', conversationId)
       .eq('name', speakerName)
       .single();
@@ -762,6 +796,7 @@ export const AdminService = {
     const { data: response, error } = await supabase
       .from('anthology_responses')
       .insert({
+        anthology_id: anthologyId,
         conversation_id: conversationId,
         responds_to_question_id: questionId,
         speaker_id: speaker?.id,
@@ -822,11 +857,14 @@ export const AdminService = {
       return data?.id || conversationId;
     })();
 
+    const anthologyId = await getAnthologyIdForConversation(conversationDbId);
+
     // Resolve parent response DB id (UUID)
     const parentResponseDbId = await (async () => {
       const { data, error } = await supabase
         .from('anthology_responses')
         .select('id')
+        .eq('anthology_id', anthologyId)
         .eq('legacy_id', parentResponseId)
         .maybeSingle();
 
@@ -837,7 +875,7 @@ export const AdminService = {
     })();
 
     // Ensure speaker exists
-    const speaker = await SpeakerService.ensureSpeaker(conversationDbId, respondentName);
+    const speaker = await SpeakerService.ensureSpeaker(conversationDbId, respondentName, { anthologyId });
 
     // Optional: upload recording (unless caller provided an existing recordingId)
     const recording = recordingId
@@ -871,6 +909,7 @@ export const AdminService = {
     const { data: response, error } = await supabase
       .from('anthology_responses')
       .insert({
+        anthology_id: anthologyId,
         conversation_id: conversationDbId,
         responds_to_response_id: parentResponseDbId,
         speaker_id: speaker.id,
@@ -950,11 +989,14 @@ export const AdminService = {
       return data?.id || conversationId;
     })();
 
+    const anthologyId = await getAnthologyIdForConversation(conversationDbId);
+
     // Resolve question DB id (UUID)
     const questionDbId = await (async () => {
       const { data, error } = await supabase
         .from('anthology_questions')
         .select('id')
+        .eq('anthology_id', anthologyId)
         .eq('legacy_id', questionId)
         .maybeSingle();
 
@@ -965,7 +1007,7 @@ export const AdminService = {
     })();
 
     // Ensure speaker exists
-    const speaker = await SpeakerService.ensureSpeaker(conversationDbId, respondentName);
+    const speaker = await SpeakerService.ensureSpeaker(conversationDbId, respondentName, { anthologyId });
 
     // Optional: upload recording (unless caller provided an existing recordingId)
     const recording = recordingId
@@ -997,6 +1039,7 @@ export const AdminService = {
     const { data: response, error } = await supabase
       .from('anthology_responses')
       .insert({
+        anthology_id: anthologyId,
         conversation_id: conversationDbId,
         responds_to_question_id: questionDbId,
         speaker_id: speaker.id,
