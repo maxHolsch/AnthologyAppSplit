@@ -12,7 +12,7 @@ import './App.css';
  * Main Anthology Application Component
  * Integrates the visual map with state management
  */
-function App() {
+function App({ anthologySlug }: { anthologySlug?: string }) {
   const loadData = useAnthologyStore(state => state.loadData);
   const isLoading = useAnthologyStore(state => state.data.isLoading);
   const error = useAnthologyStore(state => state.data.loadError);
@@ -46,7 +46,7 @@ function App() {
     const loadAnthologyData = async () => {
       try {
         // Try loading from Supabase first
-        const data = await GraphDataService.loadAll();
+        const data = await GraphDataService.loadAll({ anthologySlug });
 
         if (data.conversations.length > 0) {
           console.log('✅ Loaded data from Supabase');
@@ -79,7 +79,7 @@ function App() {
     };
 
     loadAnthologyData();
-  }, [loadData, dimensions.width, dimensions.height]);
+  }, [loadData, dimensions.width, dimensions.height, anthologySlug]);
 
   if (isLoading) {
     return (

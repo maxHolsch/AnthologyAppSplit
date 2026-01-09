@@ -3,12 +3,14 @@
  */
 
 import { memo, useCallback } from 'react';
+import { useParams } from 'react-router-dom';
 import { useAnthologyStore } from '@stores';
 import { QuestionTile } from '../Components/QuestionTile';
 import AnthologyIcon from '../../../assets/icon.svg';
 import styles from './ConversationsView.module.css';
 
 export const ConversationsView = memo(() => {
+  const { slug } = useParams();
   const questionNodes = useAnthologyStore(state => state.data.questionNodes);
   const selectQuestion = useAnthologyStore(state => state.selectQuestion);
 
@@ -32,7 +34,7 @@ export const ConversationsView = memo(() => {
     <div className={styles.container}>
       <img src={AnthologyIcon} alt="Anthology" className={styles.logo} />
       <h1 className={styles.mainTitle}>
-        Highlights from the Chica Peer Leaders conversation
+        highlights from {slug ?? 'this'} conversation
       </h1>
       <p className={styles.sectionHeader}>QUESTIONS</p>
       <div className={styles.questionList}>

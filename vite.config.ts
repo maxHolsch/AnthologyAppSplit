@@ -2,6 +2,8 @@ import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 
+import { startSensemaking, tickSensemaking, getSensemakingStatus } from './api/_lib/sensemaking';
+
 type Json = Record<string, unknown>;
 
 async function sleep(ms: number) {
@@ -353,11 +355,150 @@ export default defineConfig(({ command, mode }) => {
   // Load all env vars (NOT just VITE_*) for dev server middleware.
   const env = loadEnv(mode, __dirname, '');
 
+  // Make env available to shared server helpers (used by sensemaking handlers)
+  // NOTE: loadEnv returns strings; safe for process.env assignment.
+  Object.assign(process.env, env);
+
   return {
     plugins: [
       react(),
       command === 'serve' ? localTranscribeApiPlugin(env) : undefined,
       command === 'serve' ? localJudgeQuestionApiPlugin(env) : undefined,
+      command === 'serve'
+        ? {
+            name: 'local-sensemaking-api',
+            configureServer(server: any) {
+              // POST /api/sensemaking/start
+              server.middlewares.use('/api/sensemaking/start', async (req: any, res: any) => {
+                if (req.method !== 'POST') {
+                  res.statusCode = 405;
+                  res.setHeader('Content-Type', 'application/json');
+                  res.end(JSON.stringify({ error: 'Method not allowed' }));
+                  return;
+                }
+
+                const chunks: Buffer[] = [];
+                await new Promise<void>((resolve) => {
+                  req.on('data', (c: Buffer) => chunks.push(c));
+                  req.on('end', () => resolve());
+                });
+
+                let body: Json;
+                try {
+                  body = JSON.parse(Buffer.concat(chunks).toString('utf8')) as Json;
+                } catch {
+                  res.statusCode = 400;
+                  res.setHeader('Content-Type', 'application/json');
+                  res.end(JSON.stringify({ error: 'Invalid JSON body' }));
+                  return;
+                }
+
+                try {
+                  const result = await startSensemaking({
+                    anthologySlug: String((body as any).anthologySlug || ''),
+                    anthologyTitle: String((body as any).anthologyTitle || ''),
+                    templateQuestions: Array.isArray((body as any).templateQuestions)
+                      ? (body as any).templateQuestions
+                          .filter((q: any) => typeof q === 'string' && q.trim().length > 0)
+                          .map((q: string) => q.trim())
+                      : [],
+                    uploadedFilePaths: Array.isArray((body as any).uploadedFilePaths)
+                      ? (body as any).uploadedFilePaths.filter((p: any) => typeof p === 'string' && p.trim().length > 0)
+                      : [],
+                    includePreviousUploads: Boolean((body as any).includePreviousUploads),
+                  });
+
+                  res.statusCode = 200;
+                  res.setHeader('Content-Type', 'application/json');
+                  res.end(JSON.stringify(result));
+                } catch (e) {
+                  res.statusCode = 500;
+                  res.setHeader('Content-Type', 'application/json');
+                  res.end(JSON.stringify({ error: e instanceof Error ? e.message : 'Unknown error' }));
+                }
+              });
+
+              // POST /api/sensemaking/tick
+              server.middlewares.use('/api/sensemaking/tick', async (req: any, res: any) => {
+                if (req.method !== 'POST') {
+                  res.statusCode = 405;
+                  res.setHeader('Content-Type', 'application/json');
+                  res.end(JSON.stringify({ error: 'Method not allowed' }));
+                  return;
+                }
+
+                const chunks: Buffer[] = [];
+                await new Promise<void>((resolve) => {
+                  req.on('data', (c: Buffer) => chunks.push(c));
+                  req.on('end', () => resolve());
+                });
+
+                let body: Json;
+                try {
+                  body = JSON.parse(Buffer.concat(chunks).toString('utf8')) as Json;
+                } catch {
+                  res.statusCode = 400;
+                  res.setHeader('Content-Type', 'application/json');
+                  res.end(JSON.stringify({ error: 'Invalid JSON body' }));
+                  return;
+                }
+
+                const jobId = String((body as any).jobId || '');
+                const timeBudgetMs = (body as any).timeBudgetMs;
+                if (!jobId) {
+                  res.statusCode = 400;
+                  res.setHeader('Content-Type', 'application/json');
+                  res.end(JSON.stringify({ error: 'jobId is required' }));
+                  return;
+                }
+
+                try {
+                  const result = await tickSensemaking({
+                    jobId,
+                    timeBudgetMs: typeof timeBudgetMs === 'number' && timeBudgetMs > 0 ? timeBudgetMs : 15000,
+                  });
+                  res.statusCode = 200;
+                  res.setHeader('Content-Type', 'application/json');
+                  res.end(JSON.stringify(result));
+                } catch (e) {
+                  res.statusCode = 500;
+                  res.setHeader('Content-Type', 'application/json');
+                  res.end(JSON.stringify({ error: e instanceof Error ? e.message : 'Unknown error' }));
+                }
+              });
+
+              // GET /api/sensemaking/status?jobId=...
+              server.middlewares.use('/api/sensemaking/status', async (req: any, res: any) => {
+                if (req.method !== 'GET') {
+                  res.statusCode = 405;
+                  res.setHeader('Content-Type', 'application/json');
+                  res.end(JSON.stringify({ error: 'Method not allowed' }));
+                  return;
+                }
+
+                const url = new URL(req.url, 'http://localhost');
+                const jobId = url.searchParams.get('jobId') || '';
+                if (!jobId) {
+                  res.statusCode = 400;
+                  res.setHeader('Content-Type', 'application/json');
+                  res.end(JSON.stringify({ error: 'jobId is required' }));
+                  return;
+                }
+
+                try {
+                  const result = await getSensemakingStatus(jobId);
+                  res.statusCode = 200;
+                  res.setHeader('Content-Type', 'application/json');
+                  res.end(JSON.stringify(result));
+                } catch (e) {
+                  res.statusCode = 500;
+                  res.setHeader('Content-Type', 'application/json');
+                  res.end(JSON.stringify({ error: e instanceof Error ? e.message : 'Unknown error' }));
+                }
+              });
+            },
+          }
+        : undefined,
     ].filter(Boolean),
   css: {
     modules: {
