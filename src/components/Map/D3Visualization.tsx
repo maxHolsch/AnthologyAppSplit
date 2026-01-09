@@ -40,8 +40,16 @@ export function D3Visualization() {
   const showTooltip = useInteractionStore(state => state.showTooltip);
   const hideTooltip = useInteractionStore(state => state.hideTooltip);
 
+  // Get container ref to fix drag coordinate issue
+  const containerRef = useVisualizationStore(state => state.containerRef);
+
   // Create drag behavior
-  const { createDragBehavior } = useD3Drag(simulation);
+  const { createDragBehavior } = useD3Drag(
+    simulation,
+    // We need to wrap the containerRef from store in a ref object structure 
+    // because the hook expects a React RefObject
+    { current: containerRef } as React.RefObject<SVGGElement | null>
+  );
 
   // Apply drag behavior to all node DOM elements
   // This bridges React-rendered nodes with D3 drag behavior
@@ -56,7 +64,7 @@ export function D3Visualization() {
 
     // Bind node data to DOM elements via __data__ property
     // This allows D3 drag behavior to access node data
-    nodeGroups.each(function() {
+    nodeGroups.each(function () {
       const element = this as SVGGElement;
       const nodeId = element.getAttribute('data-node-id');
 
@@ -120,9 +128,9 @@ export function D3Visualization() {
   // Helper function to check if node has valid position
   const hasValidPosition = (node: GraphNode): boolean => {
     return typeof node.x === 'number' &&
-           typeof node.y === 'number' &&
-           !isNaN(node.x) &&
-           !isNaN(node.y);
+      typeof node.y === 'number' &&
+      !isNaN(node.x) &&
+      !isNaN(node.y);
   };
 
   // Separate nodes by type (with position validation)
@@ -158,7 +166,7 @@ export function D3Visualization() {
 
           // Validate both nodes exist and have valid positions
           if (!sourceNode || !targetNode ||
-              !hasValidPosition(sourceNode) || !hasValidPosition(targetNode)) {
+            !hasValidPosition(sourceNode) || !hasValidPosition(targetNode)) {
             return null;
           }
 

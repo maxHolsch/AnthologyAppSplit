@@ -16,7 +16,8 @@ import type {
   MapTransform,
   ColorAssignment,
   SpeakerColorAssignment,
-  RailViewMode
+  RailViewMode,
+  Notification
 } from '@types';
 import type {
   DataState,
@@ -200,6 +201,10 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
       // ============ Data Actions ============
 
       loadData: async (data: AnthologyData) => {
+
+        // Prevent unnecessary reloads if data is already loaded and identical
+        // For now just logging, but this is a likely candidate for optimization
+
         set((state) => ({
           data: {
             ...state.data,
@@ -313,7 +318,8 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
               color,
               x,
               y,
-              fx: x, // Fix position (prevents D3 from moving it)
+              // Start pinned (static UMAP) until physics is manually unlocked
+              fx: x,
               fy: y
             });
 

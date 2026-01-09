@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { MapCanvas } from '@components/Map';
 import { CommentRail } from '@components/Rail';
 import { Tooltip } from '@components/UI/Tooltip';
 import { NotificationContainer } from '@components/UI/Notification';
+import { PhysicsControl } from '@components/UI/PhysicsControl';
 import { AudioManager } from '@components/Audio/AudioManager';
 import { AddYourVoiceButton } from '@/components/AddYourVoice/AddYourVoiceButton';
 import { useAnthologyStore, useInteractionStore } from '@stores';
@@ -43,10 +44,16 @@ function App({ anthologySlug }: { anthologySlug?: string }) {
   }, []);
 
   // Load data from Supabase (with JSON fallback)
+  const dataLoadedRef = useRef(false);
+
   useEffect(() => {
+    if (dataLoadedRef.current) return;
+
     const loadAnthologyData = async () => {
       try {
+        dataLoadedRef.current = true;
         // Try loading from Supabase first
+        console.log('[App] Fetching data from Supabase...');
         const data = await GraphDataService.loadAll({ anthologySlug });
 
         if (data.conversations.length > 0) {
@@ -80,7 +87,7 @@ function App({ anthologySlug }: { anthologySlug?: string }) {
     };
 
     loadAnthologyData();
-  }, [loadData, dimensions.width, dimensions.height, anthologySlug]);
+  }, [loadData, anthologySlug]); // Removed dimensions from dependencies to prevent resize loops
 
   if (isLoading) {
     return (
@@ -110,6 +117,9 @@ function App({ anthologySlug }: { anthologySlug?: string }) {
 
       {/* Global "add your vioce" entry point */}
       <AddYourVoiceButton />
+
+      {/* Physics Control Toggle */}
+      <PhysicsControl />
 
       <main className="app-main">
         <div className="map-container" style={{ width: mapWidth }}>

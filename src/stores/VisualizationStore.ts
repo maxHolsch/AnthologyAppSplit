@@ -9,7 +9,7 @@ import * as d3 from 'd3';
 import type { GraphNode, GraphEdge } from '@types';
 import type { VisualizationState, VisualizationActions } from '@types';
 
-interface VisualizationStoreType extends VisualizationState, VisualizationActions {}
+interface VisualizationStoreType extends VisualizationState, VisualizationActions { }
 
 export const useVisualizationStore = create<VisualizationStoreType>()(
   devtools(
@@ -24,6 +24,7 @@ export const useVisualizationStore = create<VisualizationStoreType>()(
       resetZoom: null, // Reset zoom utility function
       needsUpdate: false,
       isSimulating: false,
+      isPhysicsEnabled: false,
       tickCount: 0, // Increments on each simulation tick
       renderFrameRate: 60,
       nodeCount: 0,
@@ -81,35 +82,36 @@ export const useVisualizationStore = create<VisualizationStoreType>()(
         const simulation = d3.forceSimulation(d3Nodes)
           .force('link', d3.forceLink(d3Links)
             .id((d: any) => d.id)
-            .distance(150) // Increased distance for more spread
-            .strength(0.5)) // Reduced strength for less pulling together
+            .distance(150) // Keep distance
+            .strength(0.005)) // Increased strength for fluid chain-pulling
           .force('charge', d3.forceManyBody()
-            .strength(-400) // Increased repulsion for more spread
-            .distanceMax(800)) // Increased distance for wider effect
+            .strength(-1) // Reduced repulsion to prevent explosion
+            .distanceMax(800)) // Keep range
           .force('center', d3.forceCenter(centerX, centerY)
-            .strength(0.05)) // Very weak centering to allow spread
+            .strength(0.08)) // Stronger centering to keep floating nodes on screen
           .force('collision', d3.forceCollide()
             .radius((d: any) => {
               // Optimized radii to match visual sizes and prevent overlap
-              // Increased question radius for better spacing between questions
-              if (d.type === 'question') return 130; // Increased from 90 for more spacing between questions
-              if (d.data?.pull_quote) return 120; // ~half of 204px width for pull quote rectangles
-              return 10; // Close to 7px visual radius for standard circle nodes
+              if (d.type === 'question') return 95; // Covers ~190px width (180px pill + padding)
+              if (d.data?.pull_quote) return 140; // Covers ~280px width for pull quotes
+              return 10; // Matches 10px visual hover radius for standard nodes
             })
-            .strength(0.95)) // Increased collision strength to enforce spacing
-          .force('x', d3.forceX(centerX).strength(0.02)) // Very weak X centering
-          .force('y', d3.forceY(centerY).strength(0.02)); // Very weak Y centering
+            .strength(0.1)) // Max collision strength to strictly enforce spacing
+          .force('x', d3.forceX(centerX).strength(0.01)) // Stronger X centering
+          .force('y', d3.forceY(centerY).strength(0.01)); // Stronger Y centering
 
         // Configure simulation
         simulation
-          .velocityDecay(0.6) // Friction
-          .alphaDecay(0.01) // How quickly simulation cools down
+          .velocityDecay(0.9) // Friction: Higher = more viscous (honey-like)
+          .alphaDecay(0.05) // Faster cooling to settle quicker
           .alphaMin(0.001); // Threshold to stop simulation
 
         // Pre-warm simulation: run several ticks before first render
         // This settles nodes closer to their final positions for better initial display
         // Increased to 100 ticks for better initial distribution
-        for (let i = 0; i < 100; i++) {
+        // Pre-warm simulation: run several ticks before first render
+        // Reduced to 50 ticks as high viscosity prevents explosion anyway
+        for (let i = 0; i < 50; i++) {
           simulation.tick();
         }
 
@@ -200,6 +202,32 @@ export const useVisualizationStore = create<VisualizationStoreType>()(
 
       setResetZoom: (fn: ((duration?: number) => void) | null) => {
         set({ resetZoom: fn });
+      },
+
+      togglePhysics: () => {
+        const { isPhysicsEnabled, simulationNodes, simulation } = get();
+        const newState = !isPhysicsEnabled;
+
+        // Apply state change to nodes immediately
+        simulationNodes.forEach(node => {
+          if (node.type === 'response' || node.type === 'question') {
+            if (newState) {
+              // Enable physics: Unpin so forces take over
+              node.fx = undefined;
+              node.fy = undefined;
+            } else {
+              // Disable physics: Pin at current location
+              node.fx = node.x;
+              node.fy = node.y;
+            }
+          }
+        });
+
+        if (simulation) {
+          simulation.alpha(0.3).restart();
+        }
+
+        set({ isPhysicsEnabled: newState });
       }
     }),
     {

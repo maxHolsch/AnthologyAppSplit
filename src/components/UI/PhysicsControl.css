@@ -1,0 +1,39 @@
+.physics-control {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    z-index: 100;
+    pointer-events: auto;
+}
+
+.physics-toggle {
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 8px 16px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    backdrop-filter: blur(10px);
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.physics-toggle:hover {
+    background: rgba(0, 0, 0, 0.85);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.physics-toggle:active {
+    transform: translateY(0);
+}
+
+.physics-toggle.active {
+    background: rgba(74, 144, 226, 0.8);
+    border-color: rgba(74, 144, 226, 0.4);
+}

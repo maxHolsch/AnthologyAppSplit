@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import * as d3 from 'd3';
-import { useInteractionStore } from '@stores';
+import { useInteractionStore, useVisualizationStore } from '@stores';
 import type { GraphNode } from '@types';
 
 /**
@@ -14,6 +14,7 @@ import type { GraphNode } from '@types';
  */
 export function useD3Drag(
   simulation: d3.Simulation<GraphNode, undefined> | null,
+  containerRef: React.RefObject<SVGGElement | null>,
   onDragStart?: (node: GraphNode) => void,
   onDragEnd?: (node: GraphNode) => void
 ) {
@@ -25,7 +26,16 @@ export function useD3Drag(
   const createDragBehavior = useCallback(() => {
     if (!simulation) return null;
 
-    return d3.drag<SVGElement, GraphNode>()
+    const behavior = d3.drag<SVGElement, GraphNode>();
+
+    // Set container to ensure local coordinates (fixing flying bug on zoom)
+    if (!containerRef.current) {
+      console.warn('Drag behavior initialization skipped: containerRef is null');
+      return null;
+    }
+    behavior.container(containerRef.current);
+
+    return behavior
       .on('start', (event, d) => {
         // Prevent zoom/pan interference during drag
         event.sourceEvent.stopPropagation();
@@ -53,6 +63,7 @@ export function useD3Drag(
 
         if (!d) return;
 
+
         // Update node position
         d.fx = event.x;
         d.fy = event.y;
@@ -66,17 +77,27 @@ export function useD3Drag(
 
         if (!d) return;
 
+
         // Cool down simulation
         if (!event.active) {
           simulation.alphaTarget(0);
         }
 
         // Type-specific node behavior:
-        // - Question nodes stay fixed where dropped (maintain fx/fy)
-        // - Response and pull quote nodes release to continue natural movement
+        // - Question nodes stay fixed (maintain fx/fy)
+        // - Response nodes behave according to global physics state
         if (d.type !== 'question') {
-          d.fx = undefined;
-          d.fy = undefined;
+          // Check global physics state
+          const isPhysicsEnabled = useVisualizationStore.getState().isPhysicsEnabled;
+
+          if (isPhysicsEnabled) {
+            d.fx = undefined;
+            d.fy = undefined;
+          } else {
+            // Keep pinned where dropped
+            d.fx = d.x;
+            d.fy = d.y;
+          }
         }
 
         // Update interaction store

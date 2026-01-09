@@ -172,6 +172,7 @@ export interface VisualizationState {
   // Render flags
   needsUpdate: boolean;
   isSimulating: boolean;
+  isPhysicsEnabled: boolean;
   tickCount: number; // Increments on each simulation tick to force re-renders
 
   // Performance
@@ -185,6 +186,7 @@ export interface VisualizationActions {
   updateSimulation: () => void;
   stopSimulation: () => void;
   restartSimulation: () => void;
+  togglePhysics: () => void;
   setSvgRef: (ref: SVGSVGElement | null) => void;
   setContainerRef: (ref: SVGGElement | null) => void;
   setNeedsUpdate: (needsUpdate: boolean) => void;
