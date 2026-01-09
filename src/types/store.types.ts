@@ -15,7 +15,8 @@ import type {
   MapTransform,
   ColorAssignment,
   SpeakerColorAssignment,
-  RailViewMode
+  RailViewMode,
+  Notification
 } from './data.types';
 
 // ================== Audio Store Types ==================
@@ -84,6 +85,10 @@ export interface DataState {
   // Loading state
   isLoading: boolean;
   loadError: string | null;
+
+  // Notifications
+  notifications: Notification[];
+  missingEmbeddingsCount: number;
 }
 
 export interface DataActions {
@@ -95,6 +100,10 @@ export interface DataActions {
   getResponsesForQuestion: (questionId: string) => ResponseNode[];
   getConversationForNode: (nodeId: string) => Conversation | undefined;
   clearData: () => void;
+
+  // Notification actions
+  addNotification: (type: Notification['type'], message: string, duration?: number) => void;
+  dismissNotification: (id: string) => void;
 }
 
 // ================== Selection Store Types ==================
@@ -186,7 +195,7 @@ export interface VisualizationActions {
   setResetZoom: (fn: ((duration?: number) => void) | null) => void;
 }
 
-export interface VisualizationStore extends VisualizationState, VisualizationActions {}
+export interface VisualizationStore extends VisualizationState, VisualizationActions { }
 
 // ================== Interaction Store Types ==================
 
@@ -227,4 +236,4 @@ export interface InteractionActions {
   hideTooltip: () => void;
 }
 
-export interface InteractionStore extends InteractionState, InteractionActions {}
+export interface InteractionStore extends InteractionState, InteractionActions { }

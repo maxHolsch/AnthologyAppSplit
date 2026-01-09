@@ -1,0 +1,134 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+
+.notification-container {
+    position: fixed;
+    top: 24px;
+    right: 24px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    pointer-events: none;
+}
+
+.notification {
+    pointer-events: auto;
+    min-width: 300px;
+    max-width: 450px;
+    padding: 16px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08), 0 0 1px rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    animation: notification-in 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    transition: all 0.3s ease;
+}
+
+.notification-leaving {
+    animation: notification-out 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.notification-icon {
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+}
+
+.notification-content {
+    flex: 1;
+}
+
+.notification-message {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.4;
+    color: #1a1a1a;
+}
+
+.notification-close {
+    flex-shrink: 0;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    color: #999;
+    transition: color 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.notification-close:hover {
+    color: #333;
+}
+
+/* Types */
+.notification-warning {
+    border-left: 4px solid #FF5F1F;
+}
+
+.notification-warning .notification-icon {
+    background: rgba(255, 95, 31, 0.1);
+    color: #FF5F1F;
+}
+
+.notification-info {
+    border-left: 4px solid #4A90E2;
+}
+
+.notification-info .notification-icon {
+    background: rgba(74, 144, 226, 0.1);
+    color: #4A90E2;
+}
+
+.notification-error {
+    border-left: 4px solid #DB3F00;
+}
+
+.notification-error .notification-icon {
+    background: rgba(219, 63, 0, 0.1);
+    color: #DB3F00;
+}
+
+.notification-success {
+    border-left: 4px solid #6CC686;
+}
+
+.notification-success .notification-icon {
+    background: rgba(108, 198, 134, 0.1);
+    color: #6CC686;
+}
+
+@keyframes notification-in {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes notification-out {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+
+    to {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+}

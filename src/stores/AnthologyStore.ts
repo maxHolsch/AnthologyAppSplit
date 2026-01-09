@@ -23,6 +23,7 @@ import type {
   AudioState
 } from '@types';
 import { useVisualizationStore } from './VisualizationStore';
+import { calculateSemanticPositions } from '@utils/semanticLayout';
 
 // Default color palette for conversations
 const DEFAULT_COLORS = [
@@ -105,6 +106,10 @@ interface AnthologyStoreActions {
   getConversationForNode: (nodeId: string) => Conversation | undefined;
   clearData: () => void;
 
+  // Notification actions
+  addNotification: (type: Notification['type'], message: string, duration?: number) => void;
+  dismissNotification: (id: string) => void;
+
   // Selection actions
   selectNode: (nodeId: string, mode?: 'single' | 'multi') => void;
   selectQuestion: (questionId: string) => void;
@@ -152,7 +157,9 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
         colorAssignments: new Map(),
         speakerColorAssignments: new Map(),
         isLoading: false,
-        loadError: null
+        loadError: null,
+        notifications: [],
+        missingEmbeddingsCount: 0
       },
 
       // Selection slice
@@ -211,16 +218,25 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
           const colorAssignments = assignConversationColors(data.conversations);
           const speakerColorAssignments = assignSpeakerColorsFromConversations(data.conversations);
 
-          // Create graph nodes (positions will be calculated by D3 force simulation)
+          // Create graph nodes with fixed positions based on UMAP embeddings
           const nodes = new Map<string, GraphNode>();
           const idAliases = new Map<string, string>(); // db uuid -> canonical node id
+          const questionRadius = 300;
 
-          // Add question nodes
-          data.questions.forEach((question) => {
+          // Add question nodes - position them in a circle and fix positions
+          data.questions.forEach((question, qIndex) => {
+            const angle = (qIndex / Math.max(data.questions.length, 1)) * 2 * Math.PI;
+            const x = Math.cos(angle) * questionRadius;
+            const y = Math.sin(angle) * questionRadius;
+
             nodes.set(question.id, {
               id: question.id,
               type: 'question',
-              data: question
+              data: question,
+              x,
+              y,
+              fx: x, // Fix position (prevents D3 from moving it)
+              fy: y
             });
 
             const dbId = (question as any)?._db_id;
@@ -229,27 +245,81 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
             }
           });
 
-          // Add response nodes (positions will be calculated by D3 simulation)
-          data.responses.forEach(response => {
-            if (response.type === 'response') {
-              // Use speaker color instead of conversation color
-              const speakerColorKey = `${response.conversation_id}:${response.speaker_name}`;
-              const colorValue = speakerColorAssignments.get(speakerColorKey)?.color;
+          // Collect response nodes and check if they have embeddings
+          const responses = data.responses.filter(r => r.type === 'response');
+          const responsesWithEmbeddings = responses.filter(
+            r => Array.isArray(r.embedding) && r.embedding.length > 0
+          );
 
-              // Normalize color to string - extract 'circle' if it's a SpeakerColorScheme object
-              const color = typeof colorValue === 'string' ? colorValue : colorValue?.circle;
+          const missingCount = responses.length - responsesWithEmbeddings.length;
 
-              nodes.set(response.id, {
-                id: response.id,
-                type: 'response',
-                data: response,
-                color
+          // Apply UMAP positioning if we have at least 2 embeddings
+          let semanticPositions = new Map<string, { x: number; y: number }>();
+
+          if (responsesWithEmbeddings.length >= 2) {
+            try {
+              const embeddings = responsesWithEmbeddings.map(r => r.embedding!);
+              const positions = calculateSemanticPositions(embeddings, 500);
+
+              // Map positions back to response IDs
+              responsesWithEmbeddings.forEach((r, idx) => {
+                semanticPositions.set(r.id, positions[idx]);
               });
 
-              const dbId = (response as any)?._db_id;
-              if (typeof dbId === 'string' && dbId.length > 0) {
-                idAliases.set(dbId, response.id);
+              console.log('[AnthologyStore] Applied UMAP semantic positioning to', responsesWithEmbeddings.length, 'response nodes');
+
+              if (missingCount > 0) {
+                console.warn(`[AnthologyStore] ${missingCount} embeddings are missing.`);
+                get().addNotification('warning', 'warning, some embeddings are missing');
               }
+            } catch (error) {
+              console.warn('[AnthologyStore] Failed to calculate semantic positions:', error);
+            }
+          }
+
+          // Add response nodes with positions (UMAP or fallback)
+          responses.forEach((response) => {
+            // Use speaker color instead of conversation color
+            const speakerColorKey = `${response.conversation_id}:${response.speaker_name}`;
+            const colorValue = speakerColorAssignments.get(speakerColorKey)?.color;
+
+            // Normalize color to string - extract 'circle' if it's a SpeakerColorScheme object
+            const color = typeof colorValue === 'string' ? colorValue : colorValue?.circle;
+
+            let x = 0, y = 0;
+            const semanticPos = semanticPositions.get(response.id);
+
+            if (semanticPos) {
+              // Use UMAP position
+              x = semanticPos.x;
+              y = semanticPos.y;
+            } else {
+              // Fallback: position around parent question in orbit
+              const parentNode = nodes.get(response.responds_to);
+              if (parentNode && parentNode.x !== undefined && parentNode.y !== undefined) {
+                const responseRadius = 100;
+                // Use the response index for deterministic orbit positioning
+                const rIndex = responses.indexOf(response);
+                const angle = (rIndex / Math.max(responses.length, 1)) * 2 * Math.PI;
+                x = parentNode.x + Math.cos(angle) * responseRadius;
+                y = parentNode.y + Math.sin(angle) * responseRadius;
+              }
+            }
+
+            nodes.set(response.id, {
+              id: response.id,
+              type: 'response',
+              data: response,
+              color,
+              x,
+              y,
+              fx: x, // Fix position (prevents D3 from moving it)
+              fy: y
+            });
+
+            const dbId = (response as any)?._db_id;
+            if (typeof dbId === 'string' && dbId.length > 0) {
+              idAliases.set(dbId, response.id);
             }
           });
 
@@ -319,6 +389,25 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
         }
       },
 
+      addNotification: (type, message, duration = 5000) => {
+        const id = Math.random().toString(36).substring(2, 9);
+        set((state) => ({
+          data: {
+            ...state.data,
+            notifications: [...state.data.notifications, { id, type, message, duration }]
+          }
+        }));
+      },
+
+      dismissNotification: (id) => {
+        set((state) => ({
+          data: {
+            ...state.data,
+            notifications: state.data.notifications.filter(n => n.id !== id)
+          }
+        }));
+      },
+
       processData: () => {
         // Additional data processing if needed
         // This is called after loadData to perform any additional transformations
@@ -357,7 +446,9 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
             colorAssignments: new Map(),
             speakerColorAssignments: new Map(),
             isLoading: false,
-            loadError: null
+            loadError: null,
+            notifications: [],
+            missingEmbeddingsCount: 0
           },
           selection: {
             ...state.selection,

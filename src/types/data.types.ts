@@ -149,11 +149,35 @@ export interface AnthologyData {
   prompts?: PromptNode[]; // These won't be visualized but stored for context
 }
 
+// ================== Notification Types ==================
+
+export interface Notification {
+  id: string;
+  type: 'info' | 'warning' | 'error' | 'success';
+  message: string;
+  duration?: number; // ms, optional
+}
+
 // ================== Processed Types ==================
 
 export interface ProcessedNode extends GraphNode {
   conversation?: Conversation; // Associated conversation data
   visualState: NodeVisualState;
+}
+
+export interface DataState {
+  rawData: AnthologyData | null;
+  nodes: Map<string, GraphNode>;
+  edges: Map<string, GraphEdge>;
+  questionNodes: Map<string, QuestionNode>;
+  responseNodes: Map<string, ResponseNode>;
+  conversations: Map<string, Conversation>;
+  colorAssignments: Map<string, ColorAssignment>;
+  speakerColorAssignments: Map<string, SpeakerColorAssignment>;
+  isLoading: boolean;
+  loadError: string | null;
+  notifications: Notification[];
+  missingEmbeddingsCount: number;
 }
 
 export interface ProcessedEdge extends GraphEdge {

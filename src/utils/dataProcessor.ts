@@ -112,6 +112,8 @@ export interface CreateGraphNodesOptions {
   useSemanticLayout?: boolean;
   /** Range for scaled semantic positions (default 500, meaning -500 to 500) */
   semanticLayoutRange?: number;
+  /** Whether to fix nodes at their initial positions (prevents D3 from moving them) */
+  fixPositions?: boolean;
 }
 
 /**
@@ -126,16 +128,21 @@ export const createGraphNodes = (
 ): GraphNode[] => {
   const nodes: GraphNode[] = [];
   const questionRadius = 300;
+  const fixPositions = options?.fixPositions ?? true; // Default to fixed positions for now
 
   // Add question nodes - position them in a circle
   questions.forEach((question, qIndex) => {
     const angle = (qIndex / Math.max(questions.length, 1)) * 2 * Math.PI;
+    const x = Math.cos(angle) * questionRadius;
+    const y = Math.sin(angle) * questionRadius;
     nodes.push({
       id: question.id,
       type: 'question',
       data: question,
-      x: Math.cos(angle) * questionRadius,
-      y: Math.sin(angle) * questionRadius
+      x,
+      y,
+      // Fix position if enabled (prevents D3 from moving nodes)
+      ...(fixPositions ? { fx: x, fy: y } : {})
     });
   });
 
@@ -161,13 +168,17 @@ export const createGraphNodes = (
     // Add response nodes with UMAP positions
     responses.forEach((response, i) => {
       const color = colorAssignments.get(response.conversation_id)?.color;
+      const x = semanticCoords[i]?.x ?? 0;
+      const y = semanticCoords[i]?.y ?? 0;
       nodes.push({
         id: response.id,
         type: 'response',
         data: response,
         color,
-        x: semanticCoords[i]?.x ?? 0,
-        y: semanticCoords[i]?.y ?? 0
+        x,
+        y,
+        // Fix position if enabled (prevents D3 from moving nodes)
+        ...(fixPositions ? { fx: x, fy: y } : {})
       });
     });
   } else {
@@ -194,22 +205,29 @@ export const createGraphNodes = (
         const siblings = responsesByParent.get(response.responds_to) || [];
         const rIndex = siblings.indexOf(response);
         const angle = (rIndex / Math.max(siblings.length, 1)) * 2 * Math.PI;
+        const x = parentPos.x + Math.cos(angle) * responseRadius;
+        const y = parentPos.y + Math.sin(angle) * responseRadius;
 
         nodes.push({
           id: response.id,
           type: 'response',
           data: response,
           color,
-          x: parentPos.x + Math.cos(angle) * responseRadius,
-          y: parentPos.y + Math.sin(angle) * responseRadius
+          x,
+          y,
+          // Fix position if enabled (prevents D3 from moving nodes)
+          ...(fixPositions ? { fx: x, fy: y } : {})
         });
       } else {
-        // No parent question found - let D3 assign random position
+        // No parent question found - use origin (will be fixed there if enabled)
         nodes.push({
           id: response.id,
           type: 'response',
           data: response,
-          color
+          color,
+          x: 0,
+          y: 0,
+          ...(fixPositions ? { fx: 0, fy: 0 } : {})
         });
       }
     });

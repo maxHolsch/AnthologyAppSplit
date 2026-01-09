@@ -40,7 +40,10 @@ export type {
 
   // View
   RailViewMode,
-  ViewState
+  ViewState,
+
+  // Notifications
+  Notification
 } from './data.types';
 
 // Store types

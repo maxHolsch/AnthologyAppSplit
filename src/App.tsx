@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { MapCanvas } from '@components/Map';
 import { CommentRail } from '@components/Rail';
 import { Tooltip } from '@components/UI/Tooltip';
+import { NotificationContainer } from '@components/UI/Notification';
 import { AudioManager } from '@components/Audio/AudioManager';
 import { AddYourVoiceButton } from '@/components/AddYourVoice/AddYourVoiceButton';
 import { useAnthologyStore, useInteractionStore } from '@stores';
@@ -101,6 +102,9 @@ function App({ anthologySlug }: { anthologySlug?: string }) {
 
   return (
     <div className="app">
+      {/* Global notification popup system */}
+      <NotificationContainer />
+
       {/* Global audio manager - handles all audio playback */}
       <AudioManager />
 
