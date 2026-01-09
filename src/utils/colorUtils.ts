@@ -34,6 +34,18 @@ const FIGMA_TEXT_COLORS: Record<string, string> = {
 };
 
 /**
+ * Helper to fade a hex color to a specific opacity
+ */
+function fadedColor(color: string, opacity: number): string {
+  const hex = color.replace('#', '');
+  const r = parseInt(hex.substr(0, 2), 16);
+  const g = parseInt(hex.substr(2, 2), 16);
+  const b = parseInt(hex.substr(4, 2), 16);
+
+  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+}
+
+/**
  * Get text color for pull quote based on conversation color
  * Uses exact Figma color if available, otherwise calculates darker shade
  */
@@ -95,6 +107,9 @@ export function getCircleColor(
 ): string {
   // Handle old format (single color string)
   if (typeof colorScheme === 'string') {
+    if (anySelected && !isSelected) {
+      return fadedColor(colorScheme, 0.3);
+    }
     return colorScheme;
   }
 
@@ -147,12 +162,22 @@ export function getQuoteBackgroundColor(
  */
 export function getQuoteTextColor(
   colorScheme: string | SpeakerColorScheme,
-  _isSelected: boolean,
-  _anySelected: boolean
+  isSelected: boolean,
+  anySelected: boolean
 ): string {
   // Handle old format (single color string)
   if (typeof colorScheme === 'string') {
-    return getPullQuoteTextColor(colorScheme);
+    const textColor = getPullQuoteTextColor(colorScheme);
+    if (anySelected && !isSelected) {
+      // For text, we might want it slightly more opaque than the background?
+      // Or just standard fading. Let's try standard fading.
+      // But verify if `getPullQuoteTextColor` returns hex or rgb.
+      // It returns rgb(...) string. So we need to handle that.
+      // Actually `getPullQuoteTextColor` returns `rgb(...)`.
+      // We can just replace `rgb` with `rgba` and add opacity.
+      return textColor.replace('rgb', 'rgba').replace(')', ', 0.3)');
+    }
+    return textColor;
   }
 
   // Handle new format (color scheme object)
@@ -162,5 +187,9 @@ export function getQuoteTextColor(
   }
 
   // Fallback to old calculation
-  return getPullQuoteTextColor('#FF5F1F');
+  const fallbackColor = getPullQuoteTextColor('#FF5F1F');
+  if (anySelected && !isSelected) {
+    return fallbackColor.replace('rgb', 'rgba').replace(')', ', 0.3)');
+  }
+  return fallbackColor;
 }
