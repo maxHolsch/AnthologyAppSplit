@@ -11,6 +11,8 @@ import type {
   ColorAssignment
 } from '@types';
 
+import { calculateSemanticPositions } from './semanticLayout';
+
 /**
  * Validates the incoming data structure
  */
@@ -105,35 +107,113 @@ export const createQuestionResponseMap = (
   return map;
 };
 
+export interface CreateGraphNodesOptions {
+  /** Whether to use semantic layout based on embeddings */
+  useSemanticLayout?: boolean;
+  /** Range for scaled semantic positions (default 500, meaning -500 to 500) */
+  semanticLayoutRange?: number;
+}
+
 /**
- * Creates graph nodes from questions and responses
+ * Creates graph nodes from questions and responses.
+ * Optionally applies UMAP-based semantic positions to response nodes.
  */
 export const createGraphNodes = (
   questions: QuestionNode[],
   responses: ResponseNode[],
-  colorAssignments: Map<string, ColorAssignment>
+  colorAssignments: Map<string, ColorAssignment>,
+  options?: CreateGraphNodesOptions
 ): GraphNode[] => {
   const nodes: GraphNode[] = [];
+  const questionRadius = 300;
 
-  // Add question nodes
-  questions.forEach(question => {
+  // Add question nodes - position them in a circle
+  questions.forEach((question, qIndex) => {
+    const angle = (qIndex / Math.max(questions.length, 1)) * 2 * Math.PI;
     nodes.push({
       id: question.id,
       type: 'question',
-      data: question
+      data: question,
+      x: Math.cos(angle) * questionRadius,
+      y: Math.sin(angle) * questionRadius
     });
   });
 
-  // Add response nodes
-  responses.forEach(response => {
-    const color = colorAssignments.get(response.conversation_id)?.color;
-    nodes.push({
-      id: response.id,
-      type: 'response',
-      data: response,
-      color
+  // Check if we should use semantic layout for responses
+  const useSemanticLayout = options?.useSemanticLayout !== false;
+  const semanticRange = options?.semanticLayoutRange ?? 500;
+
+  // Filter responses that have valid embeddings
+  const responsesWithEmbeddings = responses.filter(
+    (r) => Array.isArray(r.embedding) && r.embedding.length > 0
+  );
+
+  const canUseSemanticLayout =
+    useSemanticLayout &&
+    responsesWithEmbeddings.length >= 2 && // Need at least 2 for UMAP
+    responsesWithEmbeddings.length === responses.length; // All responses must have embeddings
+
+  if (canUseSemanticLayout) {
+    // Extract embeddings and run UMAP
+    const embeddings = responses.map((r) => r.embedding!);
+    const semanticCoords = calculateSemanticPositions(embeddings, semanticRange);
+
+    // Add response nodes with UMAP positions
+    responses.forEach((response, i) => {
+      const color = colorAssignments.get(response.conversation_id)?.color;
+      nodes.push({
+        id: response.id,
+        type: 'response',
+        data: response,
+        color,
+        x: semanticCoords[i]?.x ?? 0,
+        y: semanticCoords[i]?.y ?? 0
+      });
     });
-  });
+  } else {
+    // FALLBACK: Position responses around their parent questions (circular orbit)
+    // Group responses by their parent (responds_to)
+    const questionPositions = new Map(
+      nodes.filter((n) => n.type === 'question').map((n) => [n.id, { x: n.x!, y: n.y! }])
+    );
+    const responseRadius = 100;
+
+    // Group responses by their parent for even distribution
+    const responsesByParent = new Map<string, ResponseNode[]>();
+    responses.forEach((r) => {
+      const existing = responsesByParent.get(r.responds_to) || [];
+      existing.push(r);
+      responsesByParent.set(r.responds_to, existing);
+    });
+
+    responses.forEach((response) => {
+      const color = colorAssignments.get(response.conversation_id)?.color;
+      const parentPos = questionPositions.get(response.responds_to);
+
+      if (parentPos) {
+        const siblings = responsesByParent.get(response.responds_to) || [];
+        const rIndex = siblings.indexOf(response);
+        const angle = (rIndex / Math.max(siblings.length, 1)) * 2 * Math.PI;
+
+        nodes.push({
+          id: response.id,
+          type: 'response',
+          data: response,
+          color,
+          x: parentPos.x + Math.cos(angle) * responseRadius,
+          y: parentPos.y + Math.sin(angle) * responseRadius
+        });
+      } else {
+        // No parent question found - let D3 assign random position
+        nodes.push({
+          id: response.id,
+          type: 'response',
+          data: response,
+          color
+        });
+      }
+    });
+  }
 
   return nodes;
 };

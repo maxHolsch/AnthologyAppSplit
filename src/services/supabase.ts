@@ -14,6 +14,7 @@ import type {
 } from '@/types/data.types';
 
 import { DEFAULT_PALETTE, hexToRgba, darkenColor } from '@/utils/colorAssignment';
+import { parseVectorString } from '@/utils/semanticLayout';
 
 // ============================================
 // SUPABASE CLIENT
@@ -176,6 +177,7 @@ interface DbResponse {
   audio_end_ms?: number;
   turn_number?: number;
   metadata?: any;
+  embedding?: string; // PostgreSQL vector stored as string
   created_at: string;
   updated_at: string;
 }
@@ -593,6 +595,9 @@ export const ResponseService = {
       //   GraphDataService.loadAll() once we have all questions/responses loaded.
       const respondsToFk = (r.responds_to_question_id || r.responds_to_response_id || '') as string;
 
+      // Parse embedding from PostgreSQL vector string to number array
+      const embedding = parseVectorString(r.embedding);
+
       return {
         type: 'response' as const,
         id: r.legacy_id || r.id,
@@ -605,7 +610,8 @@ export const ResponseService = {
         audio_end: r.audio_end_ms,
         conversation_id: r.conversation?.legacy_id || r.conversation?.id || r.conversation_id,
         path_to_recording: r.recording?.file_path,
-        turn_number: r.turn_number
+        turn_number: r.turn_number,
+        embedding: embedding || undefined, // Include embedding if available
       };
     });
   },

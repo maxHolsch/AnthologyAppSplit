@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import path from 'path';
 
-import { openaiJsonSchema } from './openai';
+import { openaiJsonSchema, generateEmbeddings } from './openai';
 import {
   assemblyPollTranscript,
   assemblyStartTranscription,
@@ -633,6 +633,7 @@ async function upsertResponseBatch({
   speakerDbIds,
   turns,
   turnNumberOffset,
+  openaiKey,
 }: {
   supabase: any;
   anthologyId: string;
@@ -642,8 +643,14 @@ async function upsertResponseBatch({
   speakerDbIds: Record<string, string>;
   turns: FilteredTurn[];
   turnNumberOffset: number;
+  openaiKey?: string;
 }) {
   if (turns.length === 0) return;
+
+  const debugEnabled =
+    process.env.SENSEMAKING_DEBUG === '1' ||
+    process.env.SENSEMAKING_DEBUG === 'true' ||
+    process.env.NODE_ENV !== 'production';
 
   const rows = turns.map((t, idx) => {
     const turnNumber = turnNumberOffset + idx + 1;
@@ -681,6 +688,74 @@ async function upsertResponseBatch({
     .upsert(rows, { onConflict: 'anthology_id,legacy_id' });
 
   if (error) throw error;
+
+  // Generate embeddings for the response texts if OpenAI key is provided
+  if (openaiKey && turns.length > 0) {
+    try {
+      const texts = turns.map((t) => t.text);
+
+      if (debugEnabled) {
+        // eslint-disable-next-line no-console
+        console.log('[sensemaking.embeddings.start]', {
+          conversationId,
+          turnCount: texts.length,
+        });
+      }
+
+      const embeddings = await generateEmbeddings({
+        apiKey: openaiKey,
+        texts,
+      });
+
+      if (debugEnabled) {
+        // eslint-disable-next-line no-console
+        console.log('[sensemaking.embeddings.generated]', {
+          conversationId,
+          embeddingCount: embeddings.length,
+        });
+      }
+
+      // Update each response with its embedding
+      // We need to match by legacy_id since we just upserted
+      for (let idx = 0; idx < turns.length; idx++) {
+        const turnNumber = turnNumberOffset + idx + 1;
+        const legacyId = `sensemaking:${conversationId}:${turnNumber}`;
+        const embedding = embeddings[idx];
+
+        if (embedding && embedding.length > 0) {
+          // Format embedding as a PostgreSQL vector string
+          const vectorStr = `[${embedding.join(',')}]`;
+
+          const { error: updateErr } = await supabase
+            .from('anthology_responses')
+            .update({ embedding: vectorStr })
+            .eq('anthology_id', anthologyId)
+            .eq('legacy_id', legacyId);
+
+          if (updateErr) {
+            console.warn('[sensemaking.embeddings.update_error]', {
+              legacyId,
+              error: updateErr.message,
+            });
+          }
+        }
+      }
+
+      if (debugEnabled) {
+        // eslint-disable-next-line no-console
+        console.log('[sensemaking.embeddings.stored]', {
+          conversationId,
+          storedCount: embeddings.filter((e) => e && e.length > 0).length,
+        });
+      }
+    } catch (embErr) {
+      // Log but don't fail the entire batch if embeddings fail
+      console.warn('[sensemaking.embeddings.error]', {
+        conversationId,
+        error: embErr instanceof Error ? embErr.message : String(embErr),
+      });
+    }
+  }
 }
 
 // --------------------------------------------
@@ -1173,6 +1248,7 @@ export async function tickSensemaking({ jobId, timeBudgetMs = 15000 }: { jobId: 
           speakerDbIds,
           turns: filtered,
           turnNumberOffset: cursor,
+          openaiKey, // Pass OpenAI key for embedding generation
         });
       }
 

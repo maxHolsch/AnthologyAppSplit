@@ -66,6 +66,8 @@ export interface ResponseNode {
   /** Optional ordering metadata (used by DB-backed datasets). */
   turn_number?: number;
   word_timestamps?: WordTimestamp[]; // For word-level highlighting
+  /** Optional: OpenAI text embedding for semantic positioning (1536-dim vector) */
+  embedding?: number[];
 }
 
 export interface PromptNode {

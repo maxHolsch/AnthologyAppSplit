@@ -1,5 +1,109 @@
 const OPENAI_API_BASE = 'https://api.openai.com/v1';
 
+// ============================================
+// EMBEDDINGS
+// ============================================
+
+const EMBEDDINGS_MODEL = 'text-embedding-3-small';
+const EMBEDDINGS_DIMENSIONS = 1536;
+const EMBEDDINGS_BATCH_SIZE = 100; // OpenAI allows up to 2048 texts per call
+
+export type EmbeddingResult = {
+  embedding: number[];
+  index: number;
+};
+
+/**
+ * Generate embeddings for an array of texts using OpenAI's embeddings API.
+ * Returns embeddings in the same order as input texts.
+ */
+export async function generateEmbeddings({
+  apiKey,
+  texts,
+  model = EMBEDDINGS_MODEL,
+  timeoutMs = 30_000,
+}: {
+  apiKey: string;
+  texts: string[];
+  model?: string;
+  timeoutMs?: number;
+}): Promise<number[][]> {
+  if (texts.length === 0) return [];
+
+  const debugEnabled =
+    process.env.SENSEMAKING_DEBUG === '1' ||
+    process.env.SENSEMAKING_DEBUG === 'true' ||
+    process.env.NODE_ENV !== 'production';
+
+  const allEmbeddings: number[][] = new Array(texts.length);
+
+  // Process in batches
+  for (let i = 0; i < texts.length; i += EMBEDDINGS_BATCH_SIZE) {
+    const batch = texts.slice(i, i + EMBEDDINGS_BATCH_SIZE);
+
+    if (debugEnabled) {
+      // eslint-disable-next-line no-console
+      console.log('[openai.embeddings.batch]', {
+        batchStart: i,
+        batchSize: batch.length,
+        totalTexts: texts.length,
+        model,
+      });
+    }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      const resp = await fetch(`${OPENAI_API_BASE}/embeddings`, {
+        method: 'POST',
+        signal: controller.signal,
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model,
+          input: batch,
+          dimensions: EMBEDDINGS_DIMENSIONS,
+        }),
+      });
+
+      if (!resp.ok) {
+        const msg = await resp.text().catch(() => '');
+        throw new Error(`OpenAI embeddings request failed (${resp.status}): ${msg}`);
+      }
+
+      const json = await resp.json() as { data: EmbeddingResult[]; usage?: unknown };
+      const data = json.data;
+
+      // Map embeddings back to their original positions
+      for (const item of data) {
+        allEmbeddings[i + item.index] = item.embedding;
+      }
+
+      if (debugEnabled) {
+        // eslint-disable-next-line no-console
+        console.log('[openai.embeddings.batch.success]', {
+          batchStart: i,
+          embeddingsReceived: data.length,
+          usage: json.usage,
+        });
+      }
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  return allEmbeddings;
+}
+
+export { EMBEDDINGS_DIMENSIONS, EMBEDDINGS_MODEL };
+
+// ============================================
+// JSON SCHEMA
+// ============================================
+
 type OpenAIJsonSchemaOptions = {
   timeoutMs?: number;
   retries?: number;
