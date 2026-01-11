@@ -15,6 +15,7 @@ import './App.css';
  * Integrates the visual map with state management
  */
 function App({ anthologySlug }: { anthologySlug?: string }) {
+  console.log('[App] rendered with anthologySlug:', anthologySlug);
   const loadData = useAnthologyStore(state => state.loadData);
   const isLoading = useAnthologyStore(state => state.data.isLoading);
   const error = useAnthologyStore(state => state.data.loadError);
@@ -116,7 +117,7 @@ function App({ anthologySlug }: { anthologySlug?: string }) {
       <AudioManager />
 
       {/* Global "add your vioce" entry point */}
-      <AddYourVoiceButton />
+      <AddYourVoiceButton anthologySlug={anthologySlug} />
 
       {/* Physics Control Toggle */}
       <PhysicsControl />
@@ -129,7 +130,7 @@ function App({ anthologySlug }: { anthologySlug?: string }) {
             className="map-canvas"
           />
         </div>
-        <CommentRail />
+        <CommentRail anthologySlug={anthologySlug} />
       </main>
 
       {/* Tooltip overlay - rendered at app level for proper positioning */}

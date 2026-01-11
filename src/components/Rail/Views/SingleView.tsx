@@ -14,7 +14,11 @@ import { AudioPlayer } from '@components/Audio/AudioPlayer';
 import { HighlightedText } from '@components/Audio/HighlightedText';
 import styles from './SingleView.module.css';
 
-export const SingleView = memo(() => {
+export interface SingleViewProps {
+  anthologySlug?: string;
+}
+
+export const SingleView = memo<SingleViewProps>(({ anthologySlug }) => {
   const activeResponse = useAnthologyStore(state => state.view.activeResponse);
   const responseNodes = useAnthologyStore(state => state.data.responseNodes);
   const questionNodes = useAnthologyStore(state => state.data.questionNodes);
@@ -111,6 +115,7 @@ export const SingleView = memo(() => {
           open={respondOpen}
           targetResponse={response}
           onClose={() => setRespondOpen(false)}
+          anthologySlug={anthologySlug}
         />
 
         {parentQuestion && (

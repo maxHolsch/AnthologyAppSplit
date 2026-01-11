@@ -37,9 +37,11 @@ export interface RespondModalProps {
   open: boolean;
   targetResponse: ResponseNode;
   onClose: () => void;
+  anthologySlug?: string;
 }
 
-export const RespondModal = memo<RespondModalProps>(({ open, targetResponse, onClose }) => {
+export const RespondModal = memo<RespondModalProps>(({ open, targetResponse, onClose, anthologySlug }) => {
+  console.log('[RespondModal] rendered with slug:', anthologySlug);
   const [mode, setMode] = useState<Mode>('choose');
   const [name, setName] = useState('');
   const [typedText, setTypedText] = useState('');
@@ -116,14 +118,14 @@ export const RespondModal = memo<RespondModalProps>(({ open, targetResponse, onC
 
         const wordTimestamps: WordTimestamp[] = Array.isArray(transcript.words)
           ? transcript.words
-              .filter((w) => typeof w?.text === 'string' && typeof w?.start === 'number' && typeof w?.end === 'number')
-              .map((w) => ({
-                text: w.text,
-                start: w.start,
-                end: w.end,
-                confidence: typeof w.confidence === 'number' ? w.confidence : undefined,
-                speaker: trimmedName,
-              }))
+            .filter((w) => typeof w?.text === 'string' && typeof w?.start === 'number' && typeof w?.end === 'number')
+            .map((w) => ({
+              text: w.text,
+              start: w.start,
+              end: w.end,
+              confidence: typeof w.confidence === 'number' ? w.confidence : undefined,
+              speaker: trimmedName,
+            }))
           : [];
 
         // 3) Insert response (responds-to-response)
@@ -138,7 +140,7 @@ export const RespondModal = memo<RespondModalProps>(({ open, targetResponse, onC
         });
 
         // 4) Reload graph + select the newly-created response
-        const graph = await GraphDataService.loadAll();
+        const graph = await GraphDataService.loadAll({ anthologySlug });
         await loadData(graph);
         selectResponse(created.legacy_id || created.id);
 
@@ -159,7 +161,7 @@ export const RespondModal = memo<RespondModalProps>(({ open, targetResponse, onC
         speakerText: text,
       });
 
-      const graph = await GraphDataService.loadAll();
+      const graph = await GraphDataService.loadAll({ anthologySlug });
       await loadData(graph);
       selectResponse(created.legacy_id || created.id);
       close();

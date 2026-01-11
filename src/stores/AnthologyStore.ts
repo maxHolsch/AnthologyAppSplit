@@ -11,6 +11,7 @@ import type {
   ResponseNode,
   GraphNode,
   GraphEdge,
+  NarrativeNode,
   SelectionState,
   ViewState,
   MapTransform,
@@ -153,6 +154,7 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
         nodes: new Map(),
         edges: new Map(),
         questionNodes: new Map(),
+        narrativeNodes: new Map(),
         responseNodes: new Map(),
         conversations: new Map(),
         colorAssignments: new Map(),
@@ -216,6 +218,8 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
         try {
           // Store raw data
           const questionMap = new Map(data.questions.map(q => [q.id, q]));
+          // Optional: handle if narratives is undefined (should be empty array from service)
+          const narrativeMap = new Map((data.narratives || []).map(n => [n.id, n]));
           const responseMap = new Map(data.responses.map(r => [r.id, r]));
           const conversationMap = new Map(data.conversations.map(c => [c.conversation_id, c]));
 
@@ -228,25 +232,31 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
           const idAliases = new Map<string, string>(); // db uuid -> canonical node id
           const questionRadius = 300;
 
-          // Add question nodes - position them in a circle and fix positions
-          data.questions.forEach((question, qIndex) => {
-            const angle = (qIndex / Math.max(data.questions.length, 1)) * 2 * Math.PI;
+          // Combine questions and narratives for layout
+          // Narratives are treated as anchor nodes similar to questions
+          const combinedAnchors = [...data.questions, ...(data.narratives || [])];
+
+          combinedAnchors.forEach((node, index) => {
+            const angle = (index / Math.max(combinedAnchors.length, 1)) * 2 * Math.PI;
             const x = Math.cos(angle) * questionRadius;
             const y = Math.sin(angle) * questionRadius;
 
-            nodes.set(question.id, {
-              id: question.id,
-              type: 'question',
-              data: question,
+            // Determine type based on properties (safe check since we combined types)
+            const type = (node as any).narrative_text !== undefined ? 'narrative' : 'question';
+
+            nodes.set(node.id, {
+              id: node.id,
+              type: type as 'question' | 'narrative',
+              data: node as any,
               x,
               y,
-              fx: x, // Fix position (prevents D3 from moving it)
+              fx: x,
               fy: y
             });
 
-            const dbId = (question as any)?._db_id;
+            const dbId = (node as any)?._db_id;
             if (typeof dbId === 'string' && dbId.length > 0) {
-              idAliases.set(dbId, question.id);
+              idAliases.set(dbId, node.id);
             }
           });
 
@@ -376,6 +386,7 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
               nodes,
               edges,
               questionNodes: questionMap,
+              narrativeNodes: narrativeMap,
               responseNodes: responseMap,
               conversations: conversationMap,
               colorAssignments,
@@ -447,6 +458,7 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
             nodes: new Map(),
             edges: new Map(),
             questionNodes: new Map(),
+            narrativeNodes: new Map(),
             responseNodes: new Map(),
             conversations: new Map(),
             colorAssignments: new Map(),

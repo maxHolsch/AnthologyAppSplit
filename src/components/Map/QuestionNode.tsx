@@ -76,11 +76,13 @@ export function QuestionNode({ node, onClick, onMouseEnter, onMouseLeave }: Ques
     onMouseLeave?.(node);
   };
 
-  // Get question text from node data
-  const questionText = node.data.type === 'question' ? node.data.question_text : '';
+  // Get text from node data (support both question and narrative)
+  const text = node.data.type === 'question'
+    ? node.data.question_text
+    : (node.data.type === 'narrative' ? node.data.narrative_text : '');
 
   // Wrap text and calculate dimensions
-  const wrappedLines = useMemo(() => wrapText(questionText, 30), [questionText]);
+  const wrappedLines = useMemo(() => wrapText(text, 30), [text]);
 
   // Calculate dynamic dimensions based on text
   const lineHeight = 16.8; // 1.4 * 12px font size

@@ -10,6 +10,7 @@ import type {
   Conversation,
   QuestionNode,
   ResponseNode,
+  NarrativeNode,
   WordTimestamp
 } from '@/types/data.types';
 
@@ -562,6 +563,41 @@ export const QuestionService = {
 };
 
 // ============================================
+// NARRATIVE SERVICE
+// ============================================
+
+export const NarrativeService = {
+  /**
+   * Get all narratives for a conversation
+   */
+  async getByConversation(conversationId: string): Promise<NarrativeNode[]> {
+    const { data, error } = await supabase
+      .from('anthology_narratives')
+      .select(`
+        *,
+        recording:anthology_recordings (*)
+      `)
+      .eq('conversation_id', conversationId)
+      .order('created_at');
+
+    if (error) {
+      console.error('Error fetching narratives:', error);
+      return [];
+    }
+
+    return data.map((n: any) => ({
+      type: 'narrative' as const,
+      id: n.legacy_id || n.id,
+      _db_id: n.id,
+      narrative_text: n.narrative_text,
+      related_responses: [], // Will be populated if needed
+      path_to_recording: n.recording?.file_path,
+      notes: n.notes
+    }));
+  }
+};
+
+// ============================================
 // RESPONSE SERVICE
 // ============================================
 
@@ -651,6 +687,7 @@ export const GraphDataService = {
    * This is the main entry point for loading data into AnthologyStore
    */
   async loadAll(opts?: { anthologySlug?: string }) {
+    console.log('[GraphDataService] loadAll called with opts:', opts);
     try {
       // Load conversations (optionally scoped to an anthology)
       let anthologyId: string | undefined;
@@ -661,7 +698,7 @@ export const GraphDataService = {
         // If user navigated to a slug that doesn't exist, return empty dataset.
         if (!anthologyId) {
           console.warn('Anthology slug not found:', opts.anthologySlug);
-          return { conversations: [], questions: [], responses: [] };
+          return { conversations: [], questions: [], narratives: [], responses: [] };
         }
       }
 
@@ -669,11 +706,12 @@ export const GraphDataService = {
 
       if (conversations.length === 0) {
         console.warn('No conversations found in database');
-        return { conversations: [], questions: [], responses: [] };
+        return { conversations: [], questions: [], narratives: [], responses: [] };
       }
 
-      // Load questions and responses for all conversations
+      // Load questions, narratives and responses for all conversations
       const allQuestions: QuestionNode[] = [];
+      const allNarratives: NarrativeNode[] = [];
       const allResponses: ResponseNode[] = [];
 
       for (const conv of conversations) {
@@ -681,6 +719,7 @@ export const GraphDataService = {
         const dbId = (conv as any)._db_id || conv.conversation_id;
 
         const questions = await QuestionService.getByConversation(dbId);
+        const narratives = await NarrativeService.getByConversation(dbId);
         const responses = await ResponseService.getByConversation(dbId);
 
         // Get speaker colors for this conversation
@@ -692,6 +731,7 @@ export const GraphDataService = {
         }
 
         allQuestions.push(...questions);
+        allNarratives.push(...narratives);
         allResponses.push(...responses);
       }
 
@@ -793,6 +833,7 @@ export const GraphDataService = {
       return {
         conversations,
         questions: allQuestions,
+        narratives: allNarratives,
         responses: allResponses
       };
     } catch (error) {
@@ -999,8 +1040,8 @@ export const AdminService = {
     const recording = recordingId
       ? ({ id: recordingId } as DbRecording)
       : recordingFile
-      ? await RecordingService.upload(recordingFile, recordingDurationMs)
-      : null;
+        ? await RecordingService.upload(recordingFile, recordingDurationMs)
+        : null;
 
     // If we attach a recording to the response, we must also provide a valid audio range.
     // The DB enforces this via the `valid_audio_range` CHECK constraint.
@@ -1069,7 +1110,7 @@ export const AdminService = {
 
     return response as DbResponse;
   },
-  
+
   /**
    * Add a new response that responds to a QUESTION node.
    * Used by the global "Add your voice" flow.
@@ -1131,8 +1172,8 @@ export const AdminService = {
     const recording = recordingId
       ? ({ id: recordingId } as DbRecording)
       : recordingFile
-      ? await RecordingService.upload(recordingFile, recordingDurationMs)
-      : null;
+        ? await RecordingService.upload(recordingFile, recordingDurationMs)
+        : null;
 
     const hasRecording = !!recording?.id;
     if (hasRecording && (!recordingDurationMs || recordingDurationMs <= 0)) {

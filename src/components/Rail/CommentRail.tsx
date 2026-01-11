@@ -11,7 +11,11 @@ import { SingleView } from './Views/SingleView';
 import { ResizeHandle } from './ResizeHandle';
 import styles from './CommentRail.module.css';
 
-export const CommentRail = memo(() => {
+export interface CommentRailProps {
+  anthologySlug?: string;
+}
+
+export const CommentRail = memo<CommentRailProps>(({ anthologySlug }) => {
   // Get rail state from store
   const railExpanded = useAnthologyStore(state => state.view.railExpanded);
   const railWidth = useAnthologyStore(state => state.view.railWidth);
@@ -30,7 +34,7 @@ export const CommentRail = memo(() => {
       case 'question':
         return <QuestionView />;
       case 'single':
-        return <SingleView />;
+        return <SingleView anthologySlug={anthologySlug} />;
       default:
         return <ConversationsView />;
     }

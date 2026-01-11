@@ -95,7 +95,7 @@ export function D3Visualization() {
 
   // Handle node click - differentiate between question and response nodes
   const handleNodeClick = useCallback((node: GraphNode) => {
-    if (node.type === 'question') {
+    if (node.type === 'question' || node.type === 'narrative') {
       selectQuestion(node.id);
     } else if (node.type === 'response') {
       selectResponse(node.id);
@@ -134,8 +134,8 @@ export function D3Visualization() {
   };
 
   // Separate nodes by type (with position validation)
-  const questionNodes = nodes.filter((n: GraphNode) =>
-    n.type === 'question' && hasValidPosition(n)
+  const anchorNodes = nodes.filter((n: GraphNode) =>
+    (n.type === 'question' || n.type === 'narrative') && hasValidPosition(n)
   );
   const responseNodesWithPullQuote = nodes.filter((n: GraphNode) =>
     n.type === 'response' && (n.data as any).pull_quote && hasValidPosition(n)
@@ -214,8 +214,8 @@ export function D3Visualization() {
           />
         ))}
 
-        {/* Question nodes - render last (foreground/on top) */}
-        {questionNodes.map((node: GraphNode) => (
+        {/* Question/Narrative nodes - render last (foreground/on top) */}
+        {anchorNodes.map((node: GraphNode) => (
           <QuestionNode
             key={node.id}
             node={node}

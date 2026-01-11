@@ -48,9 +48,10 @@ function inferConversationIdForQuestion(questionId: string, responses: Map<strin
 export interface AddYourVoiceModalProps {
   open: boolean;
   onClose: () => void;
+  anthologySlug?: string;
 }
 
-export const AddYourVoiceModal = memo<AddYourVoiceModalProps>(({ open, onClose }) => {
+export const AddYourVoiceModal = memo<AddYourVoiceModalProps>(({ open, onClose, anthologySlug }) => {
   const [stage, setStage] = useState<Stage>('record');
   const [name, setName] = useState('');
   const [transcript, setTranscript] = useState('');
@@ -225,7 +226,8 @@ export const AddYourVoiceModal = memo<AddYourVoiceModalProps>(({ open, onClose }
       });
 
       setStatus('Refreshing graph…');
-      const graph = await GraphDataService.loadAll();
+      console.log('[AddYourVoiceModal] refreshing data using slug:', anthologySlug);
+      const graph = await GraphDataService.loadAll({ anthologySlug });
       await loadData(graph);
       selectResponse(created.legacy_id || created.id);
 
@@ -236,7 +238,7 @@ export const AddYourVoiceModal = memo<AddYourVoiceModalProps>(({ open, onClose }
     } finally {
       setIsWorking(false);
     }
-  }, [name, selectedQuestionId, transcript, uploadedRecordingId, recordingDurationMs, wordTimestamps, responseNodes, rawConversations, loadData, selectResponse, close]);
+  }, [name, selectedQuestionId, transcript, uploadedRecordingId, recordingDurationMs, wordTimestamps, responseNodes, rawConversations, loadData, selectResponse, close, anthologySlug]);
 
   if (!open) return null;
 

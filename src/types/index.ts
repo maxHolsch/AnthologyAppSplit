@@ -11,6 +11,7 @@ export type {
   // Nodes
   NodeType,
   QuestionNode,
+  NarrativeNode,
   ResponseNode,
   PromptNode,
   AnthologyNode,

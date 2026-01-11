@@ -5,6 +5,7 @@
 import type {
   AnthologyData,
   QuestionNode,
+  NarrativeNode,
   ResponseNode,
   GraphNode,
   GraphEdge,
@@ -27,6 +28,12 @@ export const validateAnthologyData = (data: any): AnthologyData => {
 
   if (!Array.isArray(data.questions)) {
     throw new Error('Invalid data: missing questions array');
+  }
+
+  if (!Array.isArray(data.narratives)) {
+    // Optional for now, but good to validate if present
+    // throw new Error('Invalid data: missing narratives array');
+    data.narratives = [];
   }
 
   if (!Array.isArray(data.responses)) {
@@ -122,6 +129,7 @@ export interface CreateGraphNodesOptions {
  */
 export const createGraphNodes = (
   questions: QuestionNode[],
+  narratives: NarrativeNode[],
   responses: ResponseNode[],
   colorAssignments: Map<string, ColorAssignment>,
   options?: CreateGraphNodesOptions
@@ -130,15 +138,18 @@ export const createGraphNodes = (
   const questionRadius = 300;
   const fixPositions = options?.fixPositions ?? true; // Default to fixed positions for now
 
-  // Add question nodes - position them in a circle
-  questions.forEach((question, qIndex) => {
-    const angle = (qIndex / Math.max(questions.length, 1)) * 2 * Math.PI;
+  // Combine questions and narratives for layout
+  const anchorNodes = [...questions, ...narratives];
+
+  // Add anchor nodes (questions and narratives) - position them in a circle
+  anchorNodes.forEach((node, index) => {
+    const angle = (index / Math.max(anchorNodes.length, 1)) * 2 * Math.PI;
     const x = Math.cos(angle) * questionRadius;
     const y = Math.sin(angle) * questionRadius;
     nodes.push({
-      id: question.id,
-      type: 'question',
-      data: question,
+      id: node.id,
+      type: node.type as 'question' | 'narrative',
+      data: node,
       x,
       y,
       // Fix position if enabled (prevents D3 from moving nodes)

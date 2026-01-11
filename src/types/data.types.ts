@@ -39,7 +39,7 @@ export interface Conversation {
 
 // ================== Node Types ==================
 
-export type NodeType = 'question' | 'response' | 'prompt';
+export type NodeType = 'question' | 'response' | 'prompt' | 'narrative';
 
 export interface QuestionNode {
   type: 'question';
@@ -81,7 +81,17 @@ export interface PromptNode {
   conversation_id?: string;
 }
 
-export type AnthologyNode = QuestionNode | ResponseNode | PromptNode;
+export interface NarrativeNode {
+  type: 'narrative';
+  id: string;
+  narrative_text: string;
+  /** Optional: Narratives might behave like questions and have responses, or be standalone. For now assuming they might have related content or just be standalone nodes. */
+  related_responses?: string[];
+  notes?: string;
+  path_to_recording?: string;
+}
+
+export type AnthologyNode = QuestionNode | ResponseNode | PromptNode | NarrativeNode;
 
 // ================== Audio Types ==================
 
@@ -145,6 +155,7 @@ export interface MapTransform {
 export interface AnthologyData {
   conversations: Conversation[];
   questions: QuestionNode[];
+  narratives: NarrativeNode[];
   responses: ResponseNode[];
   prompts?: PromptNode[]; // These won't be visualized but stored for context
 }
@@ -170,6 +181,7 @@ export interface DataState {
   nodes: Map<string, GraphNode>;
   edges: Map<string, GraphEdge>;
   questionNodes: Map<string, QuestionNode>;
+  narrativeNodes: Map<string, NarrativeNode>;
   responseNodes: Map<string, ResponseNode>;
   conversations: Map<string, Conversation>;
   colorAssignments: Map<string, ColorAssignment>;
