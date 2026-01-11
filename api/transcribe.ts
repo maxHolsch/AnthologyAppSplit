@@ -1,14 +1,13 @@
 // Vercel Serverless Function
 // POST /api/transcribe
 // Body: { audioUrl: string }
+//
+// This endpoint uses the shared AssemblyAI library for consistent transcription
+// with speaker diarization and reliable word-level timestamps.
+
+import { assemblyTranscribeBlocking } from './_lib/assemblyai';
 
 type Json = Record<string, unknown>;
-
-const ASSEMBLY_API_BASE = 'https://api.assemblyai.com/v2';
-
-async function sleep(ms: number) {
-  await new Promise((r) => setTimeout(r, ms));
-}
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') {
@@ -37,73 +36,36 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
-    // 1) Start transcription
-    const createResp = await fetch(`${ASSEMBLY_API_BASE}/transcript`, {
-      method: 'POST',
-      headers: {
-        Authorization: apiKey,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        audio_url: audioUrl,
-        punctuate: true,
-        format_text: true,
-        // word-level timestamps
-        // AssemblyAI includes "words" in the response when completed.
-      }),
+    // Use the shared library which enables speaker_labels for reliable word timestamps
+    const transcript = await assemblyTranscribeBlocking({
+      apiKey,
+      audioUrl,
+      maxPolls: 120,
+      pollMs: 1500,
     });
 
-    if (!createResp.ok) {
-      const msg = await createResp.text().catch(() => '');
-      res.status(502).json({ error: msg || 'Failed to create transcription job' });
-      return;
-    }
-
-    const created = (await createResp.json()) as { id?: string };
-    if (!created.id) {
-      res.status(502).json({ error: 'AssemblyAI returned no transcript id' });
-      return;
-    }
-
-    // 2) Poll until completion
-    for (let i = 0; i < 120; i++) {
-      const pollResp = await fetch(`${ASSEMBLY_API_BASE}/transcript/${created.id}`, {
-        headers: { Authorization: apiKey },
-      });
-
-      if (!pollResp.ok) {
-        const msg = await pollResp.text().catch(() => '');
-        res.status(502).json({ error: msg || 'Failed to poll transcription job' });
-        return;
-      }
-
-      const data = (await pollResp.json()) as any;
-      if (data.status === 'completed') {
-        res.status(200).json({
-          text: data.text || '',
-          words: Array.isArray(data.words)
-            ? data.words.map((w: any) => ({
-                text: w.text,
-                start: w.start,
-                end: w.end,
-                confidence: w.confidence,
-              }))
-            : [],
-        });
-        return;
-      }
-
-      if (data.status === 'error') {
-        res.status(502).json({ error: data.error || 'Transcription failed' });
-        return;
-      }
-
-      await sleep(1500);
-    }
-
-    res.status(504).json({ error: 'Transcription timed out' });
+    // Return in the same format the frontend expects
+    res.status(200).json({
+      text: transcript.text || '',
+      words: Array.isArray(transcript.words)
+        ? transcript.words.map((w) => ({
+          text: w.text,
+          start: w.start,
+          end: w.end,
+          confidence: w.confidence,
+        }))
+        : [],
+    });
   } catch (e) {
-    res.status(500).json({ error: e instanceof Error ? e.message : 'Unknown error' });
+    const message = e instanceof Error ? e.message : 'Unknown error';
+
+    // Determine appropriate status code based on error
+    if (message.includes('timed out')) {
+      res.status(504).json({ error: message });
+    } else if (message.includes('Failed to create') || message.includes('Failed to poll')) {
+      res.status(502).json({ error: message });
+    } else {
+      res.status(500).json({ error: message });
+    }
   }
 }
-
