@@ -34,6 +34,7 @@ export function CreateAnthologyModal({ open, onClose }: Props) {
   const stopPollingRef = useRef<null | (() => void)>(null);
   const [anthologyName, setAnthologyName] = useState('');
   const [mainQuestions, setMainQuestions] = useState('');
+  const [mainNarratives, setMainNarratives] = useState('');
   const [uploads, setUploads] = useState<UploadRow[]>([]);
   const [isUploading, setIsUploading] = useState(false);
 
@@ -83,6 +84,15 @@ export function CreateAnthologyModal({ open, onClose }: Props) {
   };
 
   const parseTemplateQuestions = (raw: string): string[] => {
+    // Split by newlines; keep non-empty lines.
+    // Users often paste bullets; strip leading '-', '*', '•'.
+    return raw
+      .split(/\r?\n/)
+      .map((l) => l.trim().replace(/^[-*•]\s+/, '').trim())
+      .filter((l) => l.length > 0);
+  };
+
+  const parseTemplateNarratives = (raw: string): string[] => {
     // Split by newlines; keep non-empty lines.
     // Users often paste bullets; strip leading '-', '*', '•'.
     return raw
@@ -214,20 +224,36 @@ export function CreateAnthologyModal({ open, onClose }: Props) {
       return;
     }
 
+    const templateNarratives = parseTemplateNarratives(mainNarratives);
+
+    console.log('[CreateAnthology] Starting sensemaking with:', {
+      anthologySlug,
+      anthologyName,
+      templateQuestionsCount: templateQuestions.length,
+      templateQuestions,
+      templateNarrativesCount: templateNarratives.length,
+      templateNarratives,
+      uploadedPathsCount: uploadedPaths.length,
+    });
+
     setIsSensemaking(true);
     setSensemaking(null);
 
     try {
+      const payload = {
+        anthologySlug,
+        anthologyTitle: anthologyName,
+        templateQuestions,
+        templateNarratives,
+        uploadedFilePaths: uploadedPaths,
+        includePreviousUploads,
+      };
+      console.log('[CreateAnthology] Sending payload:', payload);
+
       const res = await fetch('/api/sensemaking/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          anthologySlug,
-          anthologyTitle: anthologyName,
-          templateQuestions,
-          uploadedFilePaths: uploadedPaths,
-          includePreviousUploads,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
@@ -283,6 +309,17 @@ export function CreateAnthologyModal({ open, onClose }: Props) {
               value={mainQuestions}
               onChange={(e) => setMainQuestions(e.target.value)}
               placeholder="Paste the key questions here…"
+              rows={5}
+            />
+          </label>
+
+          <label className={styles.label}>
+            Main narratives this conversation revolves around
+            <textarea
+              className={styles.textarea}
+              value={mainNarratives}
+              onChange={(e) => setMainNarratives(e.target.value)}
+              placeholder="Paste the key narratives here… (optional)"
               rows={5}
             />
           </label>

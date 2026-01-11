@@ -78,6 +78,7 @@ export type JobProgress = {
       merged_turns?: Array<{ speaker_label: string; start_ms: number; end_ms: number; text: string }>;
       speaker_map?: Record<string, { name: string; confidence: number }>;
       question_db_ids?: string[];
+      narrative_db_ids?: string[];
       speaker_db_ids?: Record<string, string>; // speaker_name -> uuid
       // allow forward-compatible fields
       [key: string]: any;
@@ -89,6 +90,7 @@ export type StartRequest = {
   anthologySlug: string;
   anthologyTitle: string;
   templateQuestions: string[];
+  templateNarratives: string[];
   uploadedFilePaths: string[]; // storage object paths
   includePreviousUploads: boolean;
 };
@@ -518,6 +520,7 @@ async function ensureConversationSkeleton({
   audioUrl,
   transcript,
   templateQuestions,
+  templateNarratives,
   speakerNames,
   paletteIndex,
 }: {
@@ -528,9 +531,10 @@ async function ensureConversationSkeleton({
   audioUrl: string;
   transcript: AssemblyTranscript;
   templateQuestions: string[];
+  templateNarratives: string[];
   speakerNames: string[];
   paletteIndex: number;
-}): Promise<{ conversationId: string; recordingId: string; questionDbIds: string[]; speakerDbIds: Record<string, string> }> {
+}): Promise<{ conversationId: string; recordingId: string; questionDbIds: string[]; narrativeDbIds: string[]; speakerDbIds: Record<string, string> }> {
   const fileName = path.basename(objectPath);
 
   const durationMs = (() => {
@@ -621,7 +625,57 @@ async function ensureConversationSkeleton({
     questionDbIds.push(qRow.id);
   }
 
-  return { conversationId: conversation.id, recordingId: recording.id, questionDbIds, speakerDbIds };
+  // Narratives
+  console.log('[sensemaking.skeleton] Creating narratives:', {
+    anthologyId,
+    conversationId: conversation.id,
+    narrativeCount: templateNarratives.length,
+    narratives: templateNarratives,
+  });
+
+  const narrativeDbIds: string[] = [];
+  for (const n of templateNarratives) {
+    console.log('[sensemaking.skeleton] Inserting narrative:', {
+      narrative: n,
+      insertData: {
+        anthology_id: anthologyId,
+        conversation_id: conversation.id,
+        narrative_text: n,
+        metadata: { source: 'sensemaking' },
+      }
+    });
+    const { data: nRow, error: nErr } = await supabase
+      .from('anthology_narratives')
+      .insert({
+        anthology_id: anthologyId,
+        conversation_id: conversation.id,
+        narrative_text: n,
+        // metadata: { source: 'sensemaking' },  // TODO: Add metadata column to table first
+      })
+      .select('id')
+      .single();
+
+    if (nErr) {
+      console.error('[sensemaking.skeleton] Narrative insertion failed:', {
+        error: nErr,
+        message: nErr.message,
+        details: nErr.details,
+        hint: nErr.hint,
+        code: nErr.code,
+      });
+      throw nErr;
+    }
+
+    console.log('[sensemaking.skeleton] Narrative inserted successfully:', { narrativeId: nRow.id, narrative: n });
+    narrativeDbIds.push(nRow.id);
+  }
+
+  console.log('[sensemaking.skeleton] All narratives created:', {
+    narrativeDbIds,
+    count: narrativeDbIds.length,
+  });
+
+  return { conversationId: conversation.id, recordingId: recording.id, questionDbIds, narrativeDbIds, speakerDbIds };
 }
 
 async function upsertResponseBatch({
@@ -814,6 +868,15 @@ function speakerColors(base: string) {
 export async function startSensemaking(req: StartRequest): Promise<StartResponse> {
   const supabase = getSupabaseServiceClient();
 
+  console.log('[sensemaking.start] Request received:', {
+    anthologySlug: req.anthologySlug,
+    anthologyTitle: req.anthologyTitle,
+    templateQuestionsCount: req.templateQuestions?.length || 0,
+    templateNarrativesCount: req.templateNarratives?.length || 0,
+    templateNarratives: req.templateNarratives,
+    uploadedFilePathsCount: req.uploadedFilePaths?.length || 0,
+  });
+
   // Create anthology (private until done)
   const insertAnthology = async (slug: string) => {
     return supabase
@@ -865,6 +928,7 @@ export async function startSensemaking(req: StartRequest): Promise<StartResponse
       anthology_slug: anthologySlug,
       anthology_title: req.anthologyTitle,
       template_questions: req.templateQuestions,
+      template_narratives: req.templateNarratives,
       include_previous_uploads: req.includePreviousUploads,
       file_paths: filePaths,
       status: 'queued',
@@ -965,6 +1029,7 @@ export async function tickSensemaking({ jobId, timeBudgetMs = 15000 }: { jobId: 
 
   const filePaths: string[] = Array.isArray(job.file_paths) ? job.file_paths : [];
   const templateQuestions: string[] = Array.isArray(job.template_questions) ? job.template_questions : [];
+  const templateNarratives: string[] = Array.isArray(job.template_narratives) ? job.template_narratives : [];
   let progress = ensureProgress(job.progress, filePaths);
 
   // Move job to running
@@ -1086,8 +1151,8 @@ export async function tickSensemaking({ jobId, timeBudgetMs = 15000 }: { jobId: 
           break;
         }
 
-        setFileStep(progress, fp, 'uploading_nodes', 'Creating conversation/questions/speakers');
-        log('skeleton.create.start', { file: fp });
+        setFileStep(progress, fp, 'uploading_nodes', 'Creating conversation/questions/narratives/speakers');
+        log('skeleton.create.start', { file: fp, templateNarrativesCount: templateNarratives.length, templateNarratives });
         const skeleton = await ensureConversationSkeleton({
           supabase,
           anthologyId: job.anthology_id,
@@ -1096,6 +1161,7 @@ export async function tickSensemaking({ jobId, timeBudgetMs = 15000 }: { jobId: 
           audioUrl,
           transcript: data,
           templateQuestions,
+          templateNarratives,
           speakerNames,
           paletteIndex: filePaths.indexOf(fp) >= 0 ? filePaths.indexOf(fp) : 0,
         });
@@ -1104,6 +1170,7 @@ export async function tickSensemaking({ jobId, timeBudgetMs = 15000 }: { jobId: 
           conversationId: skeleton.conversationId,
           recordingId: skeleton.recordingId,
           questions: skeleton.questionDbIds.length,
+          narratives: skeleton.narrativeDbIds.length,
         });
 
         // Smaller batches reduce token pressure + are less likely to hit serverless timeouts.
@@ -1124,6 +1191,7 @@ export async function tickSensemaking({ jobId, timeBudgetMs = 15000 }: { jobId: 
           merged_turns: mergedLite,
           speaker_map: speakerMap,
           question_db_ids: skeleton.questionDbIds,
+          narrative_db_ids: skeleton.narrativeDbIds,
           speaker_db_ids: skeleton.speakerDbIds,
         };
 
@@ -1236,6 +1304,7 @@ export async function tickSensemaking({ jobId, timeBudgetMs = 15000 }: { jobId: 
       const conversationId = String(f.conversation_id || '');
       const recordingId = String(f.recording_id || '');
       const questionDbIds = Array.isArray(f.question_db_ids) ? (f.question_db_ids as string[]) : [];
+      const narrativeDbIds = Array.isArray(f.narrative_db_ids) ? (f.narrative_db_ids as string[]) : [];
       const speakerDbIds = (f.speaker_db_ids || {}) as Record<string, string>;
 
       if (conversationId && recordingId && questionDbIds.length > 0) {

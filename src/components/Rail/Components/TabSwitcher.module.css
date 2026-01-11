@@ -1,0 +1,40 @@
+/* TabSwitcher styles */
+
+.tabSwitcher {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 32px;
+  margin-top: 32px;
+  margin-bottom: 8px;
+}
+
+.tab {
+  font-family: 'Hedvig Letters Sans', -apple-system, sans-serif;
+  font-size: 11px;
+  line-height: 1.4;
+  color: rgba(0, 0, 0, 0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 400;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.tab:hover {
+  color: rgba(0, 0, 0, 0.6);
+}
+
+.tab.active {
+  color: rgba(0, 0, 0, 0.9);
+  font-weight: 500;
+}
+
+.separator {
+  font-family: 'Hedvig Letters Sans', -apple-system, sans-serif;
+  font-size: 11px;
+  color: rgba(0, 0, 0, 0.3);
+}

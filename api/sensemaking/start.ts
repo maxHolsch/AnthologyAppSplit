@@ -15,6 +15,7 @@ export default async function handler(req: any, res: any) {
     const anthologySlug = body.anthologySlug;
     const anthologyTitle = body.anthologyTitle;
     const templateQuestions = body.templateQuestions;
+    const templateNarratives = body.templateNarratives;
     const uploadedFilePaths = body.uploadedFilePaths;
     const includePreviousUploads = body.includePreviousUploads;
 
@@ -34,11 +35,18 @@ export default async function handler(req: any, res: any) {
       sendJson(res, 400, { error: 'uploadedFilePaths must be a non-empty array' });
       return;
     }
+    if (templateNarratives !== undefined && !Array.isArray(templateNarratives)) {
+      sendJson(res, 400, { error: 'templateNarratives must be an array if provided' });
+      return;
+    }
 
     const result = await startSensemaking({
       anthologySlug,
       anthologyTitle,
       templateQuestions: templateQuestions.filter((q: any) => typeof q === 'string' && q.trim().length > 0),
+      templateNarratives: Array.isArray(templateNarratives)
+        ? templateNarratives.filter((n: any) => typeof n === 'string' && n.trim().length > 0)
+        : [],
       uploadedFilePaths: uploadedFilePaths.filter((p: any) => typeof p === 'string' && p.trim().length > 0),
       includePreviousUploads: Boolean(includePreviousUploads),
     });

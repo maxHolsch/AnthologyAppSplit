@@ -1,0 +1,2087 @@
+{
+  "metadata": {
+    "title": "AI and Jobs Focus Group Transcript Analysis",
+    "source": "AI_and_Jobs_Transcript_2.pdf",
+    "participants": [
+      {
+        "id": "aayushi",
+        "name": "Aayushi"
+      },
+      {
+        "id": "jessie",
+        "name": "Jessie"
+      },
+      {
+        "id": "zahed",
+        "name": "Zahed"
+      },
+      {
+        "id": "victoria",
+        "name": "Victoria"
+      },
+      {
+        "id": "breanna",
+        "name": "Breanna"
+      },
+      {
+        "id": "amanda",
+        "name": "Amanda"
+      },
+      {
+        "id": "martin",
+        "name": "Martin"
+      }
+    ],
+    "facilitators": [
+      "Rithika",
+      "Jessie"
+    ]
+  },
+  "facilitator_questions": [
+    {
+      "id": "Q1",
+      "text": "What are your first thoughts and reactions after watching the documentary? Can you relate personally to any of the emotional or interpersonal issues shown?",
+      "sequence": 1
+    },
+    {
+      "id": "Q2",
+      "text": "Share a story about a time you tried to talk about AI with others. How did it go? Did you change your mind or someone else's?",
+      "sequence": 2
+    },
+    {
+      "id": "Q3",
+      "text": "After watching the video, have your feelings about AI and its impact on jobs changed? Why or why not?",
+      "sequence": 3
+    },
+    {
+      "id": "Q4",
+      "text": "What questions do you still have about AI after watching this video? What questions were answered?",
+      "sequence": 4
+    },
+    {
+      "id": "Q5",
+      "text": "Where were your reactions similar or different from others in the group, and why might that be?",
+      "sequence": 5
+    },
+    {
+      "id": "Q6",
+      "text": "Feedback on the documentary: Would you have kept watching? What would make it more enjoyable? Were any parts boring or confusing?",
+      "sequence": 6
+    },
+    {
+      "id": "Q7",
+      "text": "Would you share this video with others or subscribe to the channel? Who would you send it to?",
+      "sequence": 7
+    },
+    {
+      "id": "Q8",
+      "text": "What recommendations do you have for making this video more relevant to younger audiences?",
+      "sequence": 8
+    }
+  ],
+  "themes": [
+    {
+      "id": "T1",
+      "name": "Silicon Valley Hype vs Reality",
+      "description": "Skepticism about AI companies overpromising and underdelivering"
+    },
+    {
+      "id": "T2",
+      "name": "Human Agency and Choice",
+      "description": "The idea that AI adoption is a choice made by humans, not an inevitable force"
+    },
+    {
+      "id": "T3",
+      "name": "AI Safety and Decision-Making Limits",
+      "description": "Concerns about AI's inability to handle complex moral and situational decisions"
+    },
+    {
+      "id": "T4",
+      "name": "Environmental Costs of AI",
+      "description": "CO2 emissions, computing power, and sustainability concerns"
+    },
+    {
+      "id": "T5",
+      "name": "Human Bias in AI Systems",
+      "description": "AI inheriting and perpetuating human biases (racism, sexism)"
+    },
+    {
+      "id": "T6",
+      "name": "Emotional Attachment to Work",
+      "description": "Jobs as identity and meaning, not just income"
+    },
+    {
+      "id": "T7",
+      "name": "Devaluation of Human Creativity",
+      "description": "AI undermining the value of human-made art and work"
+    },
+    {
+      "id": "T8",
+      "name": "Policy Responses to AI Displacement",
+      "description": "UBI, regulation, and systemic responses to job loss"
+    },
+    {
+      "id": "T9",
+      "name": "Generational Attitudes Toward AI",
+      "description": "Differences in how Gen X, millennials, and Gen Z view AI"
+    },
+    {
+      "id": "T10",
+      "name": "Tech Optimism as Ideology",
+      "description": "Uncritical enthusiasm for technology, gendered aspects of tech culture"
+    },
+    {
+      "id": "T11",
+      "name": "Hidden Labor Behind AI",
+      "description": "Exploited workers training AI systems (Mechanical Turk, overseas labor)"
+    },
+    {
+      "id": "T12",
+      "name": "AI Bubble and Sustainability",
+      "description": "Questions about whether AI businesses are economically sustainable"
+    },
+    {
+      "id": "T13",
+      "name": "Loss of Critical Thinking Skills",
+      "description": "AI making people unable to think, write, or create independently"
+    },
+    {
+      "id": "T14",
+      "name": "Distinguishing Human from AI",
+      "description": "Growing difficulty telling AI-generated content from human-made"
+    },
+    {
+      "id": "T15",
+      "name": "Masculinity and Tech Progress",
+      "description": "AI progress framed as inherently masculine, risk-taking culture"
+    },
+    {
+      "id": "T16",
+      "name": "AI Literacy and Understanding",
+      "description": "Most people don't understand how AI actually works"
+    }
+  ],
+  "narratives": [
+    {
+      "id": "N1",
+      "name": "The Silicon Valley Illusion",
+      "description": "AI companies make grandiose claims backed by 'proof of concept' demos (like a golf cart) but fail to deliver. The Embark company's failure exemplifies this pattern.",
+      "related_themes": [
+        "T1",
+        "T12"
+      ]
+    },
+    {
+      "id": "N2",
+      "name": "Reclaiming Human Agency",
+      "description": "Against defeatist attitudes: humans choose to adopt AI, and we can choose not to. We drove trucks and made art before AI, and we can continue to do so.",
+      "related_themes": [
+        "T2",
+        "T9"
+      ]
+    },
+    {
+      "id": "N3",
+      "name": "The Myth of AI Objectivity",
+      "description": "AI is presented as safer and more objective than humans, but it's built by fallible humans and inherits their biases. The veneer of objectivity masks real problems.",
+      "related_themes": [
+        "T3",
+        "T5"
+      ]
+    },
+    {
+      "id": "N4",
+      "name": "Progress at What Cost",
+      "description": "The drive for AI 'progress' comes with hidden costs: environmental damage, job displacement, loss of creativity. We must ask if infinite progress is worth pursuing.",
+      "related_themes": [
+        "T4",
+        "T7",
+        "T6"
+      ]
+    },
+    {
+      "id": "N5",
+      "name": "The Humanity Behind the Job",
+      "description": "Jobs like trucking aren't just labor\u2014they're sources of identity, pride, and meaning. Seeing the human side changes the calculus of automation.",
+      "related_themes": [
+        "T6",
+        "T7"
+      ]
+    },
+    {
+      "id": "N6",
+      "name": "Tech Culture as Masculine Risk-Taking",
+      "description": "AI enthusiasm is gendered\u2014associated with uncritical tech worship, Elon Musk fandom, and dismissing safety concerns as 'stupid.'",
+      "related_themes": [
+        "T10",
+        "T15"
+      ]
+    },
+    {
+      "id": "N7",
+      "name": "AI Creating New Problems",
+      "description": "AI doesn't eliminate human labor\u2014it creates new exploitative labor (data labeling overseas) while retaining all the old problems plus new ones like carbon emissions.",
+      "related_themes": [
+        "T11",
+        "T4"
+      ]
+    },
+    {
+      "id": "N8",
+      "name": "The Erosion of Human Capability",
+      "description": "Reliance on AI is making people\u2014especially young people\u2014unable to think, write, or create independently. 160 out of 170 freshmen using AI for one assignment.",
+      "related_themes": [
+        "T13",
+        "T7"
+      ]
+    },
+    {
+      "id": "N9",
+      "name": "Demystifying the Black Box",
+      "description": "When you understand AI is 'just' sophisticated linear algebra and probability distributions, the mystique fades and realistic assessment becomes possible.",
+      "related_themes": [
+        "T16",
+        "T1"
+      ]
+    }
+  ],
+  "excerpts": [
+    {
+      "id": "E1",
+      "speaker": "aayushi",
+      "text": "At the end it just goes, oh, they retired the fleet in 2023. Why? I want to know more about that. The premise of the documentary is like AI is this huge thing and it's actually taking over trucking, but also they just retired the fleet and I don't know why.",
+      "question_id": "Q1",
+      "theme_ids": [
+        "T1",
+        "T12"
+      ],
+      "narrative_ids": [
+        "N1"
+      ],
+      "page": 1,
+      "reply_to_primary": "Q1",
+      "reply_type": "question_anchor",
+      "reply_confidence": 0.5,
+      "reply_reason": "No prior excerpt; attach to question anchor."
+    },
+    {
+      "id": "E2",
+      "speaker": "aayushi",
+      "text": "What resonated with me is this struggle between automation and safety and then also losing jobs. AI has kind of become this 'oh my God, it's rising and we're losing everything.' And I think that's necessarily probably true, but the way my brain works is okay, let's say AI does rise, how do we stop gap this loss of jobs?",
+      "question_id": "Q1",
+      "theme_ids": [
+        "T8",
+        "T3"
+      ],
+      "narrative_ids": [
+        "N4"
+      ],
+      "page": 1,
+      "reply_to_primary": "E1",
+      "reply_type": "adjacency",
+      "reply_confidence": 0.6,
+      "reply_reason": "Fallback to previous excerpt (turn-taking adjacency)."
+    },
+    {
+      "id": "E3",
+      "speaker": "aayushi",
+      "text": "It reminds me of universal basic income. That's something I had been thinking about a lot with AI\u2014if we're going to consistently lose what you would call 'low skilled' jobs to automation, how do you stop gap that? Especially because these people are talking about they're barely paid anything when they do have their jobs, what about when they don't?",
+      "question_id": "Q1",
+      "theme_ids": [
+        "T8",
+        "T6"
+      ],
+      "narrative_ids": [
+        "N4"
+      ],
+      "page": 1,
+      "reply_to_primary": "E2",
+      "reply_type": "topic_continuation",
+      "reply_confidence": 0.8,
+      "reply_reason": "Highest theme/narrative overlap in last 6 excerpts (Jaccard=0.50)."
+    },
+    {
+      "id": "E4",
+      "speaker": "jessie",
+      "text": "In econ class we talk about different forms of unemployment from technological advancements. When we read about it in the news or see it happening, we kind of always view it in a positive light. And sometimes behind that there are certain consequences to certain demographics who might be experiencing the lower end of having these advances.",
+      "question_id": "Q1",
+      "theme_ids": [
+        "T6",
+        "T8"
+      ],
+      "narrative_ids": [
+        "N4"
+      ],
+      "page": 1,
+      "reply_to_primary": "E3",
+      "reply_type": "topic_continuation",
+      "reply_confidence": 1.0,
+      "reply_reason": "Highest theme/narrative overlap in last 6 excerpts (Jaccard=1.00)."
+    },
+    {
+      "id": "E5",
+      "speaker": "zahed",
+      "text": "I was not surprised the company shut down. That whole time I was wondering when he said 'less than half a decade.' It seems like a pretty clear cut case of a Silicon Valley company, an AI based Silicon Valley company making insane claims and not being able to back them up, making millions of dollars in funding and then losing it because their idea was not nearly as ready as they claimed.",
+      "question_id": "Q1",
+      "theme_ids": [
+        "T1",
+        "T12"
+      ],
+      "narrative_ids": [
+        "N1"
+      ],
+      "page": 2,
+      "reply_to_primary": "E1",
+      "reply_type": "topic_continuation",
+      "reply_confidence": 1.0,
+      "reply_reason": "Highest theme/narrative overlap in last 6 excerpts (Jaccard=1.00)."
+    },
+    {
+      "id": "E6",
+      "speaker": "zahed",
+      "text": "He had a golf cart, he attached what looks to me like a motor to the steering wheel. Sure that's something, but as the driver in the second half pointed out, there's so many other factors. Suddenly you have to do computer vision, but then there are actually a hundred things you need to do and it's not nearly as simple as attaching a motor to a golf cart.",
+      "question_id": "Q1",
+      "theme_ids": [
+        "T1"
+      ],
+      "narrative_ids": [
+        "N1"
+      ],
+      "page": 2,
+      "reply_to_primary": "E1",
+      "reply_type": "topic_continuation",
+      "reply_confidence": 0.867,
+      "reply_reason": "Highest theme/narrative overlap in last 6 excerpts (Jaccard=0.67)."
+    },
+    {
+      "id": "E7",
+      "speaker": "zahed",
+      "text": "I had experiences before with that mentality of 'just look, this is our proof of concept, the golf cart. From there we can do self-driving trucks, just give engineers some money in a couple of years and it'll work out.' No, it does not. I think we're seeing that very often right now with most AI startups.",
+      "question_id": "Q1",
+      "theme_ids": [
+        "T1",
+        "T12"
+      ],
+      "narrative_ids": [
+        "N1"
+      ],
+      "page": 2,
+      "reply_to_primary": "E1",
+      "reply_type": "topic_continuation",
+      "reply_confidence": 1.0,
+      "reply_reason": "Highest theme/narrative overlap in last 6 excerpts (Jaccard=1.00)."
+    },
+    {
+      "id": "E8",
+      "speaker": "victoria",
+      "text": "My mom got laid off of her job. It's not an insane job where she's getting 150K a year, but it was what she liked to do and loved to do. Not because of technology or AI, but because the company wasn't doing well. I understand when the truck driver said 'This is what I love to do.' Even though they're only making around $22,000 a year, that's not a lot, but it is what he loves to do.",
+      "question_id": "Q1",
+      "theme_ids": [
+        "T6"
+      ],
+      "narrative_ids": [
+        "N5"
+      ],
+      "page": 2,
+      "reply_to_primary": "E3",
+      "reply_type": "topic_continuation",
+      "reply_confidence": 0.7,
+      "reply_reason": "Highest theme/narrative overlap in last 6 excerpts (Jaccard=0.25)."
+    },
+    {
+      "id": "E9",
+      "speaker": "victoria",
+      "text": "I don't think AI and self-driving trucks are going to be a real thing very soon. There's a lot of decision making that self-driving cars can't do. Like if a kid was coming versus a car was coming, what direction would they steer? But whenever it does happen, there's a lot of emotional attachment to jobs and people are going to be very angry about losing their job despite what kind of income they had.",
+      "question_id": "Q1",
+      "theme_ids": [
+        "T3",
+        "T6"
+      ],
+      "narrative_ids": [
+        "N3",
+        "N5"
+      ],
+      "page": 2,
+      "reply_to_primary": "E8",
+      "reply_type": "topic_continuation",
+      "reply_confidence": 0.8,
+      "reply_reason": "Highest theme/narrative overlap in last 6 excerpts (Jaccard=0.50)."
+    },
+    {
+      "id": "E10",
+      "speaker": "breanna",
+      "text": "They mentioned how computers are safer than humans, but to what extent can computers account for human mistakes? Exactly with the child thing. I saw a headline yesterday about Google's CO2 emissions over the past five years\u2014they've raised over 48% because of AI generation. That's really scary to me. Where do we value progress to how it is essentially shortening our lifespan?",
+      "question_id": "Q1",
+      "theme_ids": [
+        "T3",
+        "T4"
+      ],
+      "narrative_ids": [
+        "N3",
+        "N4"
+      ],
+      "page": 3,
+      "reply_to_primary": "E9",
+      "reply_type": "topic_continuation",
+      "reply_confidence": 0.733,
+      "reply_reason": "Highest theme/narrative overlap in last 6 excerpts (Jaccard=0.33)."
+    },
+    {
+      "id": "E11",
+      "speaker": "breanna",
+      "text": "Especially where climate change is a huge threat to all of us right now\u2014progress in the short term versus staying alive. It's interesting to see what human beings are valuing right now.",
+      "question_id": "Q1",
+      "theme_ids": [
+        "T4"
+      ],
+      "narrative_ids": [
+        "N4"
+      ],
+      "page": 3,
+      "reply_to_primary": "E10",
+      "reply_type": "topic_continuation",
+      "reply_confidence": 0.8,
+      "reply_reason": "Highest theme/narrative overlap in last 6 excerpts (Jaccard=0.50)."
+    },
+    {
+      "id": "E12",
+      "speaker": "aayushi",
+      "text": "It reminds me of this game created by MIT called Moral Machine to collect data on what humans think is the most moral for an autonomous driving car. It would do things like 'if this car has to crash into someone, should it crash into an elderly woman or an elderly man?' That's scary. But also interesting because the truck driver said 'all of this is human made and humans make mistakes.'",
+      "question_id": "Q1",
+      "theme_ids": [
+        "T3",
+        "T5"
+      ],
+      "narrative_ids": [
+        "N3"
+      ],
+      "page": 3,
+      "reply_to_primary": "E9",
+      "reply_type": "topic_continuation",
+      "reply_confidence": 0.76,
+      "reply_reason": "Highest theme/narrative overlap in last 6 excerpts (Jaccard=0.40)."
+    },
+    {
+      "id": "E13",
+      "speaker": "aayushi",
+      "text": "We have this veneer of objectivity with AI\u2014'oh my God, it's a hundred percent safer.' That's what Alex Rodrigues was saying, this is how you cut traffic collisions and deaths. Maybe there's some truth that it might be safer. But that's also why we've had so many issues with algorithms being racist, being sexist. When Alexa and voice recognition was developed, it didn't recognize female voices because we only had male engineers on the team.",
+      "question_id": "Q1",
+      "theme_ids": [
+        "T5",
+        "T3"
+      ],
+      "narrative_ids": [
+        "N3"
+      ],
+      "page": 3,
+      "reply_to_primary": "E12",
+      "reply_type": "topic_continuation",
+      "reply_confidence": 1.0,
+      "reply_reason": "Highest theme/narrative overlap in last 6 excerpts (Jaccard=1.00)."
+    },
+    {
+      "id": "E14",
+      "speaker": "aayushi",
+      "text": "We get so caught up with endless advancement that we don't remember that we are humans and we're making this technology and we're still wrong a bunch. It was scary to see this guy be like 'Yeah, it's totally cool.' I was nodding when Zahed said it sounds like a Silicon Valley dude who got a bunch of money and decided he had proof of concept. The golf cart was very silly to me\u2014I could drive a golf cart when I was 12, that doesn't mean I can drive a 48 wheeler.",
+      "question_id": "Q1",
+      "theme_ids": [
+        "T1",
+        "T5"
+      ],
+      "narrative_ids": [
+        "N1",
+        "N3"
+      ],
+      "page": 3,
+      "reply_to_primary": "E7",
+      "reply_type": "explicit_reference",
+      "reply_confidence": 0.95,
+      "reply_reason": "Explicit mention of speaker 'zahed' in text."
+    },
+    {
+      "id": "E15",
+      "speaker": "aayushi",
+      "text": "The CO2 emissions thing is something that AI has popped up and no one thinks about. The way AI works, it's not just something happening in the cloud. There's a bunch of servers working overtime. When you open Google Docs and it's like 'do you want to write this thing with AI?' All of that takes so much computing power. It's the same thing with NFTs\u2014everyone was like NFTs are really bad for the environment because all of that computing power is actually screwing up our environment.",
+      "question_id": "Q1",
+      "theme_ids": [
+        "T4"
+      ],
+      "narrative_ids": [
+        "N4",
+        "N7"
+      ],
+      "page": 3,
+      "reply_to_primary": "E11",
+      "reply_type": "topic_continuation",
+      "reply_confidence": 0.867,
+      "reply_reason": "Highest theme/narrative overlap in last 6 excerpts (Jaccard=0.67)."
+    },
+    {
+      "id": "E16",
+      "speaker": "aayushi",
+      "text": "When you de-link the impacts of AI to what AI actually is, everyone's like 'oh, this is cool.' But there's this idea\u2014do we actually need infinite progress or should we take a step back and say 'Hey, maybe this isn't cool.'",
+      "question_id": "Q1",
+      "theme_ids": [
+        "T4",
+        "T10"
+      ],
+      "narrative_ids": [
+        "N4"
+      ],
+      "page": 4,
+      "reply_to_primary": "E11",
+      "reply_type": "topic_continuation",
+      "reply_confidence": 0.867,
+      "reply_reason": "Highest theme/narrative overlap in last 6 excerpts (Jaccard=0.67)."
+    },
+    {
+      "id": "E17",
+      "speaker": "martin",
+      "text": "My debate coach has always talked about AI. He always calls it 'ChatGTP' and says it is going to ruin the world. He's very defeatist and pessimistic. It's an attitude I hear a lot from people in Gen X and older generations and it really bothers me. He's like 'Pandora's Box has been opened and AI is going to take all our jobs and ruin all this stuff.'",
+      "question_id": "Q2",
+      "theme_ids": [
+        "T9",
+        "T2"
+      ],
+      "narrative_ids": [
+        "N2"
+      ],
+      "page": 4,
+      "reply_to_primary": "E16",
+      "reply_type": "adjacency",
+      "reply_confidence": 0.6,
+      "reply_reason": "Fallback to previous excerpt (turn-taking adjacency)."
+    },
+    {
+      "id": "E18",
+      "speaker": "martin",
+      "text": "A lot of people's attitude with AI is 'it's out so it's already over.' That attitude is so frustrating because what happened to solving problems? Yes, AI does cool things, but we did all those things before AI, we can do them again. We actually do know how to drive trucks without computers and we can make art ourselves and write things ourselves. We don't have to just accept that AI is taking all our jobs.",
+      "question_id": "Q2",
+      "theme_ids": [
+        "T2",
+        "T9"
+      ],
+      "narrative_ids": [
+        "N2"
+      ],
+      "page": 4,
+      "reply_to_primary": "E17",
+      "reply_type": "topic_continuation",
+      "reply_confidence": 1.0,
+      "reply_reason": "Highest theme/narrative overlap in last 6 excerpts (Jaccard=1.00)."
+    },
+    {
+      "id": "E19",
+      "speaker": "zahed",
+      "text": "AIs don't take over jobs, humans do\u2014they choose to replace human workers with AI. People can and will be driving things and making art as long as those things exist. But a lot of the choices about AI aren't ours\u2014'ours' by the perspective of people who are at risk of being replaced. That's not their choice to make. That's a choice made by someone probably on the other side of the country in a boardroom. And that person will almost certainly be choosing the AI because it makes more money.",
+      "question_id": "Q2",
+      "theme_ids": [
+        "T2"
+      ],
+      "narrative_ids": [
+        "N2"
+      ],
+      "page": 5,
+      "reply_to_primary": "E17",
+      "reply_type": "topic_continuation",
+      "reply_confidence": 0.867,
+      "reply_reason": "Highest theme/narrative overlap in last 6 excerpts (Jaccard=0.67)."
+    },
+    {
+      "id": "E20",
+      "speaker": "amanda",
+      "text": "I was thinking about how AI is also being used to replace Uber drivers. I saw this clip on TikTok where this girl was trying out an Uber navigated by AI, there was no driver, and I was freaking out. I don't know if this is very trustworthy. We are basically putting human lives at risk with something that we're not even certain of ourselves. We're making decisions with the mindset of 'we're going to make progress and make things more efficient.' But there's so many other risks.",
+      "question_id": "Q2",
+      "theme_ids": [
+        "T3",
+        "T10"
+      ],
+      "narrative_ids": [
+        "N3",
+        "N4"
+      ],
+      "page": 5,
+      "reply_to_primary": "E16",
+      "reply_type": "topic_continuation",
+      "reply_confidence": 0.76,
+      "reply_reason": "Highest theme/narrative overlap in last 6 excerpts (Jaccard=0.40)."
+    },
+    {
+      "id": "E21",
+      "speaker": "victoria",
+      "text": "I had an experience talking with a male about self-driving cars. He was at school talking to some girls about it, and the girls were like 'I don't trust the self-driving cars.' And he said 'I just think they're so stupid. Why wouldn't you trust a car? You're actually an idiot if you wouldn't ride a self-driving car.' And I was like, whoa, hold on.",
+      "question_id": "Q2",
+      "theme_ids": [
+        "T10",
+        "T15"
+      ],
+      "narrative_ids": [
+        "N6"
+      ],
+      "page": 5,
+      "reply_to_primary": "E16",
+      "reply_type": "topic_continuation",
+      "reply_confidence": 0.68,
+      "reply_reason": "Highest theme/narrative overlap in last 6 excerpts (Jaccard=0.20)."
+    },
+    {
+      "id": "E22",
+      "speaker": "victoria",
+      "text": "There's a certain demographic of people... Elon Musk fanboy, every time he sees a Cyber Truck he's like 'Oh my gosh, I need one.' A lot of people love technology so much that they're willing to believe anything about it and trust it completely. That's when it starts to get dangerous\u2014if you're willing to put someone else down for trying to be safe. People who own companies will put it out there at the expense of other people's lives just to get some money.",
+      "question_id": "Q2",
+      "theme_ids": [
+        "T10",
+        "T15"
+      ],
+      "narrative_ids": [
+        "N6"
+      ],
+      "page": 6,
+      "reply_to_primary": "E21",
+      "reply_type": "topic_continuation",
+      "reply_confidence": 1.0,
+      "reply_reason": "Highest theme/narrative overlap in last 6 excerpts (Jaccard=1.00)."
+    },
+    {
+      "id": "E23",
+      "speaker": "breanna",
+      "text": "I saw a Vox article that talked about how AI and progress with it is inherently masculine because of the risks. The progression and how we're choosing to replace things, how dangerous it is with risk taking. And Elon Musk\u2014you think about the progress he's created with self-driving cars and AI, but also I think he is a terrible person.",
+      "question_id": "Q2",
+      "theme_ids": [
+        "T15",
+        "T10"
+      ],
+      "narrative_ids": [
+        "N6"
+      ],
+      "page": 6,
+      "reply_to_primary": "E21",
+      "reply_type": "topic_continuation",
+      "reply_confidence": 1.0,
+      "reply_reason": "Highest theme/narrative overlap in last 6 excerpts (Jaccard=1.00)."
+    },
+    {
+      "id": "E24",
+      "speaker": "breanna",
+      "text": "In a world where we are moving towards AI and it's growing into our everyday lives, more people like Elon Musk\u2014maybe that had a cool idea that changed a certain field\u2014are coming into power and having more hold over things. It's scary. Maybe there'll be a good person that comes up with cool AI. But for now, all I'm thinking about is Elon Musk and the next Elon Musk.",
+      "question_id": "Q2",
+      "theme_ids": [
+        "T10",
+        "T15"
+      ],
+      "narrative_ids": [
+        "N6"
+      ],
+      "page": 6,
+      "reply_to_primary": "E21",
+      "reply_type": "topic_continuation",
+      "reply_confidence": 1.0,
+      "reply_reason": "Highest theme/narrative overlap in last 6 excerpts (Jaccard=1.00)."
+    },
+    {
+      "id": "E25",
+      "speaker": "aayushi",
+      "text": "There was this YouTube video by Drew Gooden called 'AI is Ruining the Internet.' He started making interesting points about how AI is essentially devaluing human creation and art\u2014this idea that we can just feed a computer all of these things and it'll produce art.",
+      "question_id": "Q3",
+      "theme_ids": [
+        "T7"
+      ],
+      "narrative_ids": [
+        "N8"
+      ],
+      "page": 6,
+      "reply_to_primary": "E24",
+      "reply_type": "adjacency",
+      "reply_confidence": 0.6,
+      "reply_reason": "Fallback to previous excerpt (turn-taking adjacency)."
+    },
+    {
+      "id": "E26",
+      "speaker": "aayushi",
+      "text": "He opens Getty stock images and this place where you're supposed to get a picture of a police car or a tree, you would also be seeing people selling AI generated images for 80 bucks. What's going on? We're devaluing what we understand human contribution to be. Especially ironic because the way AI works is you have to feed them human contribution\u2014here's all these examples of human art and creation, now go make something that's inherently less valuable because it's just an amalgamation of all these things.",
+      "question_id": "Q3",
+      "theme_ids": [
+        "T7",
+        "T14"
+      ],
+      "narrative_ids": [
+        "N8"
+      ],
+      "page": 7,
+      "reply_to_primary": "E25",
+      "reply_type": "topic_continuation",
+      "reply_confidence": 0.867,
+      "reply_reason": "Highest theme/narrative overlap in last 6 excerpts (Jaccard=0.67)."
+    },
+    {
+      "id": "E27",
+      "speaker": "aayushi",
+      "text": "In the beginning I was like 'oh, trucking, maybe I get it.' When I'm on the freeway surrounded by four 18-wheelers, I'm scared. Maybe it would be better if it was automated. I'm from California with family friends in Silicon Valley, so I'm probably more open to technology. But when you see the human contribution side, talking to this trucker family\u2014she was like 'we pay this much for gas, we do this for the parts, he's sleeping in the car.'",
+      "question_id": "Q3",
+      "theme_ids": [
+        "T6"
+      ],
+      "narrative_ids": [
+        "N5"
+      ],
+      "page": 7,
+      "reply_to_primary": "E26",
+      "reply_type": "adjacency",
+      "reply_confidence": 0.6,
+      "reply_reason": "Fallback to previous excerpt (turn-taking adjacency)."
+    },
+    {
+      "id": "E28",
+      "speaker": "aayushi",
+      "text": "I never really considered trucking as an industry where people put their heart and soul into. But it shifted my perspective from the purely non-emotional 'yeah, it's bad, the jobs are getting taken away' to also 'this is something that someone can take as much ownership of as creating art.' It's just as important. Seeing the humanity behind it changed my mind. I was always pretty like 'no, taking jobs is pretty bad,' but it's shown a new aspect for me.",
+      "question_id": "Q3",
+      "theme_ids": [
+        "T6",
+        "T7"
+      ],
+      "narrative_ids": [
+        "N5"
+      ],
+      "page": 7,
+      "reply_to_primary": "E27",
+      "reply_type": "topic_continuation",
+      "reply_confidence": 0.867,
+      "reply_reason": "Highest theme/narrative overlap in last 6 excerpts (Jaccard=0.67)."
+    },
+    {
+      "id": "E29",
+      "speaker": "zahed",
+      "text": "I got most of my preexisting beliefs validated. They were telling the woman in trucking 'Oh yeah, this company Embark is already doing self-driving trucking.' I was wondering if that's actually happening, maybe that's an interesting discussion. And then no, actually the company shut down because of all the reasons we were talking about. So that was not particularly shocking.",
+      "question_id": "Q3",
+      "theme_ids": [
+        "T1",
+        "T12"
+      ],
+      "narrative_ids": [
+        "N1"
+      ],
+      "page": 7,
+      "reply_to_primary": "E28",
+      "reply_type": "adjacency",
+      "reply_confidence": 0.6,
+      "reply_reason": "Fallback to previous excerpt (turn-taking adjacency)."
+    },
+    {
+      "id": "E30",
+      "speaker": "zahed",
+      "text": "When it comes to computer vision problems, there are people paid to do work on training AI through programs like Amazon's Mechanical Turk. They are generally people overseas who do not have very many opportunities, and they're being paid very little. So we're not only taking from human artists, going down ArtStation scraping everything, but we're creating a whole new industry full of human people who are not...",
+      "question_id": "Q3",
+      "theme_ids": [
+        "T11"
+      ],
+      "narrative_ids": [
+        "N7"
+      ],
+      "page": 8,
+      "reply_to_primary": "E29",
+      "reply_type": "adjacency",
+      "reply_confidence": 0.6,
+      "reply_reason": "Fallback to previous excerpt (turn-taking adjacency)."
+    },
+    {
+      "id": "E31",
+      "speaker": "zahed",
+      "text": "Sometimes when it's fake, it's just people, and when it's real, it's also a lot of people in India. We kind of see AI as 'if we take the humans out of the equation, then those people aren't going to be in this industry anymore.' But we've created a new industry with all the carbon emissions. Every problem that we're trying to escape with AI shows up in the production of AI.",
+      "question_id": "Q3",
+      "theme_ids": [
+        "T11",
+        "T4"
+      ],
+      "narrative_ids": [
+        "N7"
+      ],
+      "page": 8,
+      "reply_to_primary": "E30",
+      "reply_type": "topic_continuation",
+      "reply_confidence": 0.867,
+      "reply_reason": "Highest theme/narrative overlap in last 6 excerpts (Jaccard=0.67)."
+    },
+    {
+      "id": "E32",
+      "speaker": "victoria",
+      "text": "Every single aspect that we're trying to fix, there's a downside. Everything that involves AI, there happens to be a downside. When people think of AI, they might think of self-driving cars as a big problem. But the smallest things\u2014students writing essays with AI\u2014needs to be addressed.",
+      "question_id": "Q3",
+      "theme_ids": [
+        "T13"
+      ],
+      "narrative_ids": [
+        "N8"
+      ],
+      "page": 8,
+      "reply_to_primary": "E26",
+      "reply_type": "topic_continuation",
+      "reply_confidence": 0.7,
+      "reply_reason": "Highest theme/narrative overlap in last 6 excerpts (Jaccard=0.25)."
+    },
+    {
+      "id": "E33",
+      "speaker": "victoria",
+      "text": "At my school, all the freshmen\u2014I think like 170 students\u2014only 10 of them didn't use AI for this one assignment, and they all got caught. The teachers were so mad, some of them were literally crying because they spent so much time on these lesson plans and it felt like the students weren't putting the work in.",
+      "question_id": "Q3",
+      "theme_ids": [
+        "T13"
+      ],
+      "narrative_ids": [
+        "N8"
+      ],
+      "page": 8,
+      "reply_to_primary": "E32",
+      "reply_type": "topic_continuation",
+      "reply_confidence": 1.0,
+      "reply_reason": "Highest theme/narrative overlap in last 6 excerpts (Jaccard=1.00)."
+    },
+    {
+      "id": "E34",
+      "speaker": "victoria",
+      "text": "Freshmen, your work is not hard, and you have to write one paper on any topic of your choice, and you're choosing not to write it. We're actually making real life duds\u2014people who cannot think for themselves because they're relying so much on this. Creativity is going down because people can't problem solve. It's so easy to do everything. Making things easier for people is the exact opposite of what it means to make change.",
+      "question_id": "Q3",
+      "theme_ids": [
+        "T13",
+        "T7"
+      ],
+      "narrative_ids": [
+        "N8"
+      ],
+      "page": 8,
+      "reply_to_primary": "E32",
+      "reply_type": "topic_continuation",
+      "reply_confidence": 0.867,
+      "reply_reason": "Highest theme/narrative overlap in last 6 excerpts (Jaccard=0.67)."
+    },
+    {
+      "id": "E35",
+      "speaker": "martin",
+      "text": "I didn't really know much about AI in the trucking industry. The whole video is like these people weren't really aware about the problem and then they found out about this company doing it. But the conclusion being that the company shut down and retired its whole fleet confirmed a belief I had that AI is somewhat of a bubble. There's a lot of investment and excitement and proof of concept, people putting money in.",
+      "question_id": "Q4",
+      "theme_ids": [
+        "T12",
+        "T1"
+      ],
+      "narrative_ids": [
+        "N1"
+      ],
+      "page": 9,
+      "reply_to_primary": "E29",
+      "reply_type": "topic_continuation",
+      "reply_confidence": 1.0,
+      "reply_reason": "Highest theme/narrative overlap in last 6 excerpts (Jaccard=1.00)."
+    },
+    {
+      "id": "E36",
+      "speaker": "martin",
+      "text": "A lot of these AI startups are not necessarily super sustainable\u2014environmentally, but also just actually sustaining the business. One of my questions was: are these AI businesses really going to be completely taking over and taking all our jobs? We can't use this one example to write off AI's potential to damage the job market, but it's not looking good necessarily for AI.",
+      "question_id": "Q4",
+      "theme_ids": [
+        "T12",
+        "T4"
+      ],
+      "narrative_ids": [
+        "N1"
+      ],
+      "page": 9,
+      "reply_to_primary": "E35",
+      "reply_type": "topic_continuation",
+      "reply_confidence": 0.8,
+      "reply_reason": "Highest theme/narrative overlap in last 6 excerpts (Jaccard=0.50)."
+    },
+    {
+      "id": "E37",
+      "speaker": "victoria",
+      "text": "My question that I'm still seeking an answer for: to what extent are we going to sacrifice our environment and our current problems for AI that is not helping anyone at the moment? Well, it's helping some people, but what extent are we going to sacrifice our lives for that?",
+      "question_id": "Q4",
+      "theme_ids": [
+        "T4"
+      ],
+      "narrative_ids": [
+        "N4"
+      ],
+      "page": 9,
+      "reply_to_primary": "E31",
+      "reply_type": "topic_continuation",
+      "reply_confidence": 0.7,
+      "reply_reason": "Highest theme/narrative overlap in last 6 excerpts (Jaccard=0.25)."
+    },
+    {
+      "id": "E38",
+      "speaker": "amanda",
+      "text": "How do we determine what remains human and what remains AI? Both are very interchangeable and obviously influence each other, but we can't let AI take over everything. My brother did an original oratory on this\u2014imagine walking into a doctor's office for surgery and they're like 'give me one second, ChatGPT is just helping me prep this surgery.' How would you feel in that situation?",
+      "question_id": "Q4",
+      "theme_ids": [
+        "T14",
+        "T3"
+      ],
+      "narrative_ids": [
+        "N8"
+      ],
+      "page": 9,
+      "reply_to_primary": "E32",
+      "reply_type": "topic_continuation",
+      "reply_confidence": 0.7,
+      "reply_reason": "Highest theme/narrative overlap in last 6 excerpts (Jaccard=0.25)."
+    },
+    {
+      "id": "E39",
+      "speaker": "amanda",
+      "text": "I'm worried that in the future, whether with writing essays or creating art, AI is literally just going to take over. At that point, we're not even going to be able to distinguish between what's actually created by humans and what's created by AI. That's a genuine concern.",
+      "question_id": "Q4",
+      "theme_ids": [
+        "T14",
+        "T7"
+      ],
+      "narrative_ids": [
+        "N8"
+      ],
+      "page": 10,
+      "reply_to_primary": "E34",
+      "reply_type": "topic_continuation",
+      "reply_confidence": 0.8,
+      "reply_reason": "Highest theme/narrative overlap in last 6 excerpts (Jaccard=0.50)."
+    },
+    {
+      "id": "E40",
+      "speaker": "breanna",
+      "text": "A lot of my family members and family friends consistently reposting AI generated pictures and they don't even realize it. It's not even their fault to a degree\u2014it's the accounts that create these crazy images because they know they're going to get reposted. Accountability is a huge thing. Tracing down an AI image would be extremely difficult. Where did it come from first? How do you hold people accountable?",
+      "question_id": "Q4",
+      "theme_ids": [
+        "T14"
+      ],
+      "narrative_ids": [
+        "N8"
+      ],
+      "page": 10,
+      "reply_to_primary": "E38",
+      "reply_type": "topic_continuation",
+      "reply_confidence": 0.867,
+      "reply_reason": "Highest theme/narrative overlap in last 6 excerpts (Jaccard=0.67)."
+    },
+    {
+      "id": "E41",
+      "speaker": "jessie",
+      "text": "I watched a video about a girl who created an Instagram account that was completely AI generated. She said it was kind of easy to tell\u2014seven fingers, background warped, trees not looking like trees. But she was shocked because people didn't immediately catch on. There were a lot of simps on Instagram. She realized a lot of people are actually profiting off AI generated pictures\u2014creating OnlyFans with AI generation.",
+      "question_id": "Q4",
+      "theme_ids": [
+        "T14"
+      ],
+      "narrative_ids": [
+        "N8"
+      ],
+      "page": 10,
+      "reply_to_primary": "E40",
+      "reply_type": "topic_continuation",
+      "reply_confidence": 1.0,
+      "reply_reason": "Highest theme/narrative overlap in last 6 excerpts (Jaccard=1.00)."
+    },
+    {
+      "id": "E42",
+      "speaker": "jessie",
+      "text": "We have been very focused on thinking about how we can move forward with technology and where AI can conquer more industries. But in terms of how it really affects us as human beings, that's being put to the side in terms of thinking about how we progress.",
+      "question_id": "Q4",
+      "theme_ids": [
+        "T6",
+        "T10"
+      ],
+      "narrative_ids": [
+        "N4"
+      ],
+      "page": 10,
+      "reply_to_primary": "E37",
+      "reply_type": "topic_continuation",
+      "reply_confidence": 0.7,
+      "reply_reason": "Highest theme/narrative overlap in last 6 excerpts (Jaccard=0.25)."
+    },
+    {
+      "id": "E43",
+      "speaker": "aayushi",
+      "text": "We're all pretty similar. We have pretty similar reactions. That's kind of a product of the people here\u2014a lot of us know each other, we're from generally similar backgrounds, same age, just graduated high school. I'm curious if we brought someone from Victoria's school who was in that freshman class, what they would think. Or that friend she was talking about, or even more guys.",
+      "question_id": "Q5",
+      "theme_ids": [
+        "T15"
+      ],
+      "narrative_ids": [
+        "N6"
+      ],
+      "page": 11,
+      "reply_to_primary": "E37",
+      "reply_type": "explicit_reference",
+      "reply_confidence": 0.95,
+      "reply_reason": "Explicit mention of speaker 'victoria' in text."
+    },
+    {
+      "id": "E44",
+      "speaker": "aayushi",
+      "text": "We're having this conversation about how progress and AI is inherently probably a little bit more masculine, which is interesting\u2014I hadn't heard that before and I'm going to look into it more. But also having one guy here... A lot of us have said 'yeah, that video was cool, but it reinforced my beliefs.' I would love to talk more to people who are pro AI and hear about it.",
+      "question_id": "Q5",
+      "theme_ids": [
+        "T15",
+        "T16"
+      ],
+      "narrative_ids": [
+        "N6"
+      ],
+      "page": 11,
+      "reply_to_primary": "E43",
+      "reply_type": "topic_continuation",
+      "reply_confidence": 0.867,
+      "reply_reason": "Highest theme/narrative overlap in last 6 excerpts (Jaccard=0.67)."
+    },
+    {
+      "id": "E45",
+      "speaker": "aayushi",
+      "text": "Transparently, a lot of my beliefs on AI have come from self-conceived and self-built notions. I want to hear more because it can't just be the eight of us that are like 'yeah, AI sucks pretty much.' There has to be a reason, other than boardrooms and people saying 'this saves money.' There definitely is individual level buy-in to AI, and I want to know why.",
+      "question_id": "Q5",
+      "theme_ids": [
+        "T16",
+        "T10"
+      ],
+      "narrative_ids": [
+        "N2"
+      ],
+      "page": 11,
+      "reply_to_primary": "E42",
+      "reply_type": "topic_continuation",
+      "reply_confidence": 0.68,
+      "reply_reason": "Highest theme/narrative overlap in last 6 excerpts (Jaccard=0.20)."
+    },
+    {
+      "id": "E46",
+      "speaker": "jessie",
+      "text": "A lot of people aren't that entirely knowledgeable about AI\u2014the concept of how it works. Most people have a very basic understanding of what AI is and what it's generating, but not its mechanics. When I talk to my family members about AI, they use it as jargon in normal conversations and don't necessarily know the impact it actually has.",
+      "question_id": "Q5",
+      "theme_ids": [
+        "T16"
+      ],
+      "narrative_ids": [
+        "N9"
+      ],
+      "page": 12,
+      "reply_to_primary": "E44",
+      "reply_type": "topic_continuation",
+      "reply_confidence": 0.7,
+      "reply_reason": "Highest theme/narrative overlap in last 6 excerpts (Jaccard=0.25)."
+    },
+    {
+      "id": "E47",
+      "speaker": "zahed",
+      "text": "What is the buy-in for everyday people? We mentioned a bit before\u2014this abstract notion of progress, it's a new shiny thing, an innovation. Also the ease of use. You can call it taking away creativity, the easy way out, which is true. But people are going to take the easy way out. In terms of individual buy-in, those benefits are pretty clear cut.",
+      "question_id": "Q5",
+      "theme_ids": [
+        "T10",
+        "T13"
+      ],
+      "narrative_ids": [
+        "N8"
+      ],
+      "page": 12,
+      "reply_to_primary": "E41",
+      "reply_type": "topic_continuation",
+      "reply_confidence": 0.7,
+      "reply_reason": "Highest theme/narrative overlap in last 6 excerpts (Jaccard=0.25)."
+    },
+    {
+      "id": "E48",
+      "speaker": "zahed",
+      "text": "People who are optimistic towards AI, the idea I see most is 'it's going to have exponential growth.' Sure, AI images suck now, ChatGPT says false information, but none of this existed two years ago. Two years from now, who knows? If ChatGPT says false information 50% of the time now, if we cut that in half every two years, then at some point it'll be reliable enough for everyone to use.",
+      "question_id": "Q5",
+      "theme_ids": [
+        "T10",
+        "T16"
+      ],
+      "narrative_ids": [
+        "N9"
+      ],
+      "page": 12,
+      "reply_to_primary": "E46",
+      "reply_type": "topic_continuation",
+      "reply_confidence": 0.867,
+      "reply_reason": "Highest theme/narrative overlap in last 6 excerpts (Jaccard=0.67)."
+    },
+    {
+      "id": "E49",
+      "speaker": "zahed",
+      "text": "Jessie mentioned people knowing how AI works under the hood. I have a passing amount of knowledge. The answer is it's a whole lot of linear algebra. If you see AI like the vast majority of people do, it's like a black box. You put stuff in and it gives you something. Who knows what it'll give you.",
+      "question_id": "Q5",
+      "theme_ids": [
+        "T16"
+      ],
+      "narrative_ids": [
+        "N9"
+      ],
+      "page": 12,
+      "reply_to_primary": "E46",
+      "reply_type": "explicit_reference",
+      "reply_confidence": 0.95,
+      "reply_reason": "Explicit mention of speaker 'jessie' in text."
+    },
+    {
+      "id": "E50",
+      "speaker": "zahed",
+      "text": "When you go into the nitty-gritty, it's a lot of math, an algorithm. It's different from the usual thing we think of\u2014it has a capacity for learning, which is interesting from a scientific and mathematical perspective. But after learning about that, every time I think about ChatGPT doing stuff, I think: it's going to turn all these words into vectors, do a bunch of layers, generate a probability distribution of what the next most common word is, choose something, and keep doing that until it selects 'end of prompt.'",
+      "question_id": "Q5",
+      "theme_ids": [
+        "T16"
+      ],
+      "narrative_ids": [
+        "N9"
+      ],
+      "page": 12,
+      "reply_to_primary": "E46",
+      "reply_type": "topic_continuation",
+      "reply_confidence": 1.0,
+      "reply_reason": "Highest theme/narrative overlap in last 6 excerpts (Jaccard=1.00)."
+    },
+    {
+      "id": "E51",
+      "speaker": "zahed",
+      "text": "Having just a little bit of technical information about AI kind of bursts a lot of the illusions, because it's not a magic thing. When you see a technology having great results and seems to be improving, and a lot of people in powerful positions in Silicon Valley are optimistic, it's easy to think 'this is just going to work and I'm going to believe in it.' I don't blame people for that.",
+      "question_id": "Q5",
+      "theme_ids": [
+        "T16",
+        "T1"
+      ],
+      "narrative_ids": [
+        "N9"
+      ],
+      "page": 13,
+      "reply_to_primary": "E46",
+      "reply_type": "topic_continuation",
+      "reply_confidence": 0.867,
+      "reply_reason": "Highest theme/narrative overlap in last 6 excerpts (Jaccard=0.67)."
+    },
+    {
+      "id": "E52",
+      "speaker": "martin",
+      "text": "I probably would've kept watching, but it was weird that there was no music. I'm just used to there being music in documentaries.",
+      "question_id": "Q6",
+      "theme_ids": [],
+      "narrative_ids": [],
+      "page": 13,
+      "reply_to_primary": "E51",
+      "reply_type": "adjacency",
+      "reply_confidence": 0.6,
+      "reply_reason": "Fallback to previous excerpt (turn-taking adjacency)."
+    },
+    {
+      "id": "E53",
+      "speaker": "aayushi",
+      "text": "If you're going to tackle a topic that's complicated, why cut it to 10 minutes? We've said five times, why did the company shut down? I Googled it and the answer was one sentence: they ran out of money. Please just leave that in. I don't know if I would watch it\u2014it kind of took a pretty baseline approach. I would've turned it off after a couple minutes thinking 'okay, I get the point.'",
+      "question_id": "Q6",
+      "theme_ids": [],
+      "narrative_ids": [],
+      "page": 13,
+      "reply_to_primary": "E52",
+      "reply_type": "adjacency",
+      "reply_confidence": 0.6,
+      "reply_reason": "Fallback to previous excerpt (turn-taking adjacency)."
+    },
+    {
+      "id": "E54",
+      "speaker": "victoria",
+      "text": "I probably would not have kept watching. I feel like I hear the AI thing so often and it always ends in 'but we're still working on it, just wait a couple years.' And there was this one part in the interview with the lady at her house, she was onto something and then she stopped talking. It cut to something else and I was like 'wait, what was she going to say?'",
+      "question_id": "Q6",
+      "theme_ids": [],
+      "narrative_ids": [],
+      "page": 14,
+      "reply_to_primary": "E53",
+      "reply_type": "adjacency",
+      "reply_confidence": 0.6,
+      "reply_reason": "Fallback to previous excerpt (turn-taking adjacency)."
+    },
+    {
+      "id": "E55",
+      "speaker": "zahed",
+      "text": "People tend to drop out somewhere in the middle. The most important sentence in this entire documentary is right at the end telling you the company failed. I probably would've stopped watching two or three minutes in thinking 'is this just going to be a sales pitch for this trucking company?' The fact that it failed is actually really important information.",
+      "question_id": "Q6",
+      "theme_ids": [],
+      "narrative_ids": [],
+      "page": 14,
+      "reply_to_primary": "E54",
+      "reply_type": "adjacency",
+      "reply_confidence": 0.6,
+      "reply_reason": "Fallback to previous excerpt (turn-taking adjacency)."
+    },
+    {
+      "id": "E56",
+      "speaker": "aayushi",
+      "text": "It really sounded like we were giving Alex Rodrigues his flowers and nothing else. Good for you king, but that's not what this was about. This was not about your robotics journey. If you're spending 10 minutes, that's not what you should be spending your time on. When Zahed said 'it sounded like a sales pitch,' I was like 'mm-hmm.' If you want to talk about the conflict between AI and jobs, just talk about that. Maybe bring up that Embark ran out of money and why.",
+      "question_id": "Q6",
+      "theme_ids": [],
+      "narrative_ids": [],
+      "page": 14,
+      "reply_to_primary": "E55",
+      "reply_type": "explicit_reference",
+      "reply_confidence": 0.95,
+      "reply_reason": "Explicit mention of speaker 'zahed' in text."
+    },
+    {
+      "id": "E57",
+      "speaker": "martin",
+      "text": "The part where the mother was talking about taking money from her kid's piggy bank cut off really abruptly. It seems like a sort of important thing that could have been expanded on. Or at least cut off earlier so it wasn't the weird awkward way that it was.",
+      "question_id": "Q6",
+      "theme_ids": [],
+      "narrative_ids": [],
+      "page": 15,
+      "reply_to_primary": "E56",
+      "reply_type": "adjacency",
+      "reply_confidence": 0.6,
+      "reply_reason": "Fallback to previous excerpt (turn-taking adjacency)."
+    },
+    {
+      "id": "E58",
+      "speaker": "breanna",
+      "text": "Adding a tiny bit of context\u2014like if they run their own trucking company or are employed by a different group. Because if they're employed by a different group and are paying for everything on that truck, that seemed really wrong. My dad primarily runs trucking, a company, and if they're paying out of pocket for updates and employed by a different group, that is not what's supposed to be happening.",
+      "question_id": "Q6",
+      "theme_ids": [],
+      "narrative_ids": [],
+      "page": 15,
+      "reply_to_primary": "E57",
+      "reply_type": "adjacency",
+      "reply_confidence": 0.6,
+      "reply_reason": "Fallback to previous excerpt (turn-taking adjacency)."
+    },
+    {
+      "id": "E59",
+      "speaker": "aayushi",
+      "text": "They touched on it really quickly at the beginning\u2014'trucking has been deregulated'\u2014but, what? Please just connect the dots for me, I don't know anything about trucking.",
+      "question_id": "Q6",
+      "theme_ids": [],
+      "narrative_ids": [],
+      "page": 15,
+      "reply_to_primary": "E58",
+      "reply_type": "adjacency",
+      "reply_confidence": 0.6,
+      "reply_reason": "Fallback to previous excerpt (turn-taking adjacency)."
+    },
+    {
+      "id": "E60",
+      "speaker": "zahed",
+      "text": "There were actually four people interviewed\u2014two truckers, the founder, and the guy talking about trucking being deregulated. I completely forgot about him. Who is this guy? Also the fact that truckers are earning less and then AI is coming\u2014that's a story in itself. You didn't even need the founder. He has a failed company. That in itself is a worthwhile story. It's unfortunate that got cut out to make time for this guy's robotics achievements, which I don't care about.",
+      "question_id": "Q6",
+      "theme_ids": [],
+      "narrative_ids": [],
+      "page": 15,
+      "reply_to_primary": "E59",
+      "reply_type": "adjacency",
+      "reply_confidence": 0.6,
+      "reply_reason": "Fallback to previous excerpt (turn-taking adjacency)."
+    },
+    {
+      "id": "E61",
+      "speaker": "aayushi",
+      "text": "Did I need to know he won FRC? Not really. Maybe it's just me coming from California. FRC is cool, but people from my high school win that, because it's just robots picking up balls. It's not that impressive.",
+      "question_id": "Q6",
+      "theme_ids": [],
+      "narrative_ids": [],
+      "page": 16,
+      "reply_to_primary": "E60",
+      "reply_type": "adjacency",
+      "reply_confidence": 0.6,
+      "reply_reason": "Fallback to previous excerpt (turn-taking adjacency)."
+    },
+    {
+      "id": "E62",
+      "speaker": "martin",
+      "text": "I would send it to Brianna's aunts who repost Facebook AI pictures.",
+      "question_id": "Q7",
+      "theme_ids": [
+        "T14"
+      ],
+      "narrative_ids": [],
+      "page": 16,
+      "reply_to_primary": "E61",
+      "reply_type": "adjacency",
+      "reply_confidence": 0.6,
+      "reply_reason": "Fallback to previous excerpt (turn-taking adjacency)."
+    },
+    {
+      "id": "E63",
+      "speaker": "aayushi",
+      "text": "I don't think I would share it, but it's not because of the subject matter. When you said 'it's 10 minutes because of the attention span,' it just wasn't fitting for me. There are news channels I watch\u2014Brianna mentioned a Vox article. I love Vox's reporting, it's information heavy, very straightforward. That's the issue with attention span\u2014not the actual length of time, but what they communicate within it. How information dense it is.",
+      "question_id": "Q7",
+      "theme_ids": [],
+      "narrative_ids": [],
+      "page": 16,
+      "reply_to_primary": "E62",
+      "reply_type": "adjacency",
+      "reply_confidence": 0.6,
+      "reply_reason": "Fallback to previous excerpt (turn-taking adjacency)."
+    },
+    {
+      "id": "E64",
+      "speaker": "breanna",
+      "text": "They chose interesting little to medium important pieces of information when they could have had a lot more impactful things to say in a shorter amount of time.",
+      "question_id": "Q7",
+      "theme_ids": [],
+      "narrative_ids": [],
+      "page": 16,
+      "reply_to_primary": "E63",
+      "reply_type": "adjacency",
+      "reply_confidence": 0.6,
+      "reply_reason": "Fallback to previous excerpt (turn-taking adjacency)."
+    },
+    {
+      "id": "E65",
+      "speaker": "zahed",
+      "text": "No person is like 'oh, I started at 0:00, now it's 3:00, I'm just going to click off.' Attention spans are getting shorter, but it's strange we measure attention in time when it should be in information. If you're getting information you don't care about or that's not useful or new, that's when people click off. Not because of some arbitrary amount of time.",
+      "question_id": "Q7",
+      "theme_ids": [],
+      "narrative_ids": [],
+      "page": 16,
+      "reply_to_primary": "E64",
+      "reply_type": "adjacency",
+      "reply_confidence": 0.6,
+      "reply_reason": "Fallback to previous excerpt (turn-taking adjacency)."
+    },
+    {
+      "id": "E66",
+      "speaker": "zahed",
+      "text": "If the priority was on having a well-paced video that is engaging and gives you important information first, then getting it within 10 minutes should be the secondary goal. Not 'we're going to make it 10 minutes and that'll solve the attention issue.' It won't.",
+      "question_id": "Q7",
+      "theme_ids": [],
+      "narrative_ids": [],
+      "page": 17,
+      "reply_to_primary": "E65",
+      "reply_type": "adjacency",
+      "reply_confidence": 0.6,
+      "reply_reason": "Fallback to previous excerpt (turn-taking adjacency)."
+    },
+    {
+      "id": "E67",
+      "speaker": "aayushi",
+      "text": "If we're speaking specifically about AI and a younger audience, it's about relating AI and its issues with that audience. Talking more about impacts not just in jobs\u2014for a lot of younger people, it means nothing to them. It should, but it doesn't. Also talking about things like ChatGPT and information generation. If you want to stick on jobs, at least create some relation to types of AI that people know and use and are comfortable with.",
+      "question_id": "Q8",
+      "theme_ids": [
+        "T6"
+      ],
+      "narrative_ids": [
+        "N5"
+      ],
+      "page": 17,
+      "reply_to_primary": "E66",
+      "reply_type": "adjacency",
+      "reply_confidence": 0.6,
+      "reply_reason": "Fallback to previous excerpt (turn-taking adjacency)."
+    },
+    {
+      "id": "E68",
+      "speaker": "breanna",
+      "text": "Explaining how important trucking is to the industry\u2014we rely on it to get so many of our things. The kind of people driving the trucks, how many people are really at risk. Having baseline information humanizes the issue. Showing two people impacted is great, but providing greater numbers to show the true measure of impact would've brought me in more.",
+      "question_id": "Q8",
+      "theme_ids": [
+        "T6"
+      ],
+      "narrative_ids": [
+        "N5"
+      ],
+      "page": 18,
+      "reply_to_primary": "E67",
+      "reply_type": "topic_continuation",
+      "reply_confidence": 1.0,
+      "reply_reason": "Highest theme/narrative overlap in last 6 excerpts (Jaccard=1.00)."
+    },
+    {
+      "id": "E69",
+      "speaker": "jessie",
+      "text": "It would be interesting if they started talking about Amazon packages that we get\u2014those actually come from real people driving trucks and delivering to different warehouses, then getting distributed.",
+      "question_id": "Q8",
+      "theme_ids": [
+        "T6"
+      ],
+      "narrative_ids": [
+        "N5"
+      ],
+      "page": 18,
+      "reply_to_primary": "E67",
+      "reply_type": "topic_continuation",
+      "reply_confidence": 1.0,
+      "reply_reason": "Highest theme/narrative overlap in last 6 excerpts (Jaccard=1.00)."
+    },
+    {
+      "id": "E70",
+      "speaker": "breanna",
+      "text": "Or even with Prime Days coming up, talking about how many trucks and employees it takes to make something like that possible on the trucking aspect.",
+      "question_id": "Q8",
+      "theme_ids": [
+        "T6"
+      ],
+      "narrative_ids": [
+        "N5"
+      ],
+      "page": 18,
+      "reply_to_primary": "E67",
+      "reply_type": "topic_continuation",
+      "reply_confidence": 1.0,
+      "reply_reason": "Highest theme/narrative overlap in last 6 excerpts (Jaccard=1.00)."
+    },
+    {
+      "id": "E71",
+      "speaker": "victoria",
+      "text": "Same day delivery is also insane. I had same day delivery once and I was like, how did they get here in six hours?",
+      "question_id": "Q8",
+      "theme_ids": [],
+      "narrative_ids": [],
+      "page": 18,
+      "reply_to_primary": "E70",
+      "reply_type": "adjacency",
+      "reply_confidence": 0.6,
+      "reply_reason": "Fallback to previous excerpt (turn-taking adjacency)."
+    },
+    {
+      "id": "E72",
+      "speaker": "victoria",
+      "text": "I liked that it was about trucking, because I didn't know about it and now I know how it's going to start affecting us. AI affects everyone, so it's kind of hard to make it irrelevant because it's pretty well-rounded to all kinds of people.",
+      "question_id": "Q8",
+      "theme_ids": [],
+      "narrative_ids": [],
+      "page": 18,
+      "reply_to_primary": "E71",
+      "reply_type": "adjacency",
+      "reply_confidence": 0.6,
+      "reply_reason": "Fallback to previous excerpt (turn-taking adjacency)."
+    },
+    {
+      "id": "E73",
+      "speaker": "aayushi",
+      "text": "The title says 'AI and Jobs' but it only talked about trucking. Trucking was really good because I don't know anything about it, but if you want to talk about jobs, possibly including a couple of other things to make it more relevant\u2014you could see the impacts on different industries. AI has a very far-reaching impact.",
+      "question_id": "Q8",
+      "theme_ids": [
+        "T6"
+      ],
+      "narrative_ids": [],
+      "page": 19,
+      "reply_to_primary": "E67",
+      "reply_type": "topic_continuation",
+      "reply_confidence": 0.8,
+      "reply_reason": "Highest theme/narrative overlap in last 6 excerpts (Jaccard=0.50)."
+    }
+  ],
+  "statistics": {
+    "total_excerpts": 73,
+    "excerpts_by_speaker": {
+      "aayushi": 23,
+      "zahed": 16,
+      "victoria": 10,
+      "breanna": 9,
+      "martin": 6,
+      "amanda": 4,
+      "jessie": 5
+    },
+    "excerpts_by_question": {
+      "Q1": 16,
+      "Q2": 8,
+      "Q3": 10,
+      "Q4": 7,
+      "Q5": 9,
+      "Q6": 10,
+      "Q7": 5,
+      "Q8": 7
+    },
+    "theme_frequency": {
+      "T1": 9,
+      "T2": 4,
+      "T3": 7,
+      "T4": 8,
+      "T5": 3,
+      "T6": 11,
+      "T7": 7,
+      "T8": 3,
+      "T9": 2,
+      "T10": 9,
+      "T11": 2,
+      "T12": 6,
+      "T13": 5,
+      "T14": 6,
+      "T15": 5,
+      "T16": 7
+    },
+    "narrative_frequency": {
+      "N1": 8,
+      "N2": 4,
+      "N3": 6,
+      "N4": 9,
+      "N5": 7,
+      "N6": 5,
+      "N7": 3,
+      "N8": 10,
+      "N9": 5
+    }
+  },
+  "relationships": {
+    "theme_cooccurrence": [
+      {
+        "themes": [
+          "T1",
+          "T12"
+        ],
+        "count": 5,
+        "label": "Silicon Valley Hype + AI Bubble"
+      },
+      {
+        "themes": [
+          "T3",
+          "T5"
+        ],
+        "count": 3,
+        "label": "Safety Limits + Human Bias"
+      },
+      {
+        "themes": [
+          "T4",
+          "T11"
+        ],
+        "count": 2,
+        "label": "Environmental Costs + Hidden Labor"
+      },
+      {
+        "themes": [
+          "T6",
+          "T7"
+        ],
+        "count": 4,
+        "label": "Work as Identity + Devaluation of Creativity"
+      },
+      {
+        "themes": [
+          "T10",
+          "T15"
+        ],
+        "count": 4,
+        "label": "Tech Optimism + Masculinity"
+      },
+      {
+        "themes": [
+          "T13",
+          "T7"
+        ],
+        "count": 3,
+        "label": "Loss of Skills + Devaluation of Creativity"
+      },
+      {
+        "themes": [
+          "T14",
+          "T7"
+        ],
+        "count": 2,
+        "label": "Distinguishing AI + Devaluation"
+      }
+    ],
+    "narrative_question_mapping": [
+      {
+        "narrative": "N1",
+        "primary_questions": [
+          "Q1",
+          "Q3",
+          "Q4"
+        ]
+      },
+      {
+        "narrative": "N2",
+        "primary_questions": [
+          "Q2",
+          "Q5"
+        ]
+      },
+      {
+        "narrative": "N3",
+        "primary_questions": [
+          "Q1",
+          "Q2"
+        ]
+      },
+      {
+        "narrative": "N4",
+        "primary_questions": [
+          "Q1",
+          "Q3",
+          "Q4"
+        ]
+      },
+      {
+        "narrative": "N5",
+        "primary_questions": [
+          "Q1",
+          "Q3",
+          "Q8"
+        ]
+      },
+      {
+        "narrative": "N6",
+        "primary_questions": [
+          "Q2",
+          "Q5"
+        ]
+      },
+      {
+        "narrative": "N7",
+        "primary_questions": [
+          "Q3"
+        ]
+      },
+      {
+        "narrative": "N8",
+        "primary_questions": [
+          "Q3",
+          "Q4",
+          "Q5"
+        ]
+      },
+      {
+        "narrative": "N9",
+        "primary_questions": [
+          "Q5"
+        ]
+      }
+    ],
+    "primary_reply_edges": [
+      {
+        "source": "E1",
+        "target": "Q1",
+        "type": "question_anchor",
+        "weight": 0.5
+      },
+      {
+        "source": "E2",
+        "target": "E1",
+        "type": "adjacency",
+        "weight": 0.6
+      },
+      {
+        "source": "E3",
+        "target": "E2",
+        "type": "topic_continuation",
+        "weight": 0.8
+      },
+      {
+        "source": "E4",
+        "target": "E3",
+        "type": "topic_continuation",
+        "weight": 1.0
+      },
+      {
+        "source": "E5",
+        "target": "E1",
+        "type": "topic_continuation",
+        "weight": 1.0
+      },
+      {
+        "source": "E6",
+        "target": "E1",
+        "type": "topic_continuation",
+        "weight": 0.867
+      },
+      {
+        "source": "E7",
+        "target": "E1",
+        "type": "topic_continuation",
+        "weight": 1.0
+      },
+      {
+        "source": "E8",
+        "target": "E3",
+        "type": "topic_continuation",
+        "weight": 0.7
+      },
+      {
+        "source": "E9",
+        "target": "E8",
+        "type": "topic_continuation",
+        "weight": 0.8
+      },
+      {
+        "source": "E10",
+        "target": "E9",
+        "type": "topic_continuation",
+        "weight": 0.733
+      },
+      {
+        "source": "E11",
+        "target": "E10",
+        "type": "topic_continuation",
+        "weight": 0.8
+      },
+      {
+        "source": "E12",
+        "target": "E9",
+        "type": "topic_continuation",
+        "weight": 0.76
+      },
+      {
+        "source": "E13",
+        "target": "E12",
+        "type": "topic_continuation",
+        "weight": 1.0
+      },
+      {
+        "source": "E14",
+        "target": "E7",
+        "type": "explicit_reference",
+        "weight": 0.95
+      },
+      {
+        "source": "E15",
+        "target": "E11",
+        "type": "topic_continuation",
+        "weight": 0.867
+      },
+      {
+        "source": "E16",
+        "target": "E11",
+        "type": "topic_continuation",
+        "weight": 0.867
+      },
+      {
+        "source": "E17",
+        "target": "E16",
+        "type": "adjacency",
+        "weight": 0.6
+      },
+      {
+        "source": "E18",
+        "target": "E17",
+        "type": "topic_continuation",
+        "weight": 1.0
+      },
+      {
+        "source": "E19",
+        "target": "E17",
+        "type": "topic_continuation",
+        "weight": 0.867
+      },
+      {
+        "source": "E20",
+        "target": "E16",
+        "type": "topic_continuation",
+        "weight": 0.76
+      },
+      {
+        "source": "E21",
+        "target": "E16",
+        "type": "topic_continuation",
+        "weight": 0.68
+      },
+      {
+        "source": "E22",
+        "target": "E21",
+        "type": "topic_continuation",
+        "weight": 1.0
+      },
+      {
+        "source": "E23",
+        "target": "E21",
+        "type": "topic_continuation",
+        "weight": 1.0
+      },
+      {
+        "source": "E24",
+        "target": "E21",
+        "type": "topic_continuation",
+        "weight": 1.0
+      },
+      {
+        "source": "E25",
+        "target": "E24",
+        "type": "adjacency",
+        "weight": 0.6
+      },
+      {
+        "source": "E26",
+        "target": "E25",
+        "type": "topic_continuation",
+        "weight": 0.867
+      },
+      {
+        "source": "E27",
+        "target": "E26",
+        "type": "adjacency",
+        "weight": 0.6
+      },
+      {
+        "source": "E28",
+        "target": "E27",
+        "type": "topic_continuation",
+        "weight": 0.867
+      },
+      {
+        "source": "E29",
+        "target": "E28",
+        "type": "adjacency",
+        "weight": 0.6
+      },
+      {
+        "source": "E30",
+        "target": "E29",
+        "type": "adjacency",
+        "weight": 0.6
+      },
+      {
+        "source": "E31",
+        "target": "E30",
+        "type": "topic_continuation",
+        "weight": 0.867
+      },
+      {
+        "source": "E32",
+        "target": "E26",
+        "type": "topic_continuation",
+        "weight": 0.7
+      },
+      {
+        "source": "E33",
+        "target": "E32",
+        "type": "topic_continuation",
+        "weight": 1.0
+      },
+      {
+        "source": "E34",
+        "target": "E32",
+        "type": "topic_continuation",
+        "weight": 0.867
+      },
+      {
+        "source": "E35",
+        "target": "E29",
+        "type": "topic_continuation",
+        "weight": 1.0
+      },
+      {
+        "source": "E36",
+        "target": "E35",
+        "type": "topic_continuation",
+        "weight": 0.8
+      },
+      {
+        "source": "E37",
+        "target": "E31",
+        "type": "topic_continuation",
+        "weight": 0.7
+      },
+      {
+        "source": "E38",
+        "target": "E32",
+        "type": "topic_continuation",
+        "weight": 0.7
+      },
+      {
+        "source": "E39",
+        "target": "E34",
+        "type": "topic_continuation",
+        "weight": 0.8
+      },
+      {
+        "source": "E40",
+        "target": "E38",
+        "type": "topic_continuation",
+        "weight": 0.867
+      },
+      {
+        "source": "E41",
+        "target": "E40",
+        "type": "topic_continuation",
+        "weight": 1.0
+      },
+      {
+        "source": "E42",
+        "target": "E37",
+        "type": "topic_continuation",
+        "weight": 0.7
+      },
+      {
+        "source": "E43",
+        "target": "E37",
+        "type": "explicit_reference",
+        "weight": 0.95
+      },
+      {
+        "source": "E44",
+        "target": "E43",
+        "type": "topic_continuation",
+        "weight": 0.867
+      },
+      {
+        "source": "E45",
+        "target": "E42",
+        "type": "topic_continuation",
+        "weight": 0.68
+      },
+      {
+        "source": "E46",
+        "target": "E44",
+        "type": "topic_continuation",
+        "weight": 0.7
+      },
+      {
+        "source": "E47",
+        "target": "E41",
+        "type": "topic_continuation",
+        "weight": 0.7
+      },
+      {
+        "source": "E48",
+        "target": "E46",
+        "type": "topic_continuation",
+        "weight": 0.867
+      },
+      {
+        "source": "E49",
+        "target": "E46",
+        "type": "explicit_reference",
+        "weight": 0.95
+      },
+      {
+        "source": "E50",
+        "target": "E46",
+        "type": "topic_continuation",
+        "weight": 1.0
+      },
+      {
+        "source": "E51",
+        "target": "E46",
+        "type": "topic_continuation",
+        "weight": 0.867
+      },
+      {
+        "source": "E52",
+        "target": "E51",
+        "type": "adjacency",
+        "weight": 0.6
+      },
+      {
+        "source": "E53",
+        "target": "E52",
+        "type": "adjacency",
+        "weight": 0.6
+      },
+      {
+        "source": "E54",
+        "target": "E53",
+        "type": "adjacency",
+        "weight": 0.6
+      },
+      {
+        "source": "E55",
+        "target": "E54",
+        "type": "adjacency",
+        "weight": 0.6
+      },
+      {
+        "source": "E56",
+        "target": "E55",
+        "type": "explicit_reference",
+        "weight": 0.95
+      },
+      {
+        "source": "E57",
+        "target": "E56",
+        "type": "adjacency",
+        "weight": 0.6
+      },
+      {
+        "source": "E58",
+        "target": "E57",
+        "type": "adjacency",
+        "weight": 0.6
+      },
+      {
+        "source": "E59",
+        "target": "E58",
+        "type": "adjacency",
+        "weight": 0.6
+      },
+      {
+        "source": "E60",
+        "target": "E59",
+        "type": "adjacency",
+        "weight": 0.6
+      },
+      {
+        "source": "E61",
+        "target": "E60",
+        "type": "adjacency",
+        "weight": 0.6
+      },
+      {
+        "source": "E62",
+        "target": "E61",
+        "type": "adjacency",
+        "weight": 0.6
+      },
+      {
+        "source": "E63",
+        "target": "E62",
+        "type": "adjacency",
+        "weight": 0.6
+      },
+      {
+        "source": "E64",
+        "target": "E63",
+        "type": "adjacency",
+        "weight": 0.6
+      },
+      {
+        "source": "E65",
+        "target": "E64",
+        "type": "adjacency",
+        "weight": 0.6
+      },
+      {
+        "source": "E66",
+        "target": "E65",
+        "type": "adjacency",
+        "weight": 0.6
+      },
+      {
+        "source": "E67",
+        "target": "E66",
+        "type": "adjacency",
+        "weight": 0.6
+      },
+      {
+        "source": "E68",
+        "target": "E67",
+        "type": "topic_continuation",
+        "weight": 1.0
+      },
+      {
+        "source": "E69",
+        "target": "E67",
+        "type": "topic_continuation",
+        "weight": 1.0
+      },
+      {
+        "source": "E70",
+        "target": "E67",
+        "type": "topic_continuation",
+        "weight": 1.0
+      },
+      {
+        "source": "E71",
+        "target": "E70",
+        "type": "adjacency",
+        "weight": 0.6
+      },
+      {
+        "source": "E72",
+        "target": "E71",
+        "type": "adjacency",
+        "weight": 0.6
+      },
+      {
+        "source": "E73",
+        "target": "E67",
+        "type": "topic_continuation",
+        "weight": 0.8
+      }
+    ],
+    "primary_reply_inference_config": {
+      "window_recent_N": 6,
+      "topic_threshold_jaccard": 0.2,
+      "explicit_reference_confidence": 0.95,
+      "adjacency_confidence": 0.6,
+      "question_anchor_confidence": 0.5
+    }
+  }
+}

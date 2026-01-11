@@ -402,6 +402,11 @@ export default defineConfig(({ command, mode }) => {
                           .filter((q: any) => typeof q === 'string' && q.trim().length > 0)
                           .map((q: string) => q.trim())
                       : [],
+                    templateNarratives: Array.isArray((body as any).templateNarratives)
+                      ? (body as any).templateNarratives
+                          .filter((n: any) => typeof n === 'string' && n.trim().length > 0)
+                          .map((n: string) => n.trim())
+                      : [],
                     uploadedFilePaths: Array.isArray((body as any).uploadedFilePaths)
                       ? (body as any).uploadedFilePaths.filter((p: any) => typeof p === 'string' && p.trim().length > 0)
                       : [],
