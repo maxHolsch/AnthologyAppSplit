@@ -47,10 +47,32 @@ export const AudioManager: React.FC = () => {
   // Handle global audio playback
   useEffect(() => {
     const audioElement = audioRef.current;
-    if (!audioElement || !currentTrack) return;
+    if (!audioElement) return;
+
+    // Handle pause/stop/idle states immediately before any other checks
+    if (!currentTrack || playbackState === 'paused' || playbackState === 'idle') {
+      audioElement.pause();
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+
+      // If idle, reset time to segment start (if we can find the node)
+      if (playbackState === 'idle' && currentTrack) {
+        const node = responseNodes.get(currentTrack);
+        if (node) {
+          audioElement.currentTime = node.audio_start / 1000;
+          updateCurrentTime(0);
+        }
+      }
+      return;
+    }
 
     const currentNode = responseNodes.get(currentTrack);
-    if (!currentNode) return;
+    if (!currentNode) {
+      audioElement.pause();
+      return;
+    }
 
     const conversation = conversations.get(currentNode.conversation_id);
     if (!conversation) return;
@@ -158,20 +180,6 @@ export const AudioManager: React.FC = () => {
       };
 
       startPlayback();
-    } else if (playbackState === 'paused') {
-      audioElement.pause();
-      if (rafRef.current) {
-        cancelAnimationFrame(rafRef.current);
-        rafRef.current = null;
-      }
-    } else if (playbackState === 'idle') {
-      audioElement.pause();
-      audioElement.currentTime = audio_start / 1000;
-      updateCurrentTime(0);
-      if (rafRef.current) {
-        cancelAnimationFrame(rafRef.current);
-        rafRef.current = null;
-      }
     }
 
     // Cleanup

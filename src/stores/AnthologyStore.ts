@@ -11,7 +11,6 @@ import type {
   ResponseNode,
   GraphNode,
   GraphEdge,
-  NarrativeNode,
   SelectionState,
   ViewState,
   MapTransform,
@@ -527,6 +526,9 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
           }
         }));
 
+        // Stop any current playback when switching focus
+        get().stop();
+
         // Auto-zoom to question node
         const vizStore = useVisualizationStore.getState();
         const position = vizStore.getNodePosition(questionId);
@@ -553,6 +555,9 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
           }
         }));
 
+        // Stop any current playback when switching focus
+        get().stop();
+
         // Auto-zoom to response node
         const vizStore = useVisualizationStore.getState();
         const position = vizStore.getNodePosition(responseId);
@@ -565,6 +570,9 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
       },
 
       clearSelection: () => {
+        // Stop any current playback
+        get().stop();
+
         set((state) => ({
           selection: {
             ...state.selection,

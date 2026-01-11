@@ -779,6 +779,8 @@ export const GraphDataService = {
       if (responseDbIds.length > 0) {
         const byResponseDbId = new Map<string, WordTimestamp[]>();
 
+        console.log('[GraphDataService] Fetching word timestamps for', responseDbIds.length, 'responses');
+
         const batchSize = 500;
         for (let i = 0; i < responseDbIds.length; i += batchSize) {
           const batch = responseDbIds.slice(i, i + batchSize);
@@ -793,6 +795,8 @@ export const GraphDataService = {
             console.warn('Failed to load word timestamps:', wordsErr);
             break;
           }
+
+          console.log('[GraphDataService] Fetched', words?.length ?? 0, 'word timestamp rows');
 
           (words || []).forEach((w: any) => {
             const responseId = w.response_id as string | undefined;
@@ -809,6 +813,9 @@ export const GraphDataService = {
           });
         }
 
+        console.log('[GraphDataService] Word timestamps grouped for', byResponseDbId.size, 'responses');
+
+        let attachedCount = 0;
         canonicalResponses.forEach((r: any) => {
           if (Array.isArray(r.word_timestamps) && r.word_timestamps.length > 0) return;
           const dbId = r?._db_id;
@@ -816,8 +823,11 @@ export const GraphDataService = {
           const words = byResponseDbId.get(dbId);
           if (words && words.length > 0) {
             r.word_timestamps = words;
+            attachedCount++;
           }
         });
+
+        console.log('[GraphDataService] Attached word timestamps to', attachedCount, 'responses');
       }
 
       allResponses.length = 0;
@@ -1088,6 +1098,11 @@ export const AdminService = {
 
     // Persist word timestamps (for karaoke highlighting)
     if (Array.isArray(wordTimestamps) && wordTimestamps.length > 0) {
+      console.log('[AdminService.addResponseToResponse] Inserting word timestamps:', {
+        responseId: response.id,
+        wordCount: wordTimestamps.length,
+      });
+
       const rows = wordTimestamps
         .filter((w) => typeof w.text === 'string' && typeof w.start === 'number' && typeof w.end === 'number')
         .map((w, idx) => ({
@@ -1104,8 +1119,12 @@ export const AdminService = {
         const { error: wordsErr } = await supabase.from('anthology_word_timestamps').insert(rows);
         if (wordsErr) {
           console.warn('Failed to insert word timestamps (karaoke will fallback to plain text):', wordsErr);
+        } else {
+          console.log('[AdminService.addResponseToResponse] Word timestamps inserted successfully:', rows.length);
         }
       }
+    } else {
+      console.warn('[AdminService.addResponseToResponse] No word timestamps provided for response:', response.id);
     }
 
     return response as DbResponse;
@@ -1218,6 +1237,11 @@ export const AdminService = {
 
     // Persist word timestamps (for karaoke highlighting)
     if (Array.isArray(wordTimestamps) && wordTimestamps.length > 0) {
+      console.log('[AdminService.addResponseToQuestion] Inserting word timestamps:', {
+        responseId: response.id,
+        wordCount: wordTimestamps.length,
+      });
+
       const rows = wordTimestamps
         .filter((w) => typeof w.text === 'string' && typeof w.start === 'number' && typeof w.end === 'number')
         .map((w, idx) => ({
@@ -1234,8 +1258,12 @@ export const AdminService = {
         const { error: wordsErr } = await supabase.from('anthology_word_timestamps').insert(rows);
         if (wordsErr) {
           console.warn('Failed to insert word timestamps (karaoke will fallback to plain text):', wordsErr);
+        } else {
+          console.log('[AdminService.addResponseToQuestion] Word timestamps inserted successfully:', rows.length);
         }
       }
+    } else {
+      console.warn('[AdminService.addResponseToQuestion] No word timestamps provided for response:', response.id);
     }
 
     return response as DbResponse;

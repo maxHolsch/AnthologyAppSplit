@@ -34,8 +34,19 @@ export const HighlightedText = memo<HighlightedTextProps>(({ response }) => {
     isPlaying: isPlaying,
   });
 
+  // Debug logging to diagnose word highlighting issues
+  console.log('[HighlightedText] response:', response.id, {
+    hasWordTimestamps: !!response.word_timestamps,
+    wordCount: response.word_timestamps?.length ?? 0,
+    audioStart: response.audio_start,
+    audioEnd: response.audio_end,
+    isCurrentTrack,
+    isPlaying,
+  });
+
   // If no word timestamps, display plain text
   if (!response.word_timestamps || response.word_timestamps.length === 0) {
+    console.warn('[HighlightedText] No word timestamps for response:', response.id);
     return (
       <div className={styles.plainText}>
         {response.speaker_text}

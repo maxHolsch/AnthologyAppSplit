@@ -67,9 +67,10 @@ export function MapCanvas({ width = 800, height = 600, className }: MapCanvasPro
 
   // Handle background click (deselect all)
   const handleBackgroundClick = (e: React.MouseEvent) => {
-    // Only clear selection if clicking directly on the SVG background
-    // Not on any child elements (nodes, edges, etc.)
-    if (e.target === svgRef.current || e.target === containerRef.current) {
+    // Toggle: if click is NOT on a node group or something inside it, clear selection
+    // node-group is the CSS class we use in D3Visualization for all clickable nodes
+    const target = e.target as Element;
+    if (!target.closest('.node-group')) {
       clearSelection();
     }
   };

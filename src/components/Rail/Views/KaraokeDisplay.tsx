@@ -49,8 +49,17 @@ export const KaraokeDisplay = memo<KaraokeDisplayProps>(({ responseId }) => {
 
   // Render word-by-word or plain text fallback
   const renderText = useMemo(() => {
+    // Debug logging to help diagnose intermittent word highlighting issues
+    console.log('[KaraokeDisplay] response:', responseId, {
+      hasWordTimestamps: !!response.word_timestamps,
+      wordCount: response.word_timestamps?.length ?? 0,
+      audioStart: response.audio_start,
+      audioEnd: response.audio_end,
+    });
+
     if (!response.word_timestamps || response.word_timestamps.length === 0) {
       // Fallback: plain text without highlighting
+      console.warn('[KaraokeDisplay] No word timestamps for response:', responseId);
       return <p className={styles.plainText}>{response.speaker_text}</p>;
     }
 

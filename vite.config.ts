@@ -118,11 +118,11 @@ function localTranscribeApiPlugin(env: Record<string, string>) {
                   text: data.text || '',
                   words: Array.isArray(data.words)
                     ? data.words.map((w: any) => ({
-                        text: w.text,
-                        start: w.start,
-                        end: w.end,
-                        confidence: w.confidence,
-                      }))
+                      text: w.text,
+                      start: w.start,
+                      end: w.end,
+                      confidence: w.confidence,
+                    }))
                     : [],
                 })
               );
@@ -366,32 +366,32 @@ export default defineConfig(({ command, mode }) => {
       command === 'serve' ? localJudgeQuestionApiPlugin(env) : undefined,
       command === 'serve'
         ? {
-            name: 'local-sensemaking-api',
-            configureServer(server: any) {
-              // POST /api/sensemaking/start
-              server.middlewares.use('/api/sensemaking/start', async (req: any, res: any) => {
-                if (req.method !== 'POST') {
-                  res.statusCode = 405;
-                  res.setHeader('Content-Type', 'application/json');
-                  res.end(JSON.stringify({ error: 'Method not allowed' }));
-                  return;
-                }
+          name: 'local-sensemaking-api',
+          configureServer(server: any) {
+            // POST /api/sensemaking/start
+            server.middlewares.use('/api/sensemaking/start', async (req: any, res: any) => {
+              if (req.method !== 'POST') {
+                res.statusCode = 405;
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({ error: 'Method not allowed' }));
+                return;
+              }
 
-                const chunks: Buffer[] = [];
-                await new Promise<void>((resolve) => {
-                  req.on('data', (c: Buffer) => chunks.push(c));
-                  req.on('end', () => resolve());
-                });
+              const chunks: Buffer[] = [];
+              await new Promise<void>((resolve) => {
+                req.on('data', (c: Buffer) => chunks.push(c));
+                req.on('end', () => resolve());
+              });
 
-                let body: Json;
-                try {
-                  body = JSON.parse(Buffer.concat(chunks).toString('utf8')) as Json;
-                } catch {
-                  res.statusCode = 400;
-                  res.setHeader('Content-Type', 'application/json');
-                  res.end(JSON.stringify({ error: 'Invalid JSON body' }));
-                  return;
-                }
+              let body: Json;
+              try {
+                body = JSON.parse(Buffer.concat(chunks).toString('utf8')) as Json;
+              } catch {
+                res.statusCode = 400;
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({ error: 'Invalid JSON body' }));
+                return;
+              }
 
                 try {
                   const result = await startSensemaking({
@@ -413,115 +413,115 @@ export default defineConfig(({ command, mode }) => {
                     includePreviousUploads: Boolean((body as any).includePreviousUploads),
                   });
 
-                  res.statusCode = 200;
-                  res.setHeader('Content-Type', 'application/json');
-                  res.end(JSON.stringify(result));
-                } catch (e) {
-                  res.statusCode = 500;
-                  res.setHeader('Content-Type', 'application/json');
-                  res.end(JSON.stringify({ error: e instanceof Error ? e.message : 'Unknown error' }));
-                }
+                res.statusCode = 200;
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify(result));
+              } catch (e) {
+                res.statusCode = 500;
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({ error: e instanceof Error ? e.message : 'Unknown error' }));
+              }
+            });
+
+            // POST /api/sensemaking/tick
+            server.middlewares.use('/api/sensemaking/tick', async (req: any, res: any) => {
+              if (req.method !== 'POST') {
+                res.statusCode = 405;
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({ error: 'Method not allowed' }));
+                return;
+              }
+
+              const chunks: Buffer[] = [];
+              await new Promise<void>((resolve) => {
+                req.on('data', (c: Buffer) => chunks.push(c));
+                req.on('end', () => resolve());
               });
 
-              // POST /api/sensemaking/tick
-              server.middlewares.use('/api/sensemaking/tick', async (req: any, res: any) => {
-                if (req.method !== 'POST') {
-                  res.statusCode = 405;
-                  res.setHeader('Content-Type', 'application/json');
-                  res.end(JSON.stringify({ error: 'Method not allowed' }));
-                  return;
-                }
+              let body: Json;
+              try {
+                body = JSON.parse(Buffer.concat(chunks).toString('utf8')) as Json;
+              } catch {
+                res.statusCode = 400;
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({ error: 'Invalid JSON body' }));
+                return;
+              }
 
-                const chunks: Buffer[] = [];
-                await new Promise<void>((resolve) => {
-                  req.on('data', (c: Buffer) => chunks.push(c));
-                  req.on('end', () => resolve());
+              const jobId = String((body as any).jobId || '');
+              const timeBudgetMs = (body as any).timeBudgetMs;
+              if (!jobId) {
+                res.statusCode = 400;
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({ error: 'jobId is required' }));
+                return;
+              }
+
+              try {
+                const result = await tickSensemaking({
+                  jobId,
+                  timeBudgetMs: typeof timeBudgetMs === 'number' && timeBudgetMs > 0 ? timeBudgetMs : 15000,
                 });
+                res.statusCode = 200;
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify(result));
+              } catch (e) {
+                res.statusCode = 500;
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({ error: e instanceof Error ? e.message : 'Unknown error' }));
+              }
+            });
 
-                let body: Json;
-                try {
-                  body = JSON.parse(Buffer.concat(chunks).toString('utf8')) as Json;
-                } catch {
-                  res.statusCode = 400;
-                  res.setHeader('Content-Type', 'application/json');
-                  res.end(JSON.stringify({ error: 'Invalid JSON body' }));
-                  return;
-                }
+            // GET /api/sensemaking/status?jobId=...
+            server.middlewares.use('/api/sensemaking/status', async (req: any, res: any) => {
+              if (req.method !== 'GET') {
+                res.statusCode = 405;
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({ error: 'Method not allowed' }));
+                return;
+              }
 
-                const jobId = String((body as any).jobId || '');
-                const timeBudgetMs = (body as any).timeBudgetMs;
-                if (!jobId) {
-                  res.statusCode = 400;
-                  res.setHeader('Content-Type', 'application/json');
-                  res.end(JSON.stringify({ error: 'jobId is required' }));
-                  return;
-                }
+              const url = new URL(req.url, 'http://localhost');
+              const jobId = url.searchParams.get('jobId') || '';
+              if (!jobId) {
+                res.statusCode = 400;
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({ error: 'jobId is required' }));
+                return;
+              }
 
-                try {
-                  const result = await tickSensemaking({
-                    jobId,
-                    timeBudgetMs: typeof timeBudgetMs === 'number' && timeBudgetMs > 0 ? timeBudgetMs : 15000,
-                  });
-                  res.statusCode = 200;
-                  res.setHeader('Content-Type', 'application/json');
-                  res.end(JSON.stringify(result));
-                } catch (e) {
-                  res.statusCode = 500;
-                  res.setHeader('Content-Type', 'application/json');
-                  res.end(JSON.stringify({ error: e instanceof Error ? e.message : 'Unknown error' }));
-                }
-              });
-
-              // GET /api/sensemaking/status?jobId=...
-              server.middlewares.use('/api/sensemaking/status', async (req: any, res: any) => {
-                if (req.method !== 'GET') {
-                  res.statusCode = 405;
-                  res.setHeader('Content-Type', 'application/json');
-                  res.end(JSON.stringify({ error: 'Method not allowed' }));
-                  return;
-                }
-
-                const url = new URL(req.url, 'http://localhost');
-                const jobId = url.searchParams.get('jobId') || '';
-                if (!jobId) {
-                  res.statusCode = 400;
-                  res.setHeader('Content-Type', 'application/json');
-                  res.end(JSON.stringify({ error: 'jobId is required' }));
-                  return;
-                }
-
-                try {
-                  const result = await getSensemakingStatus(jobId);
-                  res.statusCode = 200;
-                  res.setHeader('Content-Type', 'application/json');
-                  res.end(JSON.stringify(result));
-                } catch (e) {
-                  res.statusCode = 500;
-                  res.setHeader('Content-Type', 'application/json');
-                  res.end(JSON.stringify({ error: e instanceof Error ? e.message : 'Unknown error' }));
-                }
-              });
-            },
-          }
+              try {
+                const result = await getSensemakingStatus(jobId);
+                res.statusCode = 200;
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify(result));
+              } catch (e) {
+                res.statusCode = 500;
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({ error: e instanceof Error ? e.message : 'Unknown error' }));
+              }
+            });
+          },
+        }
         : undefined,
     ].filter(Boolean),
-  css: {
-    modules: {
-      localsConvention: 'camelCase',
-      scopeBehaviour: 'local',
-      generateScopedName: '[name]__[local]__[hash:base64:5]'
+    css: {
+      modules: {
+        localsConvention: 'camelCase',
+        scopeBehaviour: 'local',
+        generateScopedName: '[name]__[local]__[hash:base64:5]'
+      }
+    },
+    resolve: {
+      alias: {
+        '@': path.resolve(__dirname, './src'),
+        '@components': path.resolve(__dirname, './src/components'),
+        '@stores': path.resolve(__dirname, './src/stores'),
+        '@hooks': path.resolve(__dirname, './src/hooks'),
+        '@utils': path.resolve(__dirname, './src/utils'),
+        '@types': path.resolve(__dirname, './src/types'),
+        '@styles': path.resolve(__dirname, './src/styles'),
+      }
     }
-  },
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
-      '@components': path.resolve(__dirname, './src/components'),
-      '@stores': path.resolve(__dirname, './src/stores'),
-      '@hooks': path.resolve(__dirname, './src/hooks'),
-      '@utils': path.resolve(__dirname, './src/utils'),
-      '@types': path.resolve(__dirname, './src/types'),
-      '@styles': path.resolve(__dirname, './src/styles'),
-    }
-  }
   };
 })
