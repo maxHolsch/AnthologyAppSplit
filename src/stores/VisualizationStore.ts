@@ -18,6 +18,7 @@ export const useVisualizationStore = create<VisualizationStoreType>()(
 
       simulation: null,
       simulationNodes: [], // D3-mutated nodes with positions
+      originalPositions: new Map(), // Store original UMAP positions for restoration
       svgRef: null,
       containerRef: null,
       centerOnNode: null, // Zoom utility function
@@ -115,10 +116,19 @@ export const useVisualizationStore = create<VisualizationStoreType>()(
           simulation.tick();
         }
 
+        // Store original positions for later restoration (UMAP semantic positions)
+        const originalPositions = new Map<string, { x: number; y: number }>();
+        d3Nodes.forEach(node => {
+          if (typeof node.x === 'number' && typeof node.y === 'number') {
+            originalPositions.set(node.id, { x: node.x, y: node.y });
+          }
+        });
+
         // Store simulation AND the D3-mutated node array
         set({
           simulation,
           simulationNodes: d3Nodes, // Store reference to D3's node array
+          originalPositions, // Store original UMAP positions
           isSimulating: true,
           nodeCount: nodes.length,
           edgeCount: edges.length
@@ -228,6 +238,99 @@ export const useVisualizationStore = create<VisualizationStoreType>()(
         }
 
         set({ isPhysicsEnabled: newState });
+      },
+
+      // Animate nodes to their original UMAP semantic positions
+      // Nodes fly smoothly to targets, then unlock after animation completes
+      restoreOriginalPositions: (animationDuration: number = 800) => {
+        const { simulationNodes, originalPositions, simulation } = get();
+
+        // Set target positions as fixed points - nodes will be pulled toward them
+        // Don't set x/y directly - let the simulation animate the transition
+        simulationNodes.forEach(node => {
+          const originalPos = originalPositions.get(node.id);
+          if (originalPos) {
+            // Pin to target position - simulation will animate nodes toward these
+            node.fx = originalPos.x;
+            node.fy = originalPos.y;
+          }
+        });
+
+        if (simulation) {
+          // High alpha for energetic animation, moderate decay for smooth movement
+          simulation
+            .velocityDecay(0.3) // Lower friction for smoother flying
+            .alpha(0.8) // High energy to drive animation
+            .restart();
+        }
+
+        set({ needsUpdate: true, isPhysicsEnabled: false });
+
+        // Unlock physics after animation completes so nodes can still move
+        setTimeout(() => {
+          const { simulationNodes: nodes, simulation: sim } = get();
+          nodes.forEach(node => {
+            // Unpin all nodes
+            node.fx = undefined;
+            node.fy = undefined;
+          });
+          if (sim) {
+            // Restore normal velocity decay and restart with gentle alpha
+            sim.velocityDecay(0.9).alpha(0.3).restart();
+          }
+          set({ isPhysicsEnabled: true, needsUpdate: true });
+        }, animationDuration);
+      },
+
+      // Set force strengths based on view mode
+      setForceStrengths: (mode: 'narrative' | 'question') => {
+        const { simulation } = get();
+        if (!simulation) return;
+
+        if (mode === 'question') {
+          // Very strong forces for question view - edges act like strings
+          const linkForce = simulation.force('link') as d3.ForceLink<any, any>;
+          if (linkForce) {
+            linkForce.strength(0.8); // Very strong link pull - like strings (was 0.005)
+            linkForce.distance(80); // Short distance - pull nodes close
+          }
+
+          const chargeForce = simulation.force('charge') as d3.ForceManyBody<any>;
+          if (chargeForce) {
+            chargeForce.strength(-100); // Strong repulsion to spread nodes (was -1)
+          }
+
+          const centerForce = simulation.force('center') as d3.ForceCenter<any>;
+          if (centerForce) {
+            centerForce.strength(0.05); // Moderate centering
+          }
+
+          // Reduce velocity decay for more responsive movement
+          simulation.velocityDecay(0.4);
+        } else {
+          // Narrative view - restore original weak forces
+          const linkForce = simulation.force('link') as d3.ForceLink<any, any>;
+          if (linkForce) {
+            linkForce.strength(0.005); // Original weak strength
+            linkForce.distance(150); // Original distance
+          }
+
+          const chargeForce = simulation.force('charge') as d3.ForceManyBody<any>;
+          if (chargeForce) {
+            chargeForce.strength(-1); // Original weak repulsion
+          }
+
+          const centerForce = simulation.force('center') as d3.ForceCenter<any>;
+          if (centerForce) {
+            centerForce.strength(0.08); // Original centering
+          }
+
+          // Restore original velocity decay
+          simulation.velocityDecay(0.9);
+        }
+
+        // Reheat simulation to apply new forces
+        simulation.alpha(0.5).restart();
       }
     }),
     {

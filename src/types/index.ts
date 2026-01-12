@@ -22,6 +22,7 @@ export type {
 
   // Graph
   GraphNode,
+  EdgeType,
   GraphEdge,
   GraphData,
 
@@ -41,6 +42,7 @@ export type {
 
   // View
   RailViewMode,
+  MapViewMode,
   ViewState,
 
   // Notifications

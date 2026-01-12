@@ -8,7 +8,9 @@ import styles from './TabSwitcher.module.css';
 
 export const TabSwitcher = memo(() => {
   const railMode = useAnthologyStore(state => state.view.railMode);
+  const mapViewMode = useAnthologyStore(state => state.view.mapViewMode);
   const setRailMode = useAnthologyStore(state => state.setRailMode);
+  const setMapViewMode = useAnthologyStore(state => state.setMapViewMode);
   const clearSelection = useAnthologyStore(state => state.clearSelection);
   const zoomToFullMap = useAnthologyStore(state => state.zoomToFullMap);
 
@@ -19,12 +21,20 @@ export const TabSwitcher = memo(() => {
     clearSelection(); // Clear any active selection
     zoomToFullMap(); // Reset zoom to full map view
     setRailMode('conversations');
+    // Sync map view mode - only change if not already in question mode
+    if (mapViewMode !== 'question') {
+      setMapViewMode('question');
+    }
   };
 
   const handleNarrativesClick = () => {
     clearSelection(); // Clear any active selection
     zoomToFullMap(); // Reset zoom to full map view
     setRailMode('narratives');
+    // Sync map view mode - only change if not already in narrative mode
+    if (mapViewMode !== 'narrative') {
+      setMapViewMode('narrative');
+    }
   };
 
   return (

@@ -17,6 +17,7 @@ import type {
   ColorAssignment,
   SpeakerColorAssignment,
   RailViewMode,
+  MapViewMode,
   Notification
 } from '@types';
 import type {
@@ -184,6 +185,7 @@ interface AnthologyStoreActions {
   toggleRail: () => void;
   setRailMode: (mode: RailViewMode) => void;
   setRailWidth: (width: number) => void;
+  setMapViewMode: (mode: MapViewMode) => void;
   setActiveQuestion: (questionId: string | null) => void;
   setActiveResponse: (responseId: string | null) => void;
   setMapTransform: (transform: MapTransform) => void;
@@ -239,8 +241,9 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
       view: {
         railExpanded: true,
         railWidth: 380,
-        railMode: 'conversations',
+        railMode: 'narratives',
         previousRailMode: null,
+        mapViewMode: 'narrative',
         activeQuestion: null,
         activeNarrative: null,
         activeResponse: null,
@@ -485,7 +488,8 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
                 edges.set(edgeId, {
                   source: response.id,
                   target: resolvedTargetId,
-                  color
+                  color,
+                  edgeType: 'question-response'
                 });
               });
             }
@@ -524,7 +528,8 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
               edges.set(edgeId, {
                 source: current.id,
                 target: next.id,
-                color: '#22C55E' // Green for chronological edges
+                color: '#22C55E', // Green for chronological edges
+                edgeType: 'chronological'
               });
               chronoEdgesCreated++;
             }
@@ -957,6 +962,32 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
           view: {
             ...state.view,
             railMode: mode
+          }
+        }));
+      },
+
+      setMapViewMode: (mode: MapViewMode) => {
+        const visualizationStore = useVisualizationStore.getState();
+
+        if (mode === 'question') {
+          // Question view: enable physics with stronger forces
+          visualizationStore.setForceStrengths('question');
+          if (!visualizationStore.isPhysicsEnabled) {
+            visualizationStore.togglePhysics();
+          }
+        } else {
+          // Narrative view: restore original UMAP positions and weaker forces
+          visualizationStore.setForceStrengths('narrative');
+          visualizationStore.restoreOriginalPositions();
+        }
+
+        // Clear selection when switching view modes
+        get().clearSelection();
+
+        set((state) => ({
+          view: {
+            ...state.view,
+            mapViewMode: mode
           }
         }));
       },

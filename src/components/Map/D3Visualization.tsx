@@ -22,10 +22,29 @@ export function D3Visualization() {
   const selectResponse = useAnthologyStore(state => state.selectResponse);
   const hoverNode = useAnthologyStore(state => state.hoverNode);
   const selectedNodes = useAnthologyStore(state => state.selection.selectedNodes);
+  const mapViewMode = useAnthologyStore(state => state.view.mapViewMode);
 
   // Get D3-mutated nodes with positions from VisualizationStore
   const simulationNodes = useVisualizationStore(state => state.simulationNodes);
-  const edges = useMemo(() => Array.from(edgesMap.values()), [edgesMap]);
+  const allEdges = useMemo(() => Array.from(edgesMap.values()), [edgesMap]);
+
+  // Filter edges based on map view mode
+  const edges = useMemo(() => {
+    const chronoCount = allEdges.filter(e => e.edgeType === 'chronological').length;
+    const qrCount = allEdges.filter(e => e.edgeType === 'question-response').length;
+    const noTypeCount = allEdges.filter(e => !e.edgeType).length;
+    console.log(`[D3Visualization] Edge counts - chrono: ${chronoCount}, q-r: ${qrCount}, no-type: ${noTypeCount}, mode: ${mapViewMode}`);
+
+    return allEdges.filter(edge => {
+      if (mapViewMode === 'narrative') {
+        // Narrative view: only show chronological (green) edges
+        return edge.edgeType === 'chronological';
+      } else {
+        // Question view: only show question-response edges
+        return edge.edgeType === 'question-response';
+      }
+    });
+  }, [allEdges, mapViewMode]);
 
   // Always call useMemo (never conditional)
   const fallbackNodes = useMemo(() => Array.from(nodesMap.values()), [nodesMap]);
@@ -140,12 +159,17 @@ export function D3Visualization() {
   };
 
   // Separate nodes by type (with position validation)
-  const anchorNodes = nodes.filter((n: GraphNode) =>
-    n.type === 'question' && hasValidPosition(n)
-  );
-  const narrativeLabelNodes = nodes.filter((n: GraphNode) =>
-    n.type === 'narrative_label' && hasValidPosition(n)
-  );
+  // Filter based on mapViewMode:
+  // - Narrative view: hide question nodes, show narrative labels
+  // - Question view: show question nodes, hide narrative labels
+  const anchorNodes = mapViewMode === 'question'
+    ? nodes.filter((n: GraphNode) => n.type === 'question' && hasValidPosition(n))
+    : []; // Hide question nodes in narrative view
+
+  const narrativeLabelNodes = mapViewMode === 'narrative'
+    ? nodes.filter((n: GraphNode) => n.type === 'narrative_label' && hasValidPosition(n))
+    : []; // Hide narrative labels in question view
+
   const responseNodesWithPullQuote = nodes.filter((n: GraphNode) =>
     n.type === 'response' && (n.data as any).pull_quote && hasValidPosition(n)
   );

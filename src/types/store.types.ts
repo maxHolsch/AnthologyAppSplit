@@ -17,6 +17,7 @@ import type {
   ColorAssignment,
   SpeakerColorAssignment,
   RailViewMode,
+  MapViewMode,
   Notification
 } from './data.types';
 
@@ -137,6 +138,7 @@ export interface ViewActions {
   toggleRail: () => void;
   setRailWidth: (width: number) => void;
   setRailMode: (mode: RailViewMode) => void;
+  setMapViewMode: (mode: MapViewMode) => void;
   setActiveQuestion: (questionId: string | null) => void;
   setActiveNarrative: (narrativeId: string | null) => void;
   setActiveResponse: (responseId: string | null) => void;
@@ -170,6 +172,7 @@ export interface VisualizationState {
   // D3 references (not part of React state)
   simulation: any | null; // D3 ForceSimulation instance
   simulationNodes: GraphNode[]; // D3-mutated node array with positions
+  originalPositions: Map<string, { x: number; y: number }>; // Original UMAP positions
   svgRef: SVGSVGElement | null;
   containerRef: SVGGElement | null;
 
@@ -195,6 +198,8 @@ export interface VisualizationActions {
   stopSimulation: () => void;
   restartSimulation: () => void;
   togglePhysics: () => void;
+  restoreOriginalPositions: () => void;
+  setForceStrengths: (mode: 'narrative' | 'question') => void;
   setSvgRef: (ref: SVGSVGElement | null) => void;
   setContainerRef: (ref: SVGGElement | null) => void;
   setNeedsUpdate: (needsUpdate: boolean) => void;

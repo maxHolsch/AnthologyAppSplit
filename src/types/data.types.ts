@@ -140,10 +140,13 @@ export interface GraphNode {
   color?: string; // Inherited from conversation
 }
 
+export type EdgeType = 'question-response' | 'chronological';
+
 export interface GraphEdge {
   source: string | GraphNode;
   target: string | GraphNode;
   color?: string; // Inherited from response node's conversation
+  edgeType?: EdgeType; // Type for filtering in different view modes
 }
 
 export interface GraphData {
@@ -243,12 +246,14 @@ export interface SelectionState {
 // ================== View State Types ==================
 
 export type RailViewMode = 'conversations' | 'question' | 'single' | 'narratives' | 'narrative';
+export type MapViewMode = 'narrative' | 'question';
 
 export interface ViewState {
   railExpanded: boolean;
   railWidth: number;
   railMode: RailViewMode;
   previousRailMode: RailViewMode | null; // Track where we navigated from for back button
+  mapViewMode: MapViewMode; // Controls which nodes/edges are visible on the map
   activeQuestion: string | null;
   activeNarrative: string | null;
   activeResponse: string | null;

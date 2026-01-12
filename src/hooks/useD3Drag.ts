@@ -83,21 +83,18 @@ export function useD3Drag(
           simulation.alphaTarget(0);
         }
 
-        // Type-specific node behavior:
-        // - Question nodes stay fixed (maintain fx/fy)
-        // - Response nodes behave according to global physics state
-        if (d.type !== 'question') {
-          // Check global physics state
-          const isPhysicsEnabled = useVisualizationStore.getState().isPhysicsEnabled;
+        // All nodes follow the global physics state after drag:
+        // - Physics enabled: release node to follow simulation forces
+        // - Physics disabled: keep node pinned where dropped
+        const isPhysicsEnabled = useVisualizationStore.getState().isPhysicsEnabled;
 
-          if (isPhysicsEnabled) {
-            d.fx = undefined;
-            d.fy = undefined;
-          } else {
-            // Keep pinned where dropped
-            d.fx = d.x;
-            d.fy = d.y;
-          }
+        if (isPhysicsEnabled) {
+          d.fx = undefined;
+          d.fy = undefined;
+        } else {
+          // Keep pinned where dropped
+          d.fx = d.x;
+          d.fy = d.y;
         }
 
         // Update interaction store
