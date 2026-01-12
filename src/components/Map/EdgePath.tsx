@@ -1,9 +1,9 @@
-import { useMemo } from 'react';
+import { useMemo, useId } from 'react';
 import type { EdgePathProps } from '@types';
 
 /**
  * Curved edge path component using cubic Bezier curves
- * Connects nodes with elegant curved lines and directional chevron arrows
+ * Connects nodes with elegant curved lines, directional chevron arrows, and animated particles
  */
 export function EdgePath({
   edge: _edge,
@@ -12,6 +12,7 @@ export function EdgePath({
   opacity = 1,
   color = '#000000'
 }: EdgePathProps) {
+  const pathId = useId(); // Unique ID for this edge's path
   // Calculate Bezier curve path and arrow position
   const { path, arrowPath, arrowTransform } = useMemo(() => {
     // Get source and target coordinates from the provided node objects
@@ -97,6 +98,16 @@ export function EdgePath({
 
   return (
     <g>
+      {/* Invisible path for particle animation reference */}
+      <path
+        id={pathId}
+        d={path}
+        fill="none"
+        stroke="none"
+        pointerEvents="none"
+      />
+
+      {/* Visible edge path */}
       <path
         d={path}
         fill="none"
@@ -107,6 +118,8 @@ export function EdgePath({
         pointerEvents="none"
         style={{ transition: 'stroke-opacity 200ms ease' }}
       />
+
+      {/* Directional arrow */}
       <path
         d={arrowPath}
         fill="none"
@@ -119,6 +132,26 @@ export function EdgePath({
         transform={arrowTransform}
         style={{ transition: 'stroke-opacity 200ms ease' }}
       />
+
+      {/* Animated particles flowing along the edge */}
+      {[0, 0.33, 0.66].map((offset, i) => (
+        <circle
+          key={i}
+          r={1.5}
+          fill={color}
+          fillOpacity={0.4 * opacity}
+          pointerEvents="none"
+          style={{ transition: 'fill-opacity 200ms ease' }}
+        >
+          <animateMotion
+            dur="4s"
+            repeatCount="indefinite"
+            begin={`${offset * 4}s`}
+          >
+            <mpath href={`#${pathId}`} />
+          </animateMotion>
+        </circle>
+      ))}
     </g>
   );
 }

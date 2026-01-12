@@ -41,7 +41,7 @@
   display: flex;
   flex-direction: column;
   gap: 32px; /* Increased spacing between tiles per Figma */
-  padding: 40px 32px 0 32px; /* Top padding for spacing from tabs, left/right padding to align with design */
+  padding: 32px 32px 0 32px; /* Top padding for spacing from tabs, left/right padding to align with design */
 }
 
 .emptyState {
