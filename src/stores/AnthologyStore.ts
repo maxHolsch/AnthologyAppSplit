@@ -361,12 +361,14 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
 
           // Add response nodes with positions (UMAP or fallback)
           responses.forEach((response) => {
-            // Use speaker color instead of conversation color
-            const speakerColorKey = `${response.conversation_id}:${response.speaker_name}`;
-            const colorValue = speakerColorAssignments.get(speakerColorKey)?.color;
+            // Use narrative color instead of speaker color
+            const narrativeId = response.responds_to_narrative_id;
+            const narrativeColor = narrativeId
+              ? narrativeColorAssignments.get(narrativeId)
+              : null;
 
-            // Normalize color to string - extract 'circle' if it's a SpeakerColorScheme object
-            const color = typeof colorValue === 'string' ? colorValue : colorValue?.circle;
+            // Priority: narrative color > grey fallback
+            const color = narrativeColor || '#999999';
 
             let x = 0, y = 0;
             const semanticPos = semanticPositions.get(response.id);

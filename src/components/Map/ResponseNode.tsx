@@ -11,8 +11,7 @@ export function ResponseNode({ node, onClick, onMouseEnter, onMouseLeave }: Resp
   const selectedNodes = useAnthologyStore(state => state.selection.selectedNodes);
   const hoveredNode = useAnthologyStore(state => state.selection.hoveredNode);
   const hoveredNodes = useAnthologyStore(state => state.selection.hoveredNodes);
-  const conversations = useAnthologyStore(state => state.data.conversations);
-  const speakerColorAssignments = useAnthologyStore(state => state.data.speakerColorAssignments);
+  const narrativeColorAssignments = useAnthologyStore(state => state.data.narrativeColorAssignments);
   const currentTrack = useAnthologyStore(state => state.audio.currentTrack);
   const playbackState = useAnthologyStore(state => state.audio.playbackState);
 
@@ -24,15 +23,16 @@ export function ResponseNode({ node, onClick, onMouseEnter, onMouseLeave }: Resp
   const x = node.x ?? 0;
   const y = node.y ?? 0;
 
-  // Get speaker color scheme from node, speaker assignments, or fallback to conversation color
-  const conversationId = node.data.type === 'response' ? node.data.conversation_id : null;
-  const speakerName = node.data.type === 'response' ? node.data.speaker_name : null;
-  const conversation = conversationId ? conversations.get(conversationId) : null;
+  // Get narrative color if response belongs to a narrative
+  const narrativeId = node.data.type === 'response'
+    ? node.data.responds_to_narrative_id
+    : null;
+  const narrativeColor = narrativeId
+    ? narrativeColorAssignments.get(narrativeId)
+    : null;
 
-  const speakerColorKey = conversationId && speakerName ? `${conversationId}:${speakerName}` : null;
-  const speakerColorScheme = speakerColorKey ? speakerColorAssignments.get(speakerColorKey)?.color : null;
-
-  const colorScheme = node.color || speakerColorScheme || conversation?.color || '#999999'; // Default to grey
+  // Priority: node.color (from store) || narrative color || grey fallback
+  const colorScheme = node.color || narrativeColor || '#999999';
 
   // Get appropriate color based on selection state (no opacity adjustment needed)
   const anySelected = selectedNodes.size > 0;

@@ -1637,7 +1637,6 @@ export async function tickSensemaking({ jobId, timeBudgetMs = 15000 }: { jobId: 
       const conversationId = String(f.conversation_id || '');
       const recordingId = String(f.recording_id || '');
       const questionDbIds = Array.isArray(f.question_db_ids) ? (f.question_db_ids as string[]) : [];
-      const narrativeDbIds = Array.isArray(f.narrative_db_ids) ? (f.narrative_db_ids as string[]) : [];
       const speakerDbIds = (f.speaker_db_ids || {}) as Record<string, string>;
 
       if (conversationId && recordingId && questionDbIds.length > 0) {

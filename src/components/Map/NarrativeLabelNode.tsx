@@ -132,7 +132,7 @@ export function NarrativeLabelNode({ node, onClick, onMouseEnter, onMouseLeave }
           width={width}
           height={height}
           rx={height / 2}
-          fill="#CCE6FF"
+          fill={narrativeColor}
           fillOpacity={1.0}
           pointerEvents="all"
         />
@@ -144,7 +144,7 @@ export function NarrativeLabelNode({ node, onClick, onMouseEnter, onMouseLeave }
           fontSize={fontSize}
           fontFamily="DM Mono, monospace"
           fontWeight={400}
-          fill="#00519E"
+          fill="#FFFFFF"
           pointerEvents="none"
           style={{
             userSelect: 'none',
