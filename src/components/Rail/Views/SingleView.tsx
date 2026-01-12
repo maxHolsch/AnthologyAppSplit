@@ -20,12 +20,16 @@ export interface SingleViewProps {
 
 export const SingleView = memo<SingleViewProps>(({ anthologySlug }) => {
   const activeResponse = useAnthologyStore(state => state.view.activeResponse);
+  const previousRailMode = useAnthologyStore(state => state.view.previousRailMode);
   const responseNodes = useAnthologyStore(state => state.data.responseNodes);
   const questionNodes = useAnthologyStore(state => state.data.questionNodes);
+  const narrativeNodes = useAnthologyStore(state => state.data.narrativeNodes);
   const conversations = useAnthologyStore(state => state.data.conversations);
   const speakerColorAssignments = useAnthologyStore(state => state.data.speakerColorAssignments);
   const setRailMode = useAnthologyStore(state => state.setRailMode);
   const setActiveQuestion = useAnthologyStore(state => state.setActiveQuestion);
+  const setActiveNarrative = useAnthologyStore(state => state.setActiveNarrative);
+  const setActiveResponse = useAnthologyStore(state => state.setActiveResponse);
   const zoomToFullMap = useAnthologyStore(state => state.zoomToFullMap);
 
   // Get the response data
@@ -38,6 +42,12 @@ export const SingleView = memo<SingleViewProps>(({ anthologySlug }) => {
     if (!response?.responds_to) return null;
     return questionNodes.get(response.responds_to);
   }, [response, questionNodes]);
+
+  // Get the parent narrative
+  const parentNarrative = useMemo(() => {
+    if (!response?.responds_to_narrative_id) return null;
+    return narrativeNodes.get(response.responds_to_narrative_id);
+  }, [response, narrativeNodes]);
 
   // Get the conversation for fallback color
   const conversation = useMemo(() => {
@@ -65,23 +75,59 @@ export const SingleView = memo<SingleViewProps>(({ anthologySlug }) => {
   }, [response, speakerColorAssignments, conversation]);
 
   const handleBack = () => {
-    if (parentQuestion) {
-      // Zoom to parent question node before changing rail mode
-      const vizStore = useVisualizationStore.getState();
-      const position = vizStore.getNodePosition(parentQuestion.id);
-      const centerOnNode = vizStore.centerOnNode;
+    console.log('[SingleView.handleBack] previousRailMode:', previousRailMode);
+
+    const vizStore = useVisualizationStore.getState();
+    const centerOnNode = vizStore.centerOnNode;
+
+    // Navigate based on where we came from (previousRailMode)
+    if (previousRailMode === 'narrative' && parentNarrative) {
+      // Came from narrative view - go back to that narrative
+      const narrativeLabelNodeId = `narrative_label_${parentNarrative.id}`;
+      const position = vizStore.getNodePosition(narrativeLabelNodeId);
 
       if (position && centerOnNode) {
-        // Match selectQuestion behavior: 1.5x scale for question + responses
         centerOnNode(position.x, position.y, 1.5, 750);
       }
-      // Set the active question so QuestionView displays properly
+
+      setActiveNarrative(parentNarrative.id);
+      setActiveResponse(null);
+      setRailMode('narrative');
+    } else if (previousRailMode === 'question' && parentQuestion) {
+      // Came from question view - go back to that question
+      const position = vizStore.getNodePosition(parentQuestion.id);
+
+      if (position && centerOnNode) {
+        centerOnNode(position.x, position.y, 1.5, 750);
+      }
+
       setActiveQuestion(parentQuestion.id);
+      setActiveResponse(null);
       setRailMode('question');
     } else {
-      // Zoom out to full map view
-      zoomToFullMap();
-      setRailMode('conversations');
+      // Fallback: try to determine from response data
+      if (parentQuestion) {
+        const position = vizStore.getNodePosition(parentQuestion.id);
+        if (position && centerOnNode) {
+          centerOnNode(position.x, position.y, 1.5, 750);
+        }
+        setActiveQuestion(parentQuestion.id);
+        setActiveResponse(null);
+        setRailMode('question');
+      } else if (parentNarrative) {
+        const narrativeLabelNodeId = `narrative_label_${parentNarrative.id}`;
+        const position = vizStore.getNodePosition(narrativeLabelNodeId);
+        if (position && centerOnNode) {
+          centerOnNode(position.x, position.y, 1.5, 750);
+        }
+        setActiveNarrative(parentNarrative.id);
+        setActiveResponse(null);
+        setRailMode('narrative');
+      } else {
+        // No parent found - go back to conversations
+        zoomToFullMap();
+        setRailMode('conversations');
+      }
     }
   };
 

@@ -13,7 +13,9 @@ import styles from './ConversationsView.module.css'; // Reuse same styles
 
 export const NarrativesView = memo(() => {
   const { slug } = useParams();
-  const getNarrativesWithResponses = useAnthologyStore(state => state.getNarrativesWithResponses);
+  const narrativeNodes = useAnthologyStore(state => state.data.narrativeNodes);
+  const narrativeColorAssignments = useAnthologyStore(state => state.data.narrativeColorAssignments);
+  const getResponsesForNarrative = useAnthologyStore(state => state.getResponsesForNarrative);
   const setActiveNarrative = useAnthologyStore(state => state.setActiveNarrative);
   const hoverNodes = useAnthologyStore(state => state.hoverNodes);
 
@@ -25,19 +27,38 @@ export const NarrativesView = memo(() => {
   const handleNarrativeHover = useCallback((narrativeId: string | null) => {
     if (narrativeId) {
       // Get all response IDs for this narrative
-      const narratives = getNarrativesWithResponses();
-      const narrative = narratives.find(n => n.id === narrativeId);
-      if (narrative) {
-        const responseIds = narrative.responses.map(r => r.id);
-        hoverNodes(responseIds);
-      }
+      const responses = getResponsesForNarrative(narrativeId);
+      const responseIds = responses.map(r => r.id);
+      hoverNodes(responseIds);
     } else {
       // Clear hover
       hoverNodes([]);
     }
-  }, [getNarrativesWithResponses, hoverNodes]);
+  }, [getResponsesForNarrative, hoverNodes]);
 
-  const narratives = getNarrativesWithResponses();
+  // Build narratives list from all narrative nodes
+  // Filter out "Misc" narrative if it has 0 responses
+  const narratives = Array.from(narrativeNodes.values())
+    .map(narrative => {
+      const responses = getResponsesForNarrative(narrative.id);
+      const color = narrativeColorAssignments.get(narrative.id) || '#999999';
+      // Use narrative_text directly from the database
+      const name = narrative.narrative_text || narrative.id;
+
+      return {
+        id: narrative.id,
+        name,
+        color,
+        responses,
+      };
+    })
+    .filter(narrative => {
+      // Hide "Misc" narrative if it has 0 responses
+      if (narrative.name === 'Misc' && narrative.responses.length === 0) {
+        return false;
+      }
+      return true;
+    });
 
   if (narratives.length === 0) {
     return (
@@ -54,6 +75,7 @@ export const NarrativesView = memo(() => {
         highlights from {slug ?? 'this'} conversation
       </h1>
       <TabSwitcher />
+      <p className={styles.sectionHeader}>NARRATIVES</p>
       <div className={styles.questionList}>
         {narratives.map(narrative => (
           <NarrativeTile
@@ -63,7 +85,6 @@ export const NarrativesView = memo(() => {
             narrativeColor={narrative.color}
             responseCount={narrative.responses.length}
             onClick={handleNarrativeClick}
-            onHover={handleNarrativeHover}
           />
         ))}
       </div>

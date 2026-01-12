@@ -6,6 +6,7 @@
 import { memo, useCallback } from 'react';
 import type { ResponseNode } from '@types';
 import { useAnthologyStore } from '@stores';
+import { SyncIcon, AsyncAudioIcon, AsyncTextIcon } from '@components/Icons/NodeIcons';
 import styles from './ResponseTile.module.css';
 
 interface ResponseTileProps {
@@ -71,6 +72,25 @@ export const ResponseTile = memo<ResponseTileProps>(({
     ? `"...${response.speaker_text.substring(0, 200)}..."`
     : `"...${response.speaker_text}..."`;
 
+  // Determine which icon to use based on synchronicity and medium
+  const isSyncOrLegacy = !response.synchronicity || response.synchronicity === 'sync';
+  const isAsync = response.synchronicity === 'asynchronous';
+  const isTextMedium = response.medium === 'text';
+
+  const renderIcon = () => {
+    if (isSyncOrLegacy) {
+      return <SyncIcon color={speakerColor} size={14} />;
+    }
+    if (isAsync && !isTextMedium) {
+      return <AsyncAudioIcon color={speakerColor} size={14} />;
+    }
+    if (isAsync && isTextMedium) {
+      return <AsyncTextIcon color={speakerColor} size={14} />;
+    }
+    // Fallback to sync icon
+    return <SyncIcon color={speakerColor} size={14} />;
+  };
+
   return (
     <>
       <div
@@ -83,12 +103,11 @@ export const ResponseTile = memo<ResponseTileProps>(({
         tabIndex={0}
         aria-label={`Response by ${response.speaker_name}`}
       >
-        {/* Speaker Badge with colored dot */}
+        {/* Speaker Badge with node icon */}
         <div className={styles.speakerBadge}>
-          <div
-            className={styles.colorDot}
-            style={{ backgroundColor: speakerColor }}
-          />
+          <div className={styles.iconWrapper}>
+            {renderIcon()}
+          </div>
           <span className={styles.speakerName}>{response.speaker_name}</span>
         </div>
 

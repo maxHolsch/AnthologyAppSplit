@@ -6,6 +6,7 @@ import { memo, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAnthologyStore } from '@stores';
 import { QuestionTile } from '../Components/QuestionTile';
+import { TabSwitcher } from '../Components/TabSwitcher';
 import AnthologyIcon from '../../../assets/icon.svg';
 import styles from './ConversationsView.module.css';
 
@@ -36,6 +37,7 @@ export const ConversationsView = memo(() => {
       <h1 className={styles.mainTitle}>
         highlights from {slug ?? 'this'} conversation
       </h1>
+      <TabSwitcher />
       <p className={styles.sectionHeader}>QUESTIONS</p>
       <div className={styles.questionList}>
         {questions.map(question => (

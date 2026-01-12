@@ -7,6 +7,7 @@ import type {
   AnthologyData,
   Conversation,
   QuestionNode,
+  NarrativeNode,
   ResponseNode,
   GraphNode,
   GraphEdge,
@@ -75,12 +76,14 @@ export interface DataState {
 
   // Lookup maps for quick access
   questionNodes: Map<string, QuestionNode>;
+  narrativeNodes: Map<string, NarrativeNode>;
   responseNodes: Map<string, ResponseNode>;
 
   // Conversation data
   conversations: Map<string, Conversation>;
   colorAssignments: Map<string, ColorAssignment>; // Kept for backward compatibility
   speakerColorAssignments: Map<string, SpeakerColorAssignment>; // Speaker colors keyed by "conversationId:speakerName"
+  narrativeColorAssignments: Map<string, string>; // Narrative ID -> color
 
   // Loading state
   isLoading: boolean;
@@ -98,6 +101,8 @@ export interface DataActions {
   getNodeById: (id: string) => GraphNode | undefined;
   getEdgeById: (id: string) => GraphEdge | undefined;
   getResponsesForQuestion: (questionId: string) => ResponseNode[];
+  getResponsesForNarrative: (narrativeId: string) => ResponseNode[];
+  getNarrativesWithResponses: () => Array<{ id: string; name: string; color: string; responses: ResponseNode[] }>;
   getConversationForNode: (nodeId: string) => Conversation | undefined;
   clearData: () => void;
 
@@ -111,9 +116,11 @@ export interface DataActions {
 export interface SelectionActions {
   selectNode: (nodeId: string, mode?: 'single' | 'multi') => void;
   selectQuestion: (questionId: string) => void;
+  selectNarrative: (narrativeId: string) => void;
   selectResponse: (responseId: string) => void;
   clearSelection: () => void;
   hoverNode: (nodeId: string | null) => void;
+  hoverNodes: (nodeIds: string[]) => void;
   focusNode: (nodeId: string | null) => void;
   addToSelection: (nodeId: string) => void;
   removeFromSelection: (nodeId: string) => void;
@@ -131,6 +138,7 @@ export interface ViewActions {
   setRailWidth: (width: number) => void;
   setRailMode: (mode: RailViewMode) => void;
   setActiveQuestion: (questionId: string | null) => void;
+  setActiveNarrative: (narrativeId: string | null) => void;
   setActiveResponse: (responseId: string | null) => void;
   setMapTransform: (transform: MapTransform) => void;
   zoomIn: () => void;

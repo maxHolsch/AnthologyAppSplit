@@ -84,6 +84,66 @@ const assignSpeakerColorsFromConversations = (
   return assignments;
 };
 
+// Helper function to assign colors to narratives
+const assignNarrativeColors = (narrativeIds: string[]): Map<string, string> => {
+  const assignments = new Map<string, string>();
+
+  narrativeIds.forEach((narrativeId, index) => {
+    const color = DEFAULT_COLORS[index % DEFAULT_COLORS.length];
+    assignments.set(narrativeId, color);
+  });
+
+  return assignments;
+};
+
+// Helper function to calculate centroid position for a narrative based on its responses
+const calculateNarrativeCentroid = (
+  narrativeId: string,
+  responses: ResponseNode[],
+  nodesMap: Map<string, GraphNode>
+): { x: number; y: number } | null => {
+  // Filter responses that belong to this narrative
+  const narrativeResponses = responses.filter(
+    r => r.responds_to_narrative_id === narrativeId
+  );
+
+  if (narrativeResponses.length === 0) {
+    return null; // No responses, no centroid
+  }
+
+  // Get positions of all response nodes
+  const positions: { x: number; y: number }[] = [];
+
+  narrativeResponses.forEach(response => {
+    const node = nodesMap.get(response.id);
+    if (node && typeof node.x === 'number' && typeof node.y === 'number') {
+      positions.push({ x: node.x, y: node.y });
+    }
+  });
+
+  if (positions.length === 0) {
+    return null; // No valid positions
+  }
+
+  // Calculate average (centroid)
+  const sumX = positions.reduce((sum, pos) => sum + pos.x, 0);
+  const sumY = positions.reduce((sum, pos) => sum + pos.y, 0);
+
+  const centroid = {
+    x: sumX / positions.length,
+    y: sumY / positions.length
+  };
+
+  // Debug logging for this specific narrative
+  console.log(`[calculateNarrativeCentroid] Narrative ${narrativeId}:`);
+  console.log(`  - Found ${narrativeResponses.length} responses`);
+  console.log(`  - Valid positions: ${positions.length}`);
+  console.log(`  - Position range: x[${Math.min(...positions.map(p => p.x)).toFixed(2)} to ${Math.max(...positions.map(p => p.x)).toFixed(2)}], y[${Math.min(...positions.map(p => p.y)).toFixed(2)} to ${Math.max(...positions.map(p => p.y)).toFixed(2)}]`);
+  console.log(`  - Calculated centroid:`, centroid);
+
+  return centroid;
+};
+
 interface AnthologyStoreState {
   // Data slice
   data: DataState;
@@ -158,6 +218,7 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
         conversations: new Map(),
         colorAssignments: new Map(),
         speakerColorAssignments: new Map(),
+        narrativeColorAssignments: new Map(),
         isLoading: false,
         loadError: null,
         notifications: [],
@@ -168,6 +229,7 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
       selection: {
         selectedNodes: new Set(),
         hoveredNode: null,
+        hoveredNodes: new Set(),
         focusedNode: null,
         selectionMode: 'single',
         selectionHistory: []
@@ -178,7 +240,9 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
         railExpanded: true,
         railWidth: 380,
         railMode: 'conversations',
+        previousRailMode: null,
         activeQuestion: null,
+        activeNarrative: null,
         activeResponse: null,
         mapTransform: { x: 0, y: 0, k: 1 },
         zoomLevel: 1
@@ -225,6 +289,10 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
           // Assign colors to conversations and speakers
           const colorAssignments = assignConversationColors(data.conversations);
           const speakerColorAssignments = assignSpeakerColorsFromConversations(data.conversations);
+
+          // Assign colors to narratives
+          const narrativeIds = Array.from(narrativeMap.keys());
+          const narrativeColorAssignments = assignNarrativeColors(narrativeIds);
 
           // Create graph nodes with fixed positions based on UMAP embeddings
           const nodes = new Map<string, GraphNode>();
@@ -338,6 +406,49 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
             }
           });
 
+          // Generate narrative label nodes after responses are positioned
+          // This must happen AFTER response nodes have positions (from UMAP or fallback)
+          narrativeIds.forEach(narrativeId => {
+            const centroid = calculateNarrativeCentroid(
+              narrativeId,
+              responses,
+              nodes
+            );
+
+            console.log('[loadData] Narrative', narrativeId, 'centroid:', centroid);
+
+            if (centroid) {
+              // Get narrative name from the narrative data
+              const narrativeData = narrativeMap.get(narrativeId);
+              const narrativeName = narrativeData?.narrative_text || narrativeId;
+              const narrativeColor = narrativeColorAssignments.get(narrativeId) || DEFAULT_COLORS[0];
+
+              console.log('[loadData] Creating label node at centroid:', centroid);
+
+              const labelNodeId = `narrative_label_${narrativeId}`;
+              const labelNode: any = {
+                type: 'narrative_label',
+                id: labelNodeId,
+                narrative_id: narrativeId,
+                narrative_name: narrativeName,
+                narrative_color: narrativeColor,
+                centroid_x: centroid.x,
+                centroid_y: centroid.y
+              };
+
+              nodes.set(labelNodeId, {
+                id: labelNodeId,
+                type: 'narrative_label',
+                data: labelNode,
+                x: centroid.x,
+                y: centroid.y,
+                fx: centroid.x,
+                fy: centroid.y,
+                color: narrativeColor
+              });
+            }
+          });
+
           // Create graph edges
           const edges = new Map<string, GraphEdge>();
 
@@ -430,6 +541,8 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
               conversations: conversationMap,
               colorAssignments,
               speakerColorAssignments,
+              narrativeColorAssignments,
+              missingEmbeddingsCount: missingCount,
               isLoading: false
             }
           }));
@@ -482,6 +595,50 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
           .filter((r): r is ResponseNode => r !== undefined);
       },
 
+      getResponsesForNarrative: (narrativeId: string) => {
+        const allResponses = get().data.responseNodes;
+        const narrativeResponses: ResponseNode[] = [];
+
+        allResponses.forEach(response => {
+          if (response.responds_to_narrative_id === narrativeId) {
+            narrativeResponses.push(response);
+          }
+        });
+
+        return narrativeResponses;
+      },
+
+      getNarrativesWithResponses: () => {
+        const narrativeMap = get().data.narrativeNodes;
+        const narrativeColorMap = get().data.narrativeColorAssignments;
+        const getResponsesForNarrative = get().getResponsesForNarrative;
+
+        const narrativesWithResponses: Array<{
+          id: string;
+          name: string;
+          color: string;
+          responses: ResponseNode[];
+        }> = [];
+
+        narrativeMap.forEach((narrative, narrativeId) => {
+          const responses = getResponsesForNarrative(narrativeId);
+          const name = narrative.narrative_text || narrativeId;
+          const color = narrativeColorMap.get(narrativeId) || DEFAULT_COLORS[0];
+
+          // Only include narratives that have responses
+          if (responses.length > 0) {
+            narrativesWithResponses.push({
+              id: narrativeId,
+              name,
+              color,
+              responses
+            });
+          }
+        });
+
+        return narrativesWithResponses;
+      },
+
       getConversationForNode: (nodeId: string) => {
         const node = get().data.nodes.get(nodeId);
         if (!node || node.type !== 'response') return undefined;
@@ -502,6 +659,7 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
             conversations: new Map(),
             colorAssignments: new Map(),
             speakerColorAssignments: new Map(),
+            narrativeColorAssignments: new Map(),
             isLoading: false,
             loadError: null,
             notifications: [],
@@ -511,6 +669,7 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
             ...state.selection,
             selectedNodes: new Set(),
             hoveredNode: null,
+            hoveredNodes: new Set(),
             focusedNode: null
           }
         }));
@@ -580,7 +739,124 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
         }
       },
 
+      selectNarrative: (narrativeId: string) => {
+        const getResponsesForNarrative = get().getResponsesForNarrative;
+        const responses = getResponsesForNarrative(narrativeId);
+
+        if (responses.length === 0) {
+          console.warn('No responses found for narrative:', narrativeId);
+          return;
+        }
+
+        // Select the narrative label node and all its responses
+        const narrativeLabelNodeId = `narrative_label_${narrativeId}`;
+        const relatedNodeIds = [narrativeLabelNodeId, ...responses.map(r => r.id)];
+
+        set((state) => ({
+          selection: {
+            ...state.selection,
+            selectedNodes: new Set(relatedNodeIds),
+            selectionMode: 'narrative',
+            focusedNode: narrativeLabelNodeId
+          },
+          view: {
+            ...state.view,
+            railMode: 'narrative',
+            activeNarrative: narrativeId,
+            activeQuestion: null,
+            activeResponse: null
+          }
+        }));
+
+        // Stop any current playback when switching focus
+        get().stop();
+
+        // Auto-zoom to fit all narrative responses in view
+        const vizStore = useVisualizationStore.getState();
+        const centerOnNode = vizStore.centerOnNode;
+
+        console.log('[selectNarrative] narrativeId:', narrativeId);
+        console.log('[selectNarrative] responses.length:', responses.length);
+        console.log('[selectNarrative] centerOnNode function exists:', !!centerOnNode);
+
+        if (!centerOnNode) {
+          console.error('[selectNarrative] centerOnNode function not available!');
+          return;
+        }
+
+        if (responses.length === 0) {
+          console.error('[selectNarrative] No responses to zoom to!');
+          return;
+        }
+
+        // Calculate bounding box of all response nodes + narrative label
+        let minX = Infinity, maxX = -Infinity;
+        let minY = Infinity, maxY = -Infinity;
+        let validPositions = 0;
+
+        // Include all response positions
+        responses.forEach(response => {
+          const pos = vizStore.getNodePosition(response.id);
+          console.log('[selectNarrative] Response', response.id, 'position:', pos);
+          if (pos) {
+            minX = Math.min(minX, pos.x);
+            maxX = Math.max(maxX, pos.x);
+            minY = Math.min(minY, pos.y);
+            maxY = Math.max(maxY, pos.y);
+            validPositions++;
+          }
+        });
+
+        // Include narrative label position
+        const labelPos = vizStore.getNodePosition(narrativeLabelNodeId);
+        console.log('[selectNarrative] Label position:', labelPos);
+        if (labelPos) {
+          minX = Math.min(minX, labelPos.x);
+          maxX = Math.max(maxX, labelPos.x);
+          minY = Math.min(minY, labelPos.y);
+          maxY = Math.max(maxY, labelPos.y);
+          validPositions++;
+        }
+
+        console.log('[selectNarrative] Valid positions found:', validPositions);
+        console.log('[selectNarrative] Bounding box:', { minX, maxX, minY, maxY });
+
+        if (validPositions === 0) {
+          console.error('[selectNarrative] No valid positions found - cannot zoom!');
+          return;
+        }
+
+        // Calculate center and required zoom to fit
+        const centerX = (minX + maxX) / 2;
+        const centerY = (minY + maxY) / 2;
+        const width = maxX - minX;
+        const height = maxY - minY;
+
+        console.log('[selectNarrative] Calculated dimensions:', { centerX, centerY, width, height });
+
+        // Calculate zoom level to fit (assume viewport ~1000x800, add padding)
+        const padding = 100; // pixels of padding around the group
+        const viewportWidth = 1000;
+        const viewportHeight = 800;
+        const scaleX = (viewportWidth - padding * 2) / Math.max(width, 1);
+        const scaleY = (viewportHeight - padding * 2) / Math.max(height, 1);
+        const targetScale = Math.min(scaleX, scaleY, 1.5); // Cap at 1.5x max
+
+        console.log('[selectNarrative] Calculated scales:', { scaleX, scaleY, targetScale });
+        console.log('[selectNarrative] Calling centerOnNode with:', { centerX, centerY, targetScale });
+
+        try {
+          centerOnNode(centerX, centerY, targetScale, 750);
+          console.log('[selectNarrative] centerOnNode called successfully');
+        } catch (error) {
+          console.error('[selectNarrative] Error calling centerOnNode:', error);
+        }
+      },
+
       selectResponse: (responseId: string) => {
+        const currentRailMode = get().view.railMode;
+        console.log('[selectResponse] Current railMode:', currentRailMode, '-> Setting previousRailMode');
+
         set((state) => ({
           selection: {
             ...state.selection,
@@ -590,6 +866,7 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
           },
           view: {
             ...state.view,
+            previousRailMode: currentRailMode, // Save where we came from
             railMode: 'single',
             activeResponse: responseId
           }
@@ -617,12 +894,15 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
           selection: {
             ...state.selection,
             selectedNodes: new Set(),
+            hoveredNodes: new Set(),
             focusedNode: null
           },
           view: {
             ...state.view,
             railMode: 'conversations',
+            previousRailMode: null,
             activeQuestion: null,
+            activeNarrative: null,
             activeResponse: null
           }
         }));
@@ -633,6 +913,15 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
           selection: {
             ...state.selection,
             hoveredNode: nodeId
+          }
+        }));
+      },
+
+      hoverNodes: (nodeIds: string[]) => {
+        set((state) => ({
+          selection: {
+            ...state.selection,
+            hoveredNodes: new Set(nodeIds)
           }
         }));
       },
@@ -689,6 +978,16 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
             ...state.view,
             activeQuestion: questionId,
             railMode: questionId ? 'question' : 'conversations'
+          }
+        }));
+      },
+
+      setActiveNarrative: (narrativeId: string | null) => {
+        set((state) => ({
+          view: {
+            ...state.view,
+            activeNarrative: narrativeId,
+            railMode: narrativeId ? 'narrative' : 'narratives'
           }
         }));
       },
