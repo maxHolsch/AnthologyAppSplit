@@ -16,13 +16,13 @@ export const NarrativesView = memo(() => {
   const narrativeNodes = useAnthologyStore(state => state.data.narrativeNodes);
   const narrativeColorAssignments = useAnthologyStore(state => state.data.narrativeColorAssignments);
   const getResponsesForNarrative = useAnthologyStore(state => state.getResponsesForNarrative);
-  const setActiveNarrative = useAnthologyStore(state => state.setActiveNarrative);
+  const selectNarrative = useAnthologyStore(state => state.selectNarrative);
   const hoverNodes = useAnthologyStore(state => state.hoverNodes);
 
   const handleNarrativeClick = useCallback((narrativeId: string) => {
-    // Navigate to narrative view mode showing all responses for this narrative
-    setActiveNarrative(narrativeId);
-  }, [setActiveNarrative]);
+    // Navigate to narrative view mode showing all responses for this narrative with zoom
+    selectNarrative(narrativeId);
+  }, [selectNarrative]);
 
   const handleNarrativeHover = useCallback((narrativeId: string | null) => {
     if (narrativeId) {
@@ -75,7 +75,6 @@ export const NarrativesView = memo(() => {
         highlights from {slug ?? 'this'} conversation
       </h1>
       <TabSwitcher />
-      <p className={styles.sectionHeader}>NARRATIVES</p>
       <div className={styles.questionList}>
         {narratives.map(narrative => (
           <NarrativeTile

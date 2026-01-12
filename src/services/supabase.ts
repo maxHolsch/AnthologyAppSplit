@@ -611,6 +611,7 @@ export const ResponseService = {
         conversation_id,
         responds_to_question_id,
         responds_to_response_id,
+        responds_to_narrative_id,
         speaker_name,
         speaker_text,
         pull_quote,
@@ -619,6 +620,8 @@ export const ResponseService = {
         turn_number,
         chronological_turn_number,
         embedding,
+        medium,
+        synchronicity,
         recording:anthology_recordings (*),
         speaker:anthology_speakers (*),
         conversation:anthology_conversations!conversation_id (id, legacy_id)
