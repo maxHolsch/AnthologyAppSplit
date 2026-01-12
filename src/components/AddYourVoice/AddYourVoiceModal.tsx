@@ -37,12 +37,14 @@ function pickFileName(mimeType: string | null) {
 function inferConversationIdForQuestion(questionId: string, responses: Map<string, ResponseNode>, rawConversations: any) {
   for (const r of responses.values()) {
     if (r.responds_to === questionId && typeof r.conversation_id === 'string' && r.conversation_id.length > 0) {
-      return r.conversation_id;
+      // If the response object has a _db_id (added by some service transforms), use it
+      return (r as any)._db_id || r.conversation_id;
     }
   }
 
-  const conv0 = rawConversations?.[0]?.conversation_id;
-  return typeof conv0 === 'string' ? conv0 : '';
+  // Fallback to the UUID of the first conversation if available
+  const conv0 = rawConversations?.[0];
+  return conv0?._db_id || conv0?.conversation_id || '';
 }
 
 export interface AddYourVoiceModalProps {
@@ -194,8 +196,8 @@ export const AddYourVoiceModal = memo<AddYourVoiceModalProps>(({ open, onClose, 
       setError('Please enter your name.');
       return;
     }
-    if (!selectedQuestionId) {
-      setError('Please choose a question node.');
+    if (!selectedQuestionId && selectedQuestionId !== 'none') {
+      setError('Please choose a question node or select None.');
       return;
     }
     if (!transcript.trim()) {
@@ -209,20 +211,46 @@ export const AddYourVoiceModal = memo<AddYourVoiceModalProps>(({ open, onClose, 
         throw new Error('Missing uploaded recording metadata. Please transcribe again.');
       }
 
-      const conversationId = inferConversationIdForQuestion(selectedQuestionId, responseNodes, rawConversations);
+      const conversationId = selectedQuestionId && selectedQuestionId !== 'none'
+        ? inferConversationIdForQuestion(selectedQuestionId, responseNodes, rawConversations)
+        : (rawConversations?.[0] as any)?._db_id || rawConversations?.[0]?.conversation_id;
+
       if (!conversationId) {
         throw new Error('Could not infer conversation for selected question.');
+      }
+
+      // Generate embedding for the new response content
+      setStatus('Generating embedding…');
+      let embedding: number[] | undefined;
+      try {
+        const resp = await fetch('/api/embeddings/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ texts: [transcript.trim()] }),
+        });
+        if (resp.ok) {
+          const json = await resp.json();
+          if (Array.isArray(json.embeddings) && json.embeddings.length > 0) {
+            embedding = json.embeddings[0];
+          }
+        } else {
+          console.warn('[AddYourVoiceModal] Embedding generation failed:', resp.status);
+        }
+      } catch (embErr) {
+        console.warn('[AddYourVoiceModal] Embedding generation error:', embErr);
+        // Do not block submission if embedding fails, but warn the user or log it
       }
 
       setStatus('Saving response…');
       const created = await AdminService.addResponseToQuestion({
         conversationId,
-        questionId: selectedQuestionId,
+        questionId: selectedQuestionId === 'none' ? undefined : selectedQuestionId,
         respondentName: trimmedName,
         speakerText: transcript.trim(),
         recordingId: uploadedRecordingId,
         recordingDurationMs,
         wordTimestamps,
+        embedding,
       });
 
       setStatus('Refreshing graph…');
@@ -233,6 +261,10 @@ export const AddYourVoiceModal = memo<AddYourVoiceModalProps>(({ open, onClose, 
 
       close();
     } catch (e) {
+      console.error('[AddYourVoiceModal] submission failed:', e);
+      if (e && typeof e === 'object' && 'details' in e) {
+        console.error('[AddYourVoiceModal] Supabase error details:', (e as any).details);
+      }
       setError(e instanceof Error ? e.message : 'Failed to submit');
       setStatus('');
     } finally {
@@ -319,6 +351,7 @@ export const AddYourVoiceModal = memo<AddYourVoiceModalProps>(({ open, onClose, 
                   onChange={(e) => setSelectedQuestionId(e.target.value)}
                   disabled={isWorking}
                 >
+                  <option value="none">None (Freely on map)</option>
                   {questionsArray.map((q) => (
                     <option key={q.id} value={q.id}>
                       {q.question_text}

@@ -97,6 +97,7 @@ interface DbResponse {
   audio_start_ms?: number;
   audio_end_ms?: number;
   turn_number?: number;
+  chronological_turn_number?: number;
   metadata?: any;
   created_at: string;
   updated_at: string;
@@ -478,7 +479,18 @@ export const ResponseService = {
     const { data, error } = await supabase
       .from('anthology_responses')
       .select(`
-        *,
+        id,
+        legacy_id,
+        conversation_id,
+        responds_to_question_id,
+        responds_to_response_id,
+        speaker_name,
+        speaker_text,
+        pull_quote,
+        audio_start_ms,
+        audio_end_ms,
+        turn_number,
+        chronological_turn_number,
         recording:anthology_recordings (*),
         speaker:anthology_speakers (*),
         conversation:anthology_conversations!conversation_id (id, legacy_id)
@@ -490,6 +502,8 @@ export const ResponseService = {
       console.error('Error fetching responses:', error);
       return [];
     }
+
+    console.log('[ResponseService] Sample response from DB:', data[0]);
 
     return data.map((r: any) => {
       // IMPORTANT:
@@ -512,7 +526,8 @@ export const ResponseService = {
         audio_end: r.audio_end_ms,
         conversation_id: r.conversation?.legacy_id || r.conversation?.id || r.conversation_id,
         path_to_recording: r.recording?.file_path,
-        turn_number: r.turn_number
+        turn_number: r.turn_number,
+        chronological_turn_number: r.chronological_turn_number
       };
     });
   },
@@ -843,8 +858,8 @@ export const AdminService = {
     const recording = recordingId
       ? ({ id: recordingId } as DbRecording)
       : recordingFile
-      ? await RecordingService.upload(recordingFile, recordingDurationMs)
-      : null;
+        ? await RecordingService.upload(recordingFile, recordingDurationMs)
+        : null;
 
     // If we attach a recording to the response, we must also provide a valid audio range.
     // The DB enforces this via the `valid_audio_range` CHECK constraint.
@@ -912,7 +927,7 @@ export const AdminService = {
 
     return response as DbResponse;
   },
-  
+
   /**
    * Add a new response that responds to a QUESTION node.
    * Used by the global "Add your voice" flow.
@@ -971,8 +986,8 @@ export const AdminService = {
     const recording = recordingId
       ? ({ id: recordingId } as DbRecording)
       : recordingFile
-      ? await RecordingService.upload(recordingFile, recordingDurationMs)
-      : null;
+        ? await RecordingService.upload(recordingFile, recordingDurationMs)
+        : null;
 
     const hasRecording = !!recording?.id;
     if (hasRecording && (!recordingDurationMs || recordingDurationMs <= 0)) {

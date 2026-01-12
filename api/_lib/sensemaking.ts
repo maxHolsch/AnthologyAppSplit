@@ -215,8 +215,8 @@ function cleanAndMergeTurns(utterances: AssemblyUtterance[]): MergedTurn[] {
     const speaker = String(u.speaker);
     const words = Array.isArray(u.words)
       ? u.words
-          .filter((w) => typeof w.start === 'number' && typeof w.end === 'number')
-          .map((w) => ({ text: w.text, start_ms: w.start, end_ms: w.end, confidence: w.confidence }))
+        .filter((w) => typeof w.start === 'number' && typeof w.end === 'number')
+        .map((w) => ({ text: w.text, start_ms: w.start, end_ms: w.end, confidence: w.confidence }))
       : [];
 
     const last = merged[merged.length - 1];
@@ -239,6 +239,19 @@ function cleanAndMergeTurns(utterances: AssemblyUtterance[]): MergedTurn[] {
   // Ensure word order within each turn
   for (const t of merged) {
     t.words.sort((a, b) => a.start_ms - b.start_ms);
+
+    // 🔧 FIX: Use word-level timestamps as source of truth
+    // This prevents drift from merging logic or AssemblyAI utterance boundaries
+    if (t.words.length > 0) {
+      const firstWord = t.words[0];
+      const lastWord = t.words[t.words.length - 1];
+
+      // Only adjust if word timestamps are available and valid
+      if (firstWord?.start_ms != null && lastWord?.end_ms != null) {
+        t.start_ms = firstWord.start_ms;
+        t.end_ms = lastWord.end_ms;
+      }
+    }
   }
   return merged;
 }
@@ -488,9 +501,9 @@ async function filterTurnsForUpload({
     if (typeof r?.idx === 'number') byIdx.set(r.idx, r);
   }
 
-  // Conservative thresholds
-  const MIN_STANDALONE = 0.65;
-  const MIN_DIRECT = 0.7;
+  // Thresholds disabled - keep all turns regardless of scores
+  // const MIN_STANDALONE = 0.65;
+  // const MIN_DIRECT = 0.7;
 
   const out: FilteredTurn[] = [];
   for (let idx = 0; idx < assignedTurns.length; idx++) {
@@ -498,7 +511,9 @@ async function filterTurnsForUpload({
     const r = byIdx.get(idx);
     const standalone = typeof r?.standalone_score === 'number' ? r.standalone_score : 0;
     const direct = typeof r?.direct_answer_score === 'number' ? r.direct_answer_score : 0;
-    const keep = Boolean(r?.keep) && standalone >= MIN_STANDALONE && direct >= MIN_DIRECT;
+    // Keep all turns - thresholds disabled for now
+    // const keep = Boolean(r?.keep) && standalone >= MIN_STANDALONE && direct >= MIN_DIRECT;
+    const keep = true;
     if (!keep) continue;
 
     out.push({
@@ -714,6 +729,17 @@ async function upsertResponseBatch({
     // a unique constraint on (conversation_id, turn_number).
     const legacyId = `sensemaking:${conversationId}:${turnNumber}`;
 
+    // Debug: Log each turn's timestamps vs text for diagnosis
+    console.log('[sensemaking.upsert] Turn data:', {
+      turnNumber,
+      legacyId,
+      audio_start_ms: t.start_ms,
+      audio_end_ms: t.end_ms,
+      durationMs: t.end_ms - t.start_ms,
+      textPreview: t.text.slice(0, 80) + (t.text.length > 80 ? '...' : ''),
+      speaker: t.speaker_name,
+    });
+
     return {
       anthology_id: anthologyId,
       legacy_id: legacyId,
@@ -809,6 +835,71 @@ async function upsertResponseBatch({
         error: embErr instanceof Error ? embErr.message : String(embErr),
       });
     }
+  }
+}
+
+/**
+ * Set chronological_turn_number for all sensemaking responses in a conversation
+ * based on audio_start_ms temporal order.
+ * Only affects responses with metadata.source = 'sensemaking'.
+ */
+async function setChronologicalTurnNumbers({
+  supabase,
+  conversationId,
+}: {
+  supabase: any;
+  conversationId: string;
+}) {
+  // Get all sensemaking responses for this conversation, ordered by audio_start_ms
+  const { data: responses, error: fetchErr } = await supabase
+    .from('anthology_responses')
+    .select('id, audio_start_ms, metadata')
+    .eq('conversation_id', conversationId)
+    .order('audio_start_ms', { ascending: true });
+
+  if (fetchErr) {
+    console.warn('[sensemaking.chronological] Failed to fetch responses:', fetchErr);
+    return;
+  }
+
+  if (!responses || responses.length === 0) {
+    return;
+  }
+
+  // Filter to only sensemaking responses
+  const sensemakingResponses = responses.filter((r: any) => {
+    const metadata = r.metadata || {};
+    return metadata.source === 'sensemaking';
+  });
+
+  if (sensemakingResponses.length === 0) {
+    return;
+  }
+
+  // Update each response with its chronological position
+  // Use individual updates instead of upsert since upsert requires all non-null columns
+  let updateCount = 0;
+  let updateError: any = null;
+
+  for (let index = 0; index < sensemakingResponses.length; index++) {
+    const r = sensemakingResponses[index];
+    const { error } = await supabase
+      .from('anthology_responses')
+      .update({ chronological_turn_number: index + 1 })
+      .eq('id', r.id);
+
+    if (error) {
+      updateError = error;
+      console.warn('[sensemaking.chronological] Failed to update response:', r.id, error);
+    } else {
+      updateCount++;
+    }
+  }
+
+  if (updateError) {
+    console.warn('[sensemaking.chronological] Some updates failed:', updateError);
+  } else {
+    console.log(`[sensemaking.chronological] Set chronological_turn_number for ${updateCount} responses in conversation ${conversationId}`);
   }
 }
 
@@ -1115,9 +1206,8 @@ export async function tickSensemaking({ jobId, timeBudgetMs = 15000 }: { jobId: 
         progress.files![fp] = {
           ...progress.files![fp],
           step: 'transcribing',
-          message: `Transcribing (AssemblyAI: ${data.status}) — id=${f.assembly_id}${
-            typeof elapsedSec === 'number' ? ` — elapsed=${elapsedSec}s` : ''
-          }`,
+          message: `Transcribing (AssemblyAI: ${data.status}) — id=${f.assembly_id}${typeof elapsedSec === 'number' ? ` — elapsed=${elapsedSec}s` : ''
+            }`,
           updated_at: nowIso(),
         };
       }
@@ -1131,6 +1221,28 @@ export async function tickSensemaking({ jobId, timeBudgetMs = 15000 }: { jobId: 
 
         const utterances = (data as any).utterances || [];
         const mergedTurnsFull = cleanAndMergeTurns(utterances);
+
+        // 🔍 DEBUG: Verify word-level timestamps match turn timestamps
+        for (let i = 0; i < Math.min(5, mergedTurnsFull.length); i++) {
+          const turn = mergedTurnsFull[i];
+          const firstWord = turn.words[0];
+          const lastWord = turn.words[turn.words.length - 1];
+
+          log('timestamp.verification', {
+            file: fp,
+            turnIndex: i,
+            turn_start_ms: turn.start_ms,
+            turn_end_ms: turn.end_ms,
+            first_word_start_ms: firstWord?.start_ms,
+            first_word_text: firstWord?.text,
+            last_word_end_ms: lastWord?.end_ms,
+            last_word_text: lastWord?.text,
+            start_mismatch: firstWord ? turn.start_ms - firstWord.start_ms : 'no_words',
+            end_mismatch: lastWord ? turn.end_ms - lastWord.end_ms : 'no_words',
+            text_preview: turn.text.slice(0, 80),
+          });
+        }
+
         const mergedLite = toTurnLite(mergedTurnsFull);
 
         setFileStep(progress, fp, 'speaker_naming', 'Inferring speaker names');
@@ -1300,6 +1412,24 @@ export async function tickSensemaking({ jobId, timeBudgetMs = 15000 }: { jobId: 
         totalInBatch: batch.length,
       });
 
+      // 🔍 DEBUG: Verify timestamps and text alignment for filtered turns
+      for (let i = 0; i < Math.min(3, filtered.length); i++) {
+        const turn = filtered[i];
+        const firstWord = turn.text.split(/\s+/)[0];
+        log('turn_filtering.text_check', {
+          file: fp,
+          cursor,
+          batchIndex: i,
+          globalTurnNumber: cursor + i + 1,
+          audio_start_ms: turn.start_ms,
+          audio_end_ms: turn.end_ms,
+          duration_ms: turn.end_ms - turn.start_ms,
+          first_word: firstWord,
+          text_preview: turn.text.slice(0, 60),
+          speaker: turn.speaker_name,
+        });
+      }
+
       // Persist responses for this chunk (idempotent via upsert on anthology_id,legacy_id)
       const conversationId = String(f.conversation_id || '');
       const recordingId = String(f.recording_id || '');
@@ -1339,6 +1469,12 @@ export async function tickSensemaking({ jobId, timeBudgetMs = 15000 }: { jobId: 
       };
 
       if (nextCursor >= totalTurns) {
+        // Set chronological turn numbers for all sensemaking responses in this conversation
+        const conversationId = String(f.conversation_id || '');
+        if (conversationId) {
+          await setChronologicalTurnNumbers({ supabase, conversationId });
+        }
+
         setFileStep(progress, fp, 'done', 'Completed');
         log('turn_filtering.done', { file: fp, totalTurns });
       }

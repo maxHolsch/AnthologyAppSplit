@@ -378,6 +378,46 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
             }
           });
 
+          // Create chronological edges (green) between consecutive chronological_turn_number
+          // Group responses by conversation
+          const responsesByConversation = new Map<string, ResponseNode[]>();
+          let responsesWithChrono = 0;
+          data.responses.forEach(response => {
+            if (response.type === 'response' && typeof response.chronological_turn_number === 'number') {
+              responsesWithChrono++;
+              const existing = responsesByConversation.get(response.conversation_id) || [];
+              existing.push(response);
+              responsesByConversation.set(response.conversation_id, existing);
+            }
+          });
+
+          console.log(`[AnthologyStore] Found ${responsesWithChrono} responses with chronological_turn_number out of ${data.responses.length} total`);
+
+          // Sort each group by chronological_turn_number and create green edges
+          let chronoEdgesCreated = 0;
+          responsesByConversation.forEach((conversationResponses, convId) => {
+            const sorted = conversationResponses.sort((a, b) =>
+              (a.chronological_turn_number ?? 0) - (b.chronological_turn_number ?? 0)
+            );
+
+            console.log(`[AnthologyStore] Conversation ${convId}: ${sorted.length} chronological responses`);
+            // console.log(`[AnthologyStore] IDs:`, sorted.map(r => `${r.id}(${r.chronological_turn_number})`).join(', '));
+
+            for (let i = 0; i < sorted.length - 1; i++) {
+              const current = sorted[i];
+              const next = sorted[i + 1];
+              const edgeId = `chrono-${current.id}-${next.id}`;
+
+              edges.set(edgeId, {
+                source: current.id,
+                target: next.id,
+                color: '#22C55E' // Green for chronological edges
+              });
+              chronoEdgesCreated++;
+            }
+          });
+          console.log(`[AnthologyStore] Created ${chronoEdgesCreated} chronological edges`);
+
           set((state) => ({
             data: {
               ...state.data,
@@ -702,7 +742,20 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
 
       play: (nodeId: string) => {
         const node = get().data.responseNodes.get(nodeId);
-        if (!node) return;
+        if (!node) {
+          console.warn('[AnthologyStore.play] Node not found:', nodeId);
+          return;
+        }
+
+        // Debug: Log the node being played to diagnose audio sync issues
+        console.log('[AnthologyStore.play] Playing node:', {
+          nodeId,
+          audio_start: node.audio_start,
+          audio_end: node.audio_end,
+          durationMs: node.audio_end - node.audio_start,
+          textPreview: node.speaker_text?.slice(0, 80) + (node.speaker_text?.length > 80 ? '...' : ''),
+          path_to_recording: node.path_to_recording,
+        });
 
         set((state) => ({
           audio: {

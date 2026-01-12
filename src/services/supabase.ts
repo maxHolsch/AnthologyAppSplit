@@ -609,7 +609,19 @@ export const ResponseService = {
     const { data, error } = await supabase
       .from('anthology_responses')
       .select(`
-        *,
+        id,
+        legacy_id,
+        conversation_id,
+        responds_to_question_id,
+        responds_to_response_id,
+        speaker_name,
+        speaker_text,
+        pull_quote,
+        audio_start_ms,
+        audio_end_ms,
+        turn_number,
+        chronological_turn_number,
+        embedding,
         recording:anthology_recordings (*),
         speaker:anthology_speakers (*),
         conversation:anthology_conversations!conversation_id (id, legacy_id)
@@ -621,6 +633,8 @@ export const ResponseService = {
       console.error('Error fetching responses:', error);
       return [];
     }
+
+    console.log('[ResponseService] Sample response from DB:', data[0]);
 
     return data.map((r: any) => {
       // IMPORTANT:
@@ -647,6 +661,7 @@ export const ResponseService = {
         conversation_id: r.conversation?.legacy_id || r.conversation?.id || r.conversation_id,
         path_to_recording: r.recording?.file_path,
         turn_number: r.turn_number,
+        chronological_turn_number: r.chronological_turn_number,
         embedding: embedding || undefined, // Include embedding if available
       };
     });
@@ -1001,6 +1016,7 @@ export const AdminService = {
     recordingId,
     recordingDurationMs,
     wordTimestamps,
+    embedding,
   }: {
     conversationId: string; // legacy id or db uuid
     parentResponseId: string; // legacy id or db uuid
@@ -1010,6 +1026,7 @@ export const AdminService = {
     recordingId?: string;
     recordingDurationMs?: number;
     wordTimestamps?: WordTimestamp[];
+    embedding?: number[];
   }) {
     // Resolve conversation DB id (UUID)
     const conversationDbId = await (async () => {
@@ -1075,6 +1092,9 @@ export const AdminService = {
 
     const nextTurn = (last?.turn_number ?? 0) + 1;
 
+    // Format embedding if present
+    const embeddingStr = embedding && embedding.length > 0 ? `[${embedding.join(',')}]` : undefined;
+
     const { data: response, error } = await supabase
       .from('anthology_responses')
       .insert({
@@ -1088,6 +1108,9 @@ export const AdminService = {
         audio_start_ms: hasRecording ? 0 : null,
         audio_end_ms: hasRecording ? recordingDurationMs! : null,
         turn_number: nextTurn,
+        medium: hasRecording ? 'audio' : 'text',
+        synchronicity: 'asynchronous',
+        embedding: embeddingStr,
       })
       .select('*')
       .single();
@@ -1136,22 +1159,24 @@ export const AdminService = {
    */
   async addResponseToQuestion({
     conversationId,
-    questionId,
+    questionId, // optional
     respondentName,
     speakerText,
     recordingFile,
     recordingId,
     recordingDurationMs,
     wordTimestamps,
+    embedding,
   }: {
     conversationId: string; // legacy id or db uuid
-    questionId: string; // legacy id or db uuid
+    questionId?: string; // legacy id or db uuid
     respondentName: string;
     speakerText: string;
     recordingFile?: File;
     recordingId?: string;
     recordingDurationMs?: number;
     wordTimestamps?: WordTimestamp[];
+    embedding?: number[];
   }) {
     // Resolve conversation DB id (UUID)
     const conversationDbId = await (async () => {
@@ -1171,6 +1196,7 @@ export const AdminService = {
 
     // Resolve question DB id (UUID)
     const questionDbId = await (async () => {
+      if (!questionId) return null;
       const { data, error } = await supabase
         .from('anthology_questions')
         .select('id')
@@ -1214,6 +1240,18 @@ export const AdminService = {
 
     const nextTurn = (last?.turn_number ?? 0) + 1;
 
+    console.log('[AdminService.addResponseToQuestion] Inserting response:', {
+      anthologyId,
+      conversationDbId,
+      questionDbId,
+      respondentName,
+      nextTurn,
+      hasRecording
+    });
+
+    // Format embedding if present
+    const embeddingStr = embedding && embedding.length > 0 ? `[${embedding.join(',')}]` : undefined;
+
     const { data: response, error } = await supabase
       .from('anthology_responses')
       .insert({
@@ -1227,6 +1265,9 @@ export const AdminService = {
         audio_start_ms: hasRecording ? 0 : null,
         audio_end_ms: hasRecording ? recordingDurationMs! : null,
         turn_number: nextTurn,
+        medium: hasRecording ? 'audio' : 'text',
+        synchronicity: 'asynchronous', // User-contributed responses are always async
+        embedding: embeddingStr,
       })
       .select('*')
       .single();

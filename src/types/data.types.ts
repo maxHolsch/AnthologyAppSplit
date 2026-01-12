@@ -54,7 +54,7 @@ export interface QuestionNode {
 export interface ResponseNode {
   type: 'response';
   id: string;
-  responds_to: string; // Question node ID or parent response ID
+  responds_to?: string; // Question node ID or parent response ID
   speaker_name: string;
   speaker_text: string;
   pull_quote?: string; // If present, node displays as rectangle
@@ -65,9 +65,15 @@ export interface ResponseNode {
   path_to_recording?: string;
   /** Optional ordering metadata (used by DB-backed datasets). */
   turn_number?: number;
+  /** Optional: Chronological order for sensemaking responses only (NULL for user-added). Based on audio_start_ms. */
+  chronological_turn_number?: number;
   word_timestamps?: WordTimestamp[]; // For word-level highlighting
   /** Optional: OpenAI text embedding for semantic positioning (1536-dim vector) */
   embedding?: number[];
+  /** Optional: Type of response medium - "audio" or "text" */
+  medium?: 'audio' | 'text';
+  /** Optional: Synchronicity of the response - "sync" or "asynchronous" */
+  synchronicity?: 'sync' | 'asynchronous';
 }
 
 export interface PromptNode {

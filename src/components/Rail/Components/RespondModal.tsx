@@ -128,6 +128,24 @@ export const RespondModal = memo<RespondModalProps>(({ open, targetResponse, onC
             }))
           : [];
 
+        // Generate embedding
+        let embedding: number[] | undefined;
+        try {
+          const resp = await fetch('/api/embeddings/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ texts: [speakerText] }),
+          });
+          if (resp.ok) {
+            const json = await resp.json();
+            if (Array.isArray(json.embeddings) && json.embeddings.length > 0) {
+              embedding = json.embeddings[0];
+            }
+          }
+        } catch (embErr) {
+          console.warn('[RespondModal] Embedding generation error:', embErr);
+        }
+
         // 3) Insert response (responds-to-response)
         const created = await AdminService.addResponseToResponse({
           conversationId,
@@ -137,6 +155,7 @@ export const RespondModal = memo<RespondModalProps>(({ open, targetResponse, onC
           recordingId: uploaded.id,
           recordingDurationMs: durationMs,
           wordTimestamps,
+          embedding,
         });
 
         // 4) Reload graph + select the newly-created response
@@ -154,11 +173,30 @@ export const RespondModal = memo<RespondModalProps>(({ open, targetResponse, onC
         throw new Error('Please write a response.');
       }
 
+      // Generate embedding
+      let embedding: number[] | undefined;
+      try {
+        const resp = await fetch('/api/embeddings/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ texts: [text] }),
+        });
+        if (resp.ok) {
+          const json = await resp.json();
+          if (Array.isArray(json.embeddings) && json.embeddings.length > 0) {
+            embedding = json.embeddings[0];
+          }
+        }
+      } catch (embErr) {
+        console.warn('[RespondModal] Embedding generation error:', embErr);
+      }
+
       const created = await AdminService.addResponseToResponse({
         conversationId,
         parentResponseId,
         respondentName: trimmedName,
         speakerText: text,
+        embedding,
       });
 
       const graph = await GraphDataService.loadAll({ anthologySlug });

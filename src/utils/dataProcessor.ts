@@ -230,15 +230,17 @@ export const createGraphNodes = (
           ...(fixPositions ? { fx: x, fy: y } : {})
         });
       } else {
-        // No parent question found - use origin (will be fixed there if enabled)
+        // No parent question found - use origin with small random jitter
+        const x = (Math.random() - 0.5) * 50;
+        const y = (Math.random() - 0.5) * 50;
         nodes.push({
           id: response.id,
           type: 'response',
           data: response,
           color,
-          x: 0,
-          y: 0,
-          ...(fixPositions ? { fx: 0, fy: 0 } : {})
+          x,
+          y,
+          ...(fixPositions ? { fx: x, fy: y } : {})
         });
       }
     });
