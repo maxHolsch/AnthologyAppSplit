@@ -11,21 +11,9 @@ import { MedleyPlayer } from '@components/Audio/MedleyPlayer';
 import { KaraokeDisplay } from './KaraokeDisplay';
 import styles from './QuestionView.module.css'; // Reuse QuestionView styles
 
-// Narrative names mapping (should match AnthologyStore)
-const NARRATIVE_NAMES: Record<string, string> = {
-  'N1': 'The Silicon Valley Illusion',
-  'N2': 'Reclaiming Human Agency',
-  'N3': 'The Myth of AI Objectivity',
-  'N4': 'Progress at What Cost',
-  'N5': 'The Humanity Behind the Job',
-  'N6': 'Tech Culture as Masculine Risk-Taking',
-  'N7': 'AI Creating New Problems',
-  'N8': 'The Erosion of Human Capability',
-  'N9': 'Demystifying the Black Box',
-};
-
 export const NarrativeView = memo(() => {
   const activeNarrative = useAnthologyStore(state => state.view.activeNarrative);
+  const narrativeNodes = useAnthologyStore(state => state.data.narrativeNodes);
   const getResponsesForNarrative = useAnthologyStore(state => state.getResponsesForNarrative);
   const selectResponse = useAnthologyStore(state => state.selectResponse);
   const hoverNode = useAnthologyStore(state => state.hoverNode);
@@ -44,7 +32,12 @@ export const NarrativeView = memo(() => {
     return responses.map(r => r.id);
   }, [responses]);
 
-  const narrativeName = activeNarrative ? NARRATIVE_NAMES[activeNarrative] || activeNarrative : '';
+  // Get narrative name from the narrative node
+  const narrativeName = useMemo(() => {
+    if (!activeNarrative) return '';
+    const narrative = narrativeNodes.get(activeNarrative);
+    return narrative?.narrative_text || activeNarrative;
+  }, [activeNarrative, narrativeNodes]);
 
   const handleBackClick = useCallback(() => {
     // Zoom out to full map view before changing rail mode

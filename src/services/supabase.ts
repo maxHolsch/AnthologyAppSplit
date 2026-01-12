@@ -573,10 +573,7 @@ export const NarrativeService = {
   async getByConversation(conversationId: string): Promise<NarrativeNode[]> {
     const { data, error } = await supabase
       .from('anthology_narratives')
-      .select(`
-        *,
-        recording:anthology_recordings (*)
-      `)
+      .select('*')
       .eq('conversation_id', conversationId)
       .order('created_at');
 
@@ -591,7 +588,7 @@ export const NarrativeService = {
       _db_id: n.id,
       narrative_text: n.narrative_text,
       related_responses: [], // Will be populated if needed
-      path_to_recording: n.recording?.file_path,
+      path_to_recording: undefined, // Narratives don't have recordings
       notes: n.notes
     }));
   }
@@ -648,6 +645,9 @@ export const ResponseService = {
         path_to_recording: r.recording?.file_path,
         turn_number: r.turn_number,
         embedding: embedding || undefined, // Include embedding if available
+        medium: r.medium,  // 'audio' or 'text'
+        synchronicity: r.synchronicity,  // 'sync' or 'asynchronous'
+        responds_to_narrative_id: r.responds_to_narrative_id,  // Narrative ID for narrative view
       };
     });
   },
@@ -1088,6 +1088,8 @@ export const AdminService = {
         audio_start_ms: hasRecording ? 0 : null,
         audio_end_ms: hasRecording ? recordingDurationMs! : null,
         turn_number: nextTurn,
+        medium: hasRecording ? 'audio' : 'text',  // Determine based on recording presence
+        synchronicity: 'asynchronous',  // User-added responses are asynchronous
       })
       .select('*')
       .single();
@@ -1227,6 +1229,8 @@ export const AdminService = {
         audio_start_ms: hasRecording ? 0 : null,
         audio_end_ms: hasRecording ? recordingDurationMs! : null,
         turn_number: nextTurn,
+        medium: hasRecording ? 'audio' : 'text',  // Determine based on recording presence
+        synchronicity: 'asynchronous',  // User-added responses are asynchronous
       })
       .select('*')
       .single();

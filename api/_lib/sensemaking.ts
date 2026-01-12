@@ -194,7 +194,7 @@ type MergedTurn = {
   words: Array<{ text: string; start_ms: number; end_ms: number; confidence?: number }>;
 };
 
-type AssignedTurn = MergedTurn & { speaker_name: string; question_index: number };
+type AssignedTurn = MergedTurn & { speaker_name: string; question_index: number; narrative_index: number };
 
 type FilteredTurn = AssignedTurn & {
   standalone_score?: number;
@@ -512,6 +512,81 @@ async function filterTurnsForUpload({
   return out;
 }
 
+/**
+ * Calculate cosine similarity between two embedding vectors
+ */
+function cosineSimilarity(vecA: number[], vecB: number[]): number {
+  if (vecA.length !== vecB.length) {
+    throw new Error('Vectors must have the same length');
+  }
+
+  let dotProduct = 0;
+  let normA = 0;
+  let normB = 0;
+
+  for (let i = 0; i < vecA.length; i++) {
+    dotProduct += vecA[i] * vecB[i];
+    normA += vecA[i] * vecA[i];
+    normB += vecB[i] * vecB[i];
+  }
+
+  const denominator = Math.sqrt(normA) * Math.sqrt(normB);
+  if (denominator === 0) return 0;
+
+  return dotProduct / denominator;
+}
+
+/**
+ * Assign narratives to turns using embedding similarity
+ * Returns an array of narrative indices (one per turn)
+ *
+ * @param turnEmbeddings - Embeddings for each turn text
+ * @param narrativeEmbeddings - Embeddings for each narrative (including "Misc" as last)
+ * @param similarityThreshold - Minimum similarity to assign (default 0.4)
+ * @returns Array of narrative indices matching turns
+ */
+async function assignNarrativesToTurnsBatch({
+  turnEmbeddings,
+  narrativeEmbeddings,
+  similarityThreshold = 0.4,
+}: {
+  turnEmbeddings: number[][];
+  narrativeEmbeddings: number[][];
+  similarityThreshold?: number;
+}): Promise<number[]> {
+  if (turnEmbeddings.length === 0) return [];
+  if (narrativeEmbeddings.length === 0) {
+    throw new Error('No narrative embeddings provided');
+  }
+
+  const miscIndex = narrativeEmbeddings.length - 1; // "Misc" is always last
+  const narrativeIndices: number[] = [];
+
+  for (const turnEmbedding of turnEmbeddings) {
+    let bestSimilarity = -1;
+    let bestNarrativeIdx = miscIndex; // Default to "Misc"
+
+    // Compare turn embedding to all narrative embeddings (except "Misc")
+    for (let narrativeIdx = 0; narrativeIdx < narrativeEmbeddings.length - 1; narrativeIdx++) {
+      const similarity = cosineSimilarity(turnEmbedding, narrativeEmbeddings[narrativeIdx]);
+
+      if (similarity > bestSimilarity) {
+        bestSimilarity = similarity;
+        bestNarrativeIdx = narrativeIdx;
+      }
+    }
+
+    // If best similarity is below threshold, assign to "Misc"
+    if (bestSimilarity < similarityThreshold) {
+      bestNarrativeIdx = miscIndex;
+    }
+
+    narrativeIndices.push(bestNarrativeIdx);
+  }
+
+  return narrativeIndices;
+}
+
 async function ensureConversationSkeleton({
   supabase,
   anthologyId,
@@ -523,6 +598,7 @@ async function ensureConversationSkeleton({
   templateNarratives,
   speakerNames,
   paletteIndex,
+  openaiKey,
 }: {
   supabase: any;
   anthologyId: string;
@@ -534,6 +610,7 @@ async function ensureConversationSkeleton({
   templateNarratives: string[];
   speakerNames: string[];
   paletteIndex: number;
+  openaiKey?: string;
 }): Promise<{ conversationId: string; recordingId: string; questionDbIds: string[]; narrativeDbIds: string[]; speakerDbIds: Record<string, string> }> {
   const fileName = path.basename(objectPath);
 
@@ -675,6 +752,86 @@ async function ensureConversationSkeleton({
     count: narrativeDbIds.length,
   });
 
+  // Always create a "Misc" narrative for low-confidence matches
+  console.log('[sensemaking.skeleton] Creating "Misc" narrative for low-confidence matches');
+  const { data: miscRow, error: miscErr } = await supabase
+    .from('anthology_narratives')
+    .insert({
+      anthology_id: anthologyId,
+      conversation_id: conversation.id,
+      narrative_text: 'Misc',
+    })
+    .select('id')
+    .single();
+
+  if (miscErr) {
+    console.error('[sensemaking.skeleton] Misc narrative insertion failed:', {
+      error: miscErr,
+      message: miscErr.message,
+      details: miscErr.details,
+    });
+    throw miscErr;
+  }
+
+  console.log('[sensemaking.skeleton] Misc narrative created:', { miscId: miscRow.id });
+  narrativeDbIds.push(miscRow.id);
+
+  console.log('[sensemaking.skeleton] All narratives including Misc:', {
+    narrativeDbIds,
+    totalCount: narrativeDbIds.length,
+  });
+
+  // Generate embeddings for all narratives (including "Misc")
+  if (openaiKey && narrativeDbIds.length > 0) {
+    try {
+      const allNarrativeTexts = [...templateNarratives, 'Misc'];
+
+      console.log('[sensemaking.skeleton.embeddings] Generating embeddings for narratives:', {
+        count: allNarrativeTexts.length,
+        narratives: allNarrativeTexts,
+      });
+
+      const narrativeEmbeddings = await generateEmbeddings({
+        apiKey: openaiKey,
+        texts: allNarrativeTexts,
+      });
+
+      console.log('[sensemaking.skeleton.embeddings] Embeddings generated:', {
+        embeddingCount: narrativeEmbeddings.length,
+      });
+
+      // Update each narrative with its embedding
+      for (let idx = 0; idx < narrativeDbIds.length; idx++) {
+        const narrativeId = narrativeDbIds[idx];
+        const embedding = narrativeEmbeddings[idx];
+
+        if (embedding && embedding.length > 0) {
+          // Format embedding as a PostgreSQL vector string
+          const vectorStr = `[${embedding.join(',')}]`;
+
+          const { error: updateErr } = await supabase
+            .from('anthology_narratives')
+            .update({ embedding: vectorStr })
+            .eq('id', narrativeId);
+
+          if (updateErr) {
+            console.warn('[sensemaking.skeleton.embeddings] Failed to update narrative embedding:', {
+              narrativeId,
+              error: updateErr.message,
+            });
+          }
+        }
+      }
+
+      console.log('[sensemaking.skeleton.embeddings] All narrative embeddings stored');
+    } catch (embErr) {
+      // Log but don't fail if embeddings fail
+      console.warn('[sensemaking.skeleton.embeddings] Error generating narrative embeddings:', {
+        error: embErr instanceof Error ? embErr.message : String(embErr),
+      });
+    }
+  }
+
   return { conversationId: conversation.id, recordingId: recording.id, questionDbIds, narrativeDbIds, speakerDbIds };
 }
 
@@ -684,6 +841,7 @@ async function upsertResponseBatch({
   conversationId,
   recordingId,
   questionDbIds,
+  narrativeDbIds,
   speakerDbIds,
   turns,
   turnNumberOffset,
@@ -694,6 +852,7 @@ async function upsertResponseBatch({
   conversationId: string;
   recordingId: string;
   questionDbIds: string[];
+  narrativeDbIds: string[];
   speakerDbIds: Record<string, string>;
   turns: FilteredTurn[];
   turnNumberOffset: number;
@@ -709,6 +868,7 @@ async function upsertResponseBatch({
   const rows = turns.map((t, idx) => {
     const turnNumber = turnNumberOffset + idx + 1;
     const questionId = questionDbIds[t.question_index] || questionDbIds[0];
+    const narrativeId = narrativeDbIds[t.narrative_index] || narrativeDbIds[narrativeDbIds.length - 1]; // Default to "Misc" (last)
     const speakerId = speakerDbIds[t.speaker_name] || null;
     // Use a deterministic legacy_id so retries are idempotent without requiring
     // a unique constraint on (conversation_id, turn_number).
@@ -719,6 +879,7 @@ async function upsertResponseBatch({
       legacy_id: legacyId,
       conversation_id: conversationId,
       responds_to_question_id: questionId,
+      responds_to_narrative_id: narrativeId,
       speaker_id: speakerId,
       speaker_name: t.speaker_name,
       speaker_text: t.text,
@@ -726,6 +887,8 @@ async function upsertResponseBatch({
       audio_start_ms: t.start_ms,
       audio_end_ms: t.end_ms,
       turn_number: turnNumber,
+      medium: 'audio',  // Sensemaking responses are always from audio
+      synchronicity: 'sync',  // Sensemaking responses are synchronous (batch uploaded)
       metadata: {
         source: 'sensemaking',
         speaker_label: t.speaker_label,
@@ -1164,6 +1327,7 @@ export async function tickSensemaking({ jobId, timeBudgetMs = 15000 }: { jobId: 
           templateNarratives,
           speakerNames,
           paletteIndex: filePaths.indexOf(fp) >= 0 ? filePaths.indexOf(fp) : 0,
+          openaiKey,
         });
         log('skeleton.create.done', {
           file: fp,
@@ -1271,6 +1435,76 @@ export async function tickSensemaking({ jobId, timeBudgetMs = 15000 }: { jobId: 
         uniqueQuestionCount: Array.from(new Set(questionIdxs)).length,
       });
 
+      // Assign narratives to turns using embeddings
+      const narrativeDbIds = Array.isArray(f.narrative_db_ids) ? (f.narrative_db_ids as string[]) : [];
+      let narrativeIdxs: number[] = [];
+
+      if (openaiKey && narrativeDbIds.length > 0) {
+        try {
+          // Fetch narrative embeddings from database
+          const { data: narrativeRows, error: narrativeErr } = await supabase
+            .from('anthology_narratives')
+            .select('id, embedding')
+            .in('id', narrativeDbIds)
+            .order('id'); // Order by ID to match narrativeDbIds order
+
+          if (narrativeErr) {
+            console.warn('[turn_filtering.narratives] Error fetching narrative embeddings:', narrativeErr.message);
+          } else if (narrativeRows && narrativeRows.length > 0) {
+            // Parse narrative embeddings
+            const narrativeEmbeddings: number[][] = narrativeDbIds.map((dbId) => {
+              const row = narrativeRows.find((r: any) => r.id === dbId);
+              if (!row?.embedding) return [];
+
+              // Parse PostgreSQL vector string to number array
+              const vectorStr = row.embedding as string;
+              if (typeof vectorStr === 'string' && vectorStr.startsWith('[') && vectorStr.endsWith(']')) {
+                return vectorStr
+                  .slice(1, -1)
+                  .split(',')
+                  .map((s) => parseFloat(s));
+              }
+              return [];
+            });
+
+            // Generate embeddings for turn texts
+            const turnTexts = batch.map((t) => t.text);
+            const turnEmbeddings = await generateEmbeddings({
+              apiKey: openaiKey,
+              texts: turnTexts,
+            });
+
+            log('turn_filtering.chunk.narrative_assignment', {
+              file: fp,
+              cursor,
+              turnCount: turnEmbeddings.length,
+              narrativeCount: narrativeEmbeddings.length,
+            });
+
+            // Assign narratives based on embedding similarity
+            narrativeIdxs = await assignNarrativesToTurnsBatch({
+              turnEmbeddings,
+              narrativeEmbeddings,
+              similarityThreshold: 0.4,
+            });
+
+            log('turn_filtering.chunk.narratives_assigned', {
+              file: fp,
+              cursor,
+              uniqueNarrativeCount: Array.from(new Set(narrativeIdxs)).length,
+            });
+          }
+        } catch (narrativeErr) {
+          console.warn('[turn_filtering.narratives] Error during narrative assignment:', narrativeErr instanceof Error ? narrativeErr.message : String(narrativeErr));
+        }
+      }
+
+      // Default to "Misc" (last narrative) if assignment failed
+      if (narrativeIdxs.length === 0) {
+        const miscIndex = Math.max(0, narrativeDbIds.length - 1);
+        narrativeIdxs = batch.map(() => miscIndex);
+      }
+
       const speakerMap = (f.speaker_map || {}) as Record<string, { name: string; confidence: number }>;
       const assignedBatch: AssignedTurn[] = batch.map((t, i) => {
         const speaker_name = speakerMap[t.speaker_label]?.name || `Speaker ${t.speaker_label}`;
@@ -1282,6 +1516,7 @@ export async function tickSensemaking({ jobId, timeBudgetMs = 15000 }: { jobId: 
           words: [],
           speaker_name,
           question_index: questionIdxs[i] ?? 0,
+          narrative_index: narrativeIdxs[i] ?? (narrativeDbIds.length - 1), // Default to "Misc"
         };
       });
 
@@ -1314,6 +1549,7 @@ export async function tickSensemaking({ jobId, timeBudgetMs = 15000 }: { jobId: 
           conversationId,
           recordingId,
           questionDbIds,
+          narrativeDbIds,
           speakerDbIds,
           turns: filtered,
           turnNumberOffset: cursor,

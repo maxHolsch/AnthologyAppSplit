@@ -30,8 +30,7 @@ export function NarrativeLabelNode({ node, onClick, onMouseEnter, onMouseLeave }
   const responseNodes = useAnthologyStore(state => state.data.responseNodes);
   const edges = useAnthologyStore(state => state.data.edges);
   const hoveredNodes = useAnthologyStore(state => state.selection.hoveredNodes);
-  const setActiveNarrative = useAnthologyStore(state => state.setActiveNarrative);
-  const setRailMode = useAnthologyStore(state => state.setRailMode);
+  const selectNarrative = useAnthologyStore(state => state.selectNarrative);
   const hoverNodes = useAnthologyStore(state => state.hoverNodes);
 
   // Get position with fallback
@@ -39,8 +38,8 @@ export function NarrativeLabelNode({ node, onClick, onMouseEnter, onMouseLeave }
   const y = node.y ?? 0;
 
   // Get narrative data
-  const narrativeData = node.data.type === 'narrative_label' ? node.data : null;
-  if (!narrativeData) return null;
+  if (node.type !== 'narrative_label') return null;
+  const narrativeData = node.data as any;
 
   const narrativeName = narrativeData.narrative_name;
   const narrativeColor = narrativeData.narrative_color;
@@ -55,29 +54,28 @@ export function NarrativeLabelNode({ node, onClick, onMouseEnter, onMouseLeave }
   const inverseScale = 1 / mapTransform.k;
 
   // Pill dimensions
-  const padding = 12;
-  const fontSize = 14;
+  const paddingHorizontal = 12; // Consistent horizontal padding
+  const fontSize = 12;
   const height = 32;
 
-  // Estimate width based on text length (rough approximation)
-  const charWidth = 8.5; // Average character width at 14px
+  // Calculate width based on monospace character width (DM Mono)
+  const charWidth = 7.2; // Exact character width at 12px for DM Mono
   const textWidth = narrativeName.length * charWidth;
-  const width = textWidth + padding * 2;
+  const width = textWidth + paddingHorizontal * 2;
 
   // Click handler: Open narrative view in side panel
   const handleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    setActiveNarrative(narrativeId);
-    setRailMode('narrative');
-  }, [narrativeId, setActiveNarrative, setRailMode]);
+    console.log('[NarrativeLabelNode.handleClick] Calling selectNarrative with:', narrativeId);
+    selectNarrative(narrativeId);
+  }, [narrativeId, selectNarrative]);
 
   // Hover handler: Highlight all responses and questions in this narrative
   const handleMouseEnter = useCallback((e: React.MouseEvent) => {
     // Find all responses in this narrative
     const narrativeResponseIds: string[] = [];
     responseNodes.forEach((response, responseId) => {
-      const narrativeIds = response.metadata?.narrative_ids || [];
-      if (narrativeIds.includes(narrativeId)) {
+      if (response.responds_to_narrative_id === narrativeId) {
         narrativeResponseIds.push(responseId);
       }
     });
@@ -134,15 +132,9 @@ export function NarrativeLabelNode({ node, onClick, onMouseEnter, onMouseLeave }
           width={width}
           height={height}
           rx={height / 2}
-          fill={narrativeColor}
-          fillOpacity={0.9}
-          stroke="#FFFFFF"
-          strokeWidth={2}
-          strokeOpacity={0.5}
+          fill="#CCE6FF"
+          fillOpacity={1.0}
           pointerEvents="all"
-          style={{
-            filter: 'drop-shadow(0px 2px 4px rgba(0, 0, 0, 0.2))',
-          }}
         />
 
         {/* Label text */}
@@ -150,9 +142,9 @@ export function NarrativeLabelNode({ node, onClick, onMouseEnter, onMouseLeave }
           textAnchor="middle"
           dominantBaseline="middle"
           fontSize={fontSize}
-          fontFamily="Hedvig Letters Sans, sans-serif"
-          fontWeight={600}
-          fill="#FFFFFF"
+          fontFamily="DM Mono, monospace"
+          fontWeight={400}
+          fill="#00519E"
           pointerEvents="none"
           style={{
             userSelect: 'none',

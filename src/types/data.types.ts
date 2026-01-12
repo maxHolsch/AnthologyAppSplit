@@ -39,7 +39,7 @@ export interface Conversation {
 
 // ================== Node Types ==================
 
-export type NodeType = 'question' | 'response' | 'prompt' | 'narrative';
+export type NodeType = 'question' | 'response' | 'prompt' | 'narrative' | 'narrative_label';
 
 export interface QuestionNode {
   type: 'question';
@@ -55,6 +55,7 @@ export interface ResponseNode {
   type: 'response';
   id: string;
   responds_to: string; // Question node ID or parent response ID
+  responds_to_narrative_id?: string; // UUID - narrative node ID if responding to narrative
   speaker_name: string;
   speaker_text: string;
   pull_quote?: string; // If present, node displays as rectangle
@@ -68,6 +69,10 @@ export interface ResponseNode {
   word_timestamps?: WordTimestamp[]; // For word-level highlighting
   /** Optional: OpenAI text embedding for semantic positioning (1536-dim vector) */
   embedding?: number[];
+  /** Response medium: 'audio' or 'text'. Used for visual differentiation. */
+  medium?: 'audio' | 'text';
+  /** Response synchronicity: 'sync' (from batch upload) or 'asynchronous' (user-added). Used for visual differentiation. */
+  synchronicity?: 'sync' | 'asynchronous';
 }
 
 export interface PromptNode {
@@ -91,7 +96,17 @@ export interface NarrativeNode {
   path_to_recording?: string;
 }
 
-export type AnthologyNode = QuestionNode | ResponseNode | PromptNode | NarrativeNode;
+export interface NarrativeLabelNode {
+  type: 'narrative_label';
+  id: string; // e.g., "narrative_label_N1"
+  narrative_id: string; // e.g., "N1"
+  narrative_name: string; // e.g., "The Silicon Valley Illusion"
+  narrative_color: string; // Assigned from palette
+  centroid_x: number; // Calculated position
+  centroid_y: number; // Calculated position
+}
+
+export type AnthologyNode = QuestionNode | ResponseNode | PromptNode | NarrativeNode | NarrativeLabelNode;
 
 // ================== Audio Types ==================
 
@@ -217,20 +232,23 @@ export interface SpeakerColorAssignment {
 export interface SelectionState {
   selectedNodes: Set<string>; // Node IDs
   hoveredNode: string | null;
+  hoveredNodes: Set<string>; // For multi-node hover (e.g., hovering narrative highlights all responses)
   focusedNode: string | null;
-  selectionMode: 'single' | 'multi' | 'question';
+  selectionMode: 'single' | 'multi' | 'question' | 'narrative';
   selectionHistory: string[][]; // For undo/redo
 }
 
 // ================== View State Types ==================
 
-export type RailViewMode = 'conversations' | 'question' | 'single';
+export type RailViewMode = 'conversations' | 'question' | 'single' | 'narratives' | 'narrative';
 
 export interface ViewState {
   railExpanded: boolean;
   railWidth: number;
   railMode: RailViewMode;
+  previousRailMode: RailViewMode | null; // Track where we navigated from for back button
   activeQuestion: string | null;
+  activeNarrative: string | null;
   activeResponse: string | null;
   mapTransform: MapTransform;
   zoomLevel: number;

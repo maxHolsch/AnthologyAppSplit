@@ -4,7 +4,6 @@
  */
 
 import { memo } from 'react';
-import DotIcon from '../../../assets/dot.svg';
 import styles from './QuestionTile.module.css'; // Reuse same styles
 
 interface NarrativeTileProps {
@@ -53,11 +52,18 @@ export const NarrativeTile = memo<NarrativeTileProps>(({
       role="button"
       tabIndex={0}
       aria-label={`View narrative: ${narrativeName}`}
-      style={{ borderLeft: `4px solid ${narrativeColor}` }}
     >
       <p className={styles.questionText}>{narrativeName}</p>
       <div className={styles.responseCount}>
-        <img src={DotIcon} alt="" className={styles.dotIcon} />
+        <svg
+          width="8"
+          height="8"
+          viewBox="0 0 8 8"
+          fill="none"
+          className={styles.dotIcon}
+        >
+          <circle cx="4" cy="4" r="4" fill={narrativeColor} fillOpacity={1.0} />
+        </svg>
         <span>{responseCount} {responseCount === 1 ? 'EXCERPT' : 'EXCERPTS'}</span>
       </div>
     </div>

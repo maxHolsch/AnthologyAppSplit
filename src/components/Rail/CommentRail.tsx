@@ -7,6 +7,8 @@ import { memo } from 'react';
 import { useAnthologyStore } from '@stores';
 import { ConversationsView } from './Views/ConversationsView';
 import { QuestionView } from './Views/QuestionView';
+import { NarrativesView } from './Views/NarrativesView';
+import { NarrativeView } from './Views/NarrativeView';
 import { SingleView } from './Views/SingleView';
 import { ResizeHandle } from './ResizeHandle';
 import styles from './CommentRail.module.css';
@@ -33,6 +35,10 @@ export const CommentRail = memo<CommentRailProps>(({ anthologySlug }) => {
         return <ConversationsView />;
       case 'question':
         return <QuestionView />;
+      case 'narratives':
+        return <NarrativesView />;
+      case 'narrative':
+        return <NarrativeView />;
       case 'single':
         return <SingleView anthologySlug={anthologySlug} />;
       default:

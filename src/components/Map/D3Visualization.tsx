@@ -3,6 +3,7 @@ import * as d3 from 'd3';
 import { useAnthologyStore, useVisualizationStore, useInteractionStore } from '@stores';
 import { useD3Drag } from '@hooks';
 import { QuestionNode } from './QuestionNode';
+import { NarrativeLabelNode } from './NarrativeLabelNode';
 import { ResponseNode } from './ResponseNode';
 import { PullQuoteNode } from './PullQuoteNode';
 import { EdgePath } from './EdgePath';
@@ -17,6 +18,7 @@ export function D3Visualization() {
   const nodesMap = useAnthologyStore(state => state.data.nodes);
   const edgesMap = useAnthologyStore(state => state.data.edges);
   const selectQuestion = useAnthologyStore(state => state.selectQuestion);
+  const selectNarrative = useAnthologyStore(state => state.selectNarrative);
   const selectResponse = useAnthologyStore(state => state.selectResponse);
   const hoverNode = useAnthologyStore(state => state.hoverNode);
   const selectedNodes = useAnthologyStore(state => state.selection.selectedNodes);
@@ -93,10 +95,14 @@ export function D3Visualization() {
     }
   }, [needsUpdate, setNeedsUpdate]);
 
-  // Handle node click - differentiate between question and response nodes
+  // Handle node click - differentiate between question, narrative_label, and response nodes
   const handleNodeClick = useCallback((node: GraphNode) => {
-    if (node.type === 'question' || node.type === 'narrative') {
+    if (node.type === 'question') {
       selectQuestion(node.id);
+    } else if (node.type === 'narrative_label') {
+      // Extract narrative ID from label node
+      const narrativeId = (node.data as any).narrative_id;
+      selectNarrative(narrativeId);
     } else if (node.type === 'response') {
       selectResponse(node.id);
     }
@@ -104,7 +110,7 @@ export function D3Visualization() {
     // Center on node in future phase (zoom integration)
     // const { centerOnNode } = useD3Zoom(...);
     // centerOnNode(node.x ?? 0, node.y ?? 0, 1.5);
-  }, [selectQuestion, selectResponse]);
+  }, [selectQuestion, selectNarrative, selectResponse]);
 
   // Handle node hover with mouse position tracking
   const handleNodeMouseEnter = useCallback((node: GraphNode, event: React.MouseEvent) => {
@@ -135,7 +141,10 @@ export function D3Visualization() {
 
   // Separate nodes by type (with position validation)
   const anchorNodes = nodes.filter((n: GraphNode) =>
-    (n.type === 'question' || n.type === 'narrative') && hasValidPosition(n)
+    n.type === 'question' && hasValidPosition(n)
+  );
+  const narrativeLabelNodes = nodes.filter((n: GraphNode) =>
+    n.type === 'narrative_label' && hasValidPosition(n)
   );
   const responseNodesWithPullQuote = nodes.filter((n: GraphNode) =>
     n.type === 'response' && (n.data as any).pull_quote && hasValidPosition(n)
@@ -214,9 +223,20 @@ export function D3Visualization() {
           />
         ))}
 
-        {/* Question/Narrative nodes - render last (foreground/on top) */}
+        {/* Question/Narrative nodes - render second to last */}
         {anchorNodes.map((node: GraphNode) => (
           <QuestionNode
+            key={node.id}
+            node={node}
+            onClick={handleNodeClick}
+            onMouseEnter={handleNodeMouseEnter}
+            onMouseLeave={handleNodeMouseLeave}
+          />
+        ))}
+
+        {/* Narrative label nodes - render LAST (top layer for wayfinding) */}
+        {narrativeLabelNodes.map((node: GraphNode) => (
+          <NarrativeLabelNode
             key={node.id}
             node={node}
             onClick={handleNodeClick}
