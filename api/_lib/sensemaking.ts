@@ -574,26 +574,57 @@ async function assignNarrativesToTurnsBatch({
     throw new Error('No narrative embeddings provided');
   }
 
+  // Validate embeddings
+  const validNarrativeEmbeddings = narrativeEmbeddings.filter(emb => emb.length > 0);
+  if (validNarrativeEmbeddings.length === 0) {
+    console.error('[assignNarrativesToTurnsBatch] No valid narrative embeddings!');
+    const miscIndex = narrativeEmbeddings.length - 1;
+    return turnEmbeddings.map(() => miscIndex);
+  }
+
   const miscIndex = narrativeEmbeddings.length - 1; // "Misc" is always last
   const narrativeIndices: number[] = [];
 
-  for (const turnEmbedding of turnEmbeddings) {
+  for (let turnIdx = 0; turnIdx < turnEmbeddings.length; turnIdx++) {
+    const turnEmbedding = turnEmbeddings[turnIdx];
+
+    // Skip empty turn embeddings
+    if (!turnEmbedding || turnEmbedding.length === 0) {
+      console.warn(`[assignNarrativesToTurnsBatch] Empty embedding for turn ${turnIdx}, defaulting to Misc`);
+      narrativeIndices.push(miscIndex);
+      continue;
+    }
+
     let bestSimilarity = -1;
     let bestNarrativeIdx = miscIndex; // Default to "Misc"
 
     // Compare turn embedding to all narrative embeddings (except "Misc")
     for (let narrativeIdx = 0; narrativeIdx < narrativeEmbeddings.length - 1; narrativeIdx++) {
-      const similarity = cosineSimilarity(turnEmbedding, narrativeEmbeddings[narrativeIdx]);
+      const narrativeEmbedding = narrativeEmbeddings[narrativeIdx];
 
-      if (similarity > bestSimilarity) {
-        bestSimilarity = similarity;
-        bestNarrativeIdx = narrativeIdx;
+      // Skip empty narrative embeddings
+      if (!narrativeEmbedding || narrativeEmbedding.length === 0) {
+        continue;
+      }
+
+      try {
+        const similarity = cosineSimilarity(turnEmbedding, narrativeEmbedding);
+
+        if (similarity > bestSimilarity) {
+          bestSimilarity = similarity;
+          bestNarrativeIdx = narrativeIdx;
+        }
+      } catch (err) {
+        console.error(`[assignNarrativesToTurnsBatch] Error computing similarity for turn ${turnIdx} and narrative ${narrativeIdx}:`, err);
       }
     }
 
     // If best similarity is below threshold, assign to "Misc"
     if (bestSimilarity < similarityThreshold) {
+      console.log(`[assignNarrativesToTurnsBatch] Turn ${turnIdx}: best similarity ${bestSimilarity.toFixed(3)} below threshold ${similarityThreshold}, assigning to Misc`);
       bestNarrativeIdx = miscIndex;
+    } else {
+      console.log(`[assignNarrativesToTurnsBatch] Turn ${turnIdx}: best similarity ${bestSimilarity.toFixed(3)} with narrative ${bestNarrativeIdx}`);
     }
 
     narrativeIndices.push(bestNarrativeIdx);
@@ -813,9 +844,11 @@ async function ensureConversationSkeleton({
 
       console.log('[sensemaking.skeleton.embeddings] Embeddings generated:', {
         embeddingCount: narrativeEmbeddings.length,
+        sampleLength: narrativeEmbeddings[0]?.length || 0,
       });
 
       // Update each narrative with its embedding
+      let successCount = 0;
       for (let idx = 0; idx < narrativeDbIds.length; idx++) {
         const narrativeId = narrativeDbIds[idx];
         const embedding = narrativeEmbeddings[idx];
@@ -824,21 +857,34 @@ async function ensureConversationSkeleton({
           // Format embedding as a PostgreSQL vector string
           const vectorStr = `[${embedding.join(',')}]`;
 
+          console.log(`[sensemaking.skeleton.embeddings] Saving embedding for narrative ${idx} (${allNarrativeTexts[idx]}): length=${embedding.length}`);
+
           const { error: updateErr } = await supabase
             .from('anthology_narratives')
             .update({ embedding: vectorStr })
             .eq('id', narrativeId);
 
           if (updateErr) {
-            console.warn('[sensemaking.skeleton.embeddings] Failed to update narrative embedding:', {
+            console.error('[sensemaking.skeleton.embeddings] Failed to update narrative embedding:', {
               narrativeId,
+              narrativeText: allNarrativeTexts[idx],
+              index: idx,
               error: updateErr.message,
             });
+          } else {
+            successCount++;
+            console.log(`[sensemaking.skeleton.embeddings] Successfully saved embedding for narrative ${idx}`);
           }
+        } else {
+          console.error(`[sensemaking.skeleton.embeddings] Empty embedding for narrative ${idx} (${allNarrativeTexts[idx]})`);
         }
       }
 
-      console.log('[sensemaking.skeleton.embeddings] All narrative embeddings stored');
+      console.log('[sensemaking.skeleton.embeddings] Narrative embedding summary:', {
+        total: narrativeDbIds.length,
+        successful: successCount,
+        failed: narrativeDbIds.length - successCount,
+      });
     } catch (embErr) {
       // Log but don't fail if embeddings fail
       console.warn('[sensemaking.skeleton.embeddings] Error generating narrative embeddings:', {
@@ -1547,49 +1593,94 @@ export async function tickSensemaking({ jobId, timeBudgetMs = 15000 }: { jobId: 
             .order('id'); // Order by ID to match narrativeDbIds order
 
           if (narrativeErr) {
-            console.warn('[turn_filtering.narratives] Error fetching narrative embeddings:', narrativeErr.message);
+            console.error('[turn_filtering.narratives] Error fetching narrative embeddings:', narrativeErr.message);
           } else if (narrativeRows && narrativeRows.length > 0) {
+            console.log('[turn_filtering.narratives] Fetched narrative rows:', {
+              count: narrativeRows.length,
+              expectedCount: narrativeDbIds.length,
+              rowIds: narrativeRows.map((r: any) => r.id),
+              expectedIds: narrativeDbIds,
+            });
+
             // Parse narrative embeddings
-            const narrativeEmbeddings: number[][] = narrativeDbIds.map((dbId) => {
+            const narrativeEmbeddings: number[][] = narrativeDbIds.map((dbId, idx) => {
               const row = narrativeRows.find((r: any) => r.id === dbId);
-              if (!row?.embedding) return [];
+              if (!row) {
+                console.error(`[turn_filtering.narratives] Missing row for narrative ${dbId} (index ${idx})`);
+                return [];
+              }
+              if (!row.embedding) {
+                console.error(`[turn_filtering.narratives] Missing embedding for narrative ${dbId} (index ${idx})`);
+                return [];
+              }
 
               // Parse PostgreSQL vector string to number array
               const vectorStr = row.embedding as string;
               if (typeof vectorStr === 'string' && vectorStr.startsWith('[') && vectorStr.endsWith(']')) {
-                return vectorStr
+                const parsed = vectorStr
                   .slice(1, -1)
                   .split(',')
                   .map((s) => parseFloat(s));
+                console.log(`[turn_filtering.narratives] Parsed embedding for narrative ${idx}: length=${parsed.length}`);
+                return parsed;
               }
+              console.error(`[turn_filtering.narratives] Failed to parse embedding for narrative ${dbId} (index ${idx})`);
               return [];
             });
 
-            // Generate embeddings for turn texts
-            const turnTexts = batch.map((t) => t.text);
-            const turnEmbeddings = await generateEmbeddings({
-              apiKey: openaiKey,
-              texts: turnTexts,
+            // Check if all embeddings are valid
+            const validEmbeddings = narrativeEmbeddings.filter(emb => emb.length > 0);
+            console.log('[turn_filtering.narratives] Valid embeddings:', {
+              total: narrativeEmbeddings.length,
+              valid: validEmbeddings.length,
+              invalid: narrativeEmbeddings.length - validEmbeddings.length,
             });
 
-            log('turn_filtering.chunk.narrative_assignment', {
-              file: fp,
-              cursor,
-              turnCount: turnEmbeddings.length,
-              narrativeCount: narrativeEmbeddings.length,
-            });
+            if (validEmbeddings.length === 0) {
+              console.error('[turn_filtering.narratives] No valid narrative embeddings found! Skipping narrative assignment.');
+            } else {
+              // Generate embeddings for turn texts
+              const turnTexts = batch.map((t) => t.text);
+              const turnEmbeddings = await generateEmbeddings({
+                apiKey: openaiKey,
+                texts: turnTexts,
+              });
 
-            // Assign narratives based on embedding similarity
-            narrativeIdxs = await assignNarrativesToTurnsBatch({
-              turnEmbeddings,
-              narrativeEmbeddings,
-              similarityThreshold: 0.4,
-            });
+              console.log('[turn_filtering.narratives] Turn embeddings generated:', {
+                count: turnEmbeddings.length,
+                sampleLength: turnEmbeddings[0]?.length || 0,
+              });
 
-            log('turn_filtering.chunk.narratives_assigned', {
-              file: fp,
-              cursor,
-              uniqueNarrativeCount: Array.from(new Set(narrativeIdxs)).length,
+              log('turn_filtering.chunk.narrative_assignment', {
+                file: fp,
+                cursor,
+                turnCount: turnEmbeddings.length,
+                narrativeCount: narrativeEmbeddings.length,
+                validNarrativeCount: validEmbeddings.length,
+              });
+
+              // Assign narratives based on embedding similarity
+              narrativeIdxs = await assignNarrativesToTurnsBatch({
+                turnEmbeddings,
+                narrativeEmbeddings,
+                similarityThreshold: 0.4,
+              });
+
+              log('turn_filtering.chunk.narratives_assigned', {
+                file: fp,
+                cursor,
+                assignedCount: narrativeIdxs.length,
+                uniqueNarrativeCount: Array.from(new Set(narrativeIdxs)).length,
+                distribution: narrativeIdxs.reduce((acc, idx) => {
+                  acc[idx] = (acc[idx] || 0) + 1;
+                  return acc;
+                }, {} as Record<number, number>),
+              });
+            }
+          } else {
+            console.error('[turn_filtering.narratives] No narrative rows fetched from database!', {
+              narrativeDbIds,
+              narrativeDbIdsCount: narrativeDbIds.length,
             });
           }
         } catch (narrativeErr) {
@@ -1637,6 +1728,7 @@ export async function tickSensemaking({ jobId, timeBudgetMs = 15000 }: { jobId: 
       const conversationId = String(f.conversation_id || '');
       const recordingId = String(f.recording_id || '');
       const questionDbIds = Array.isArray(f.question_db_ids) ? (f.question_db_ids as string[]) : [];
+      // narrativeDbIds already declared above (line 1583)
       const speakerDbIds = (f.speaker_db_ids || {}) as Record<string, string>;
 
       if (conversationId && recordingId && questionDbIds.length > 0) {

@@ -38,7 +38,6 @@ export const ConversationsView = memo(() => {
         highlights from {slug ?? 'this'} conversation
       </h1>
       <TabSwitcher />
-      <p className={styles.sectionHeader}>QUESTIONS</p>
       <div className={styles.questionList}>
         {questions.map(question => (
           <QuestionTile
