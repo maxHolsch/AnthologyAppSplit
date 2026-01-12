@@ -29,18 +29,25 @@ export function D3Visualization() {
   const allEdges = useMemo(() => Array.from(edgesMap.values()), [edgesMap]);
 
   // Filter edges based on map view mode
+  // response-response edges (async replies) are visible in BOTH views
   const edges = useMemo(() => {
     const chronoCount = allEdges.filter(e => e.edgeType === 'chronological').length;
     const qrCount = allEdges.filter(e => e.edgeType === 'question-response').length;
+    const rrCount = allEdges.filter(e => e.edgeType === 'response-response').length;
     const noTypeCount = allEdges.filter(e => !e.edgeType).length;
-    console.log(`[D3Visualization] Edge counts - chrono: ${chronoCount}, q-r: ${qrCount}, no-type: ${noTypeCount}, mode: ${mapViewMode}`);
+    console.log(`[D3Visualization] Edge counts - chrono: ${chronoCount}, q-r: ${qrCount}, r-r: ${rrCount}, no-type: ${noTypeCount}, mode: ${mapViewMode}`);
 
     return allEdges.filter(edge => {
+      // Response-to-response edges (async replies) are always visible
+      if (edge.edgeType === 'response-response') {
+        return true;
+      }
+
       if (mapViewMode === 'narrative') {
-        // Narrative view: only show chronological (green) edges
+        // Narrative view: show chronological (green) edges
         return edge.edgeType === 'chronological';
       } else {
-        // Question view: only show question-response edges
+        // Question view: show question-response edges
         return edge.edgeType === 'question-response';
       }
     });

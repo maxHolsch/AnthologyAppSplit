@@ -355,7 +355,6 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
 
               if (missingCount > 0) {
                 console.warn(`[AnthologyStore] ${missingCount} embeddings are missing.`);
-                get().addNotification('warning', 'warning, some embeddings are missing');
               }
             } catch (error) {
               console.warn('[AnthologyStore] Failed to calculate semantic positions:', error);
@@ -466,21 +465,27 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
                 ? response.responds_to
                 : [response.responds_to];
 
-              respondsToArray.forEach(questionId => {
-                const resolvedTargetId = nodes.has(questionId)
-                  ? questionId
-                  : (idAliases.get(questionId) || questionId);
+              respondsToArray.forEach(targetId => {
+                const resolvedTargetId = nodes.has(targetId)
+                  ? targetId
+                  : (idAliases.get(targetId) || targetId);
 
                 if (!nodes.has(resolvedTargetId)) {
                   // If we still can't resolve the target, skip creating an edge.
                   // This prevents invisible edges filtered out later by VisualizationStore.
                   console.warn('Skipping edge: target node not found', {
                     sourceId: response.id,
-                    targetId: questionId,
+                    targetId: targetId,
                     resolvedTargetId,
                   });
                   return;
                 }
+
+                // Determine edge type based on target node type
+                // - question-response: response -> question
+                // - response-response: async response -> another response (visible in both views)
+                const targetNode = nodes.get(resolvedTargetId);
+                const edgeType = targetNode?.type === 'response' ? 'response-response' : 'question-response';
 
                 // Direction: new response -> the node it responds to
                 // (so the arrow head lands on the parent node)
@@ -489,7 +494,7 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
                   source: response.id,
                   target: resolvedTargetId,
                   color,
-                  edgeType: 'question-response'
+                  edgeType
                 });
               });
             }
