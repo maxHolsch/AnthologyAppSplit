@@ -1016,7 +1016,6 @@ export const AdminService = {
     recordingId,
     recordingDurationMs,
     wordTimestamps,
-    embedding,
   }: {
     conversationId: string; // legacy id or db uuid
     parentResponseId: string; // legacy id or db uuid
@@ -1026,7 +1025,6 @@ export const AdminService = {
     recordingId?: string;
     recordingDurationMs?: number;
     wordTimestamps?: WordTimestamp[];
-    embedding?: number[];
   }) {
     // Resolve conversation DB id (UUID)
     const conversationDbId = await (async () => {
@@ -1092,9 +1090,6 @@ export const AdminService = {
 
     const nextTurn = (last?.turn_number ?? 0) + 1;
 
-    // Format embedding if present
-    const embeddingStr = embedding && embedding.length > 0 ? `[${embedding.join(',')}]` : undefined;
-
     const { data: response, error } = await supabase
       .from('anthology_responses')
       .insert({
@@ -1109,8 +1104,7 @@ export const AdminService = {
         audio_end_ms: hasRecording ? recordingDurationMs! : null,
         turn_number: nextTurn,
         medium: hasRecording ? 'audio' : 'text',
-        synchronicity: 'asynchronous',
-        embedding: embeddingStr,
+        synchronicity: 'asynchronous'
       })
       .select('*')
       .single();
@@ -1166,7 +1160,6 @@ export const AdminService = {
     recordingId,
     recordingDurationMs,
     wordTimestamps,
-    embedding,
   }: {
     conversationId: string; // legacy id or db uuid
     questionId?: string; // legacy id or db uuid
@@ -1176,7 +1169,6 @@ export const AdminService = {
     recordingId?: string;
     recordingDurationMs?: number;
     wordTimestamps?: WordTimestamp[];
-    embedding?: number[];
   }) {
     // Resolve conversation DB id (UUID)
     const conversationDbId = await (async () => {
@@ -1249,9 +1241,6 @@ export const AdminService = {
       hasRecording
     });
 
-    // Format embedding if present
-    const embeddingStr = embedding && embedding.length > 0 ? `[${embedding.join(',')}]` : undefined;
-
     const { data: response, error } = await supabase
       .from('anthology_responses')
       .insert({
@@ -1266,8 +1255,7 @@ export const AdminService = {
         audio_end_ms: hasRecording ? recordingDurationMs! : null,
         turn_number: nextTurn,
         medium: hasRecording ? 'audio' : 'text',
-        synchronicity: 'asynchronous', // User-contributed responses are always async
-        embedding: embeddingStr,
+        synchronicity: 'asynchronous' // User-contributed responses are always async
       })
       .select('*')
       .single();

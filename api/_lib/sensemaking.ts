@@ -729,16 +729,10 @@ async function upsertResponseBatch({
     // a unique constraint on (conversation_id, turn_number).
     const legacyId = `sensemaking:${conversationId}:${turnNumber}`;
 
-    // Debug: Log each turn's timestamps vs text for diagnosis
-    console.log('[sensemaking.upsert] Turn data:', {
-      turnNumber,
-      legacyId,
-      audio_start_ms: t.start_ms,
-      audio_end_ms: t.end_ms,
-      durationMs: t.end_ms - t.start_ms,
-      textPreview: t.text.slice(0, 80) + (t.text.length > 80 ? '...' : ''),
-      speaker: t.speaker_name,
-    });
+    // Only log first and last turn in batch
+    if (idx === 0 || idx === turns.length - 1) {
+      console.log(`[upsert] Turn ${turnNumber}: ${t.start_ms}ms-${t.end_ms}ms (${Math.round((t.end_ms - t.start_ms) / 1000)}s) "${t.text.slice(0, 40)}..."`);
+    }
 
     return {
       anthology_id: anthologyId,
@@ -1222,26 +1216,18 @@ export async function tickSensemaking({ jobId, timeBudgetMs = 15000 }: { jobId: 
         const utterances = (data as any).utterances || [];
         const mergedTurnsFull = cleanAndMergeTurns(utterances);
 
-        // 🔍 DEBUG: Verify word-level timestamps match turn timestamps
-        for (let i = 0; i < Math.min(5, mergedTurnsFull.length); i++) {
+        // 🔍 TIMESTAMP VERIFICATION (first 3 turns)
+        console.log('🔍 ========== TIMESTAMP VERIFICATION START ==========');
+        for (let i = 0; i < Math.min(3, mergedTurnsFull.length); i++) {
           const turn = mergedTurnsFull[i];
           const firstWord = turn.words[0];
           const lastWord = turn.words[turn.words.length - 1];
+          const startDrift = firstWord ? turn.start_ms - firstWord.start_ms : null;
+          const endDrift = lastWord ? turn.end_ms - lastWord.end_ms : null;
 
-          log('timestamp.verification', {
-            file: fp,
-            turnIndex: i,
-            turn_start_ms: turn.start_ms,
-            turn_end_ms: turn.end_ms,
-            first_word_start_ms: firstWord?.start_ms,
-            first_word_text: firstWord?.text,
-            last_word_end_ms: lastWord?.end_ms,
-            last_word_text: lastWord?.text,
-            start_mismatch: firstWord ? turn.start_ms - firstWord.start_ms : 'no_words',
-            end_mismatch: lastWord ? turn.end_ms - lastWord.end_ms : 'no_words',
-            text_preview: turn.text.slice(0, 80),
-          });
+          console.log(`Turn ${i + 1}: ${startDrift === 0 ? '✅' : '⚠️'} start_drift=${startDrift}ms, end_drift=${endDrift}ms | "${turn.text.slice(0, 40)}..."`);
         }
+        console.log('🔍 ========== TIMESTAMP VERIFICATION END ==========');
 
         const mergedLite = toTurnLite(mergedTurnsFull);
 
@@ -1411,24 +1397,6 @@ export async function tickSensemaking({ jobId, timeBudgetMs = 15000 }: { jobId: 
         kept: filtered.length,
         totalInBatch: batch.length,
       });
-
-      // 🔍 DEBUG: Verify timestamps and text alignment for filtered turns
-      for (let i = 0; i < Math.min(3, filtered.length); i++) {
-        const turn = filtered[i];
-        const firstWord = turn.text.split(/\s+/)[0];
-        log('turn_filtering.text_check', {
-          file: fp,
-          cursor,
-          batchIndex: i,
-          globalTurnNumber: cursor + i + 1,
-          audio_start_ms: turn.start_ms,
-          audio_end_ms: turn.end_ms,
-          duration_ms: turn.end_ms - turn.start_ms,
-          first_word: firstWord,
-          text_preview: turn.text.slice(0, 60),
-          speaker: turn.speaker_name,
-        });
-      }
 
       // Persist responses for this chunk (idempotent via upsert on anthology_id,legacy_id)
       const conversationId = String(f.conversation_id || '');

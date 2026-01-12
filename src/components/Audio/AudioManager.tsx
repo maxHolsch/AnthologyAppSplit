@@ -110,13 +110,31 @@ export const AudioManager: React.FC = () => {
       await waitForEvent('loadedmetadata');
     };
 
-    const seekToMs = async (targetMs: number) => {
+    const seekToMs = async (targetMs: number, forceSeek = false) => {
       const targetSeconds = targetMs / 1000;
-      // If we're already near the target, don't seek.
-      if (Math.abs(audioElement.currentTime - targetSeconds) < 0.05) return;
+      const currentSeconds = audioElement.currentTime;
+      const diff = Math.abs(currentSeconds - targetSeconds);
+
+      console.log('🔧 [seekToMs] Called:', {
+        targetMs,
+        targetSeconds,
+        currentSeconds,
+        diff,
+        forceSeek,
+        willSkip: !forceSeek && diff < 0.05
+      });
+
+      // If we're already near the target, don't seek (unless forced)
+      if (!forceSeek && diff < 0.05) {
+        console.log('🔧 [seekToMs] ❌ SKIPPED - already close enough');
+        return;
+      }
+
+      console.log('🔧 [seekToMs] ✅ ACTUALLY SEEKING...');
       const seeked = waitForEvent('seeked');
       audioElement.currentTime = targetSeconds;
       await seeked;
+      console.log('🔧 [seekToMs] ✅ SEEK COMPLETE');
     };
 
     // Monitor playback and auto-stop at segment end
@@ -150,10 +168,20 @@ export const AudioManager: React.FC = () => {
     // Handle playback state
     if (playbackState === 'playing') {
       const startPlayback = async () => {
+        console.log('🎵 [AudioManager] Starting playback:', {
+          responseId: currentTrack,
+          audio_start_ms: audio_start,
+          audio_end_ms: audio_end,
+          audio_start_readable: `${Math.floor(audio_start / 60000)}:${String(Math.floor((audio_start % 60000) / 1000)).padStart(2, '0')}`,
+          audioFilePath,
+          textPreview: currentNode.speaker_text.slice(0, 50)
+        });
+
         // Load audio if needed
         // NOTE: `audioElement.src` becomes an absolute URL; `audioFilePath` may be relative or absolute.
         // We still compare directly; if mismatch, we set src (safe).
         if (audioElement.src !== audioFilePath) {
+          console.log('🎵 [AudioManager] Loading new audio file:', audioFilePath);
           audioElement.src = audioFilePath;
         }
 
@@ -162,11 +190,16 @@ export const AudioManager: React.FC = () => {
         await ensureMetadataLoaded();
         if (cancelled) return;
 
-        // Seek into the segment if needed
+        // ALWAYS seek to the start position when beginning playback
+        // Don't rely on currentTime being set by other effects - actually perform the seek
         const currentTimeMs = audioElement.currentTime * 1000;
-        if (currentTimeMs < audio_start || currentTimeMs >= audio_end) {
-          await seekToMs(audio_start);
-        }
+        console.log('🎵 [AudioManager] ⚡ SEEKING TO START (forced):', {
+          from_ms: currentTimeMs,
+          to_ms: audio_start,
+          from_readable: `${Math.floor(currentTimeMs / 60000)}:${String(Math.floor((currentTimeMs % 60000) / 1000)).padStart(2, '0')}`,
+          to_readable: `${Math.floor(audio_start / 60000)}:${String(Math.floor((audio_start % 60000) / 1000)).padStart(2, '0')}`
+        });
+        await seekToMs(audio_start, true); // Force seek even if currentTime appears correct
         if (cancelled) return;
 
         // Start playback
@@ -193,9 +226,14 @@ export const AudioManager: React.FC = () => {
   }, [currentTrack, playbackState, responseNodes, conversations, updateCurrentTime, pause]);
 
   // Handle seek operations (store.currentTime is ms relative to the segment start)
+  // ONLY during active playback - don't interfere with initial playback setup
   useEffect(() => {
     const audioElement = audioRef.current;
     if (!audioElement || !currentTrack) return;
+
+    // Skip this effect if we're not actually playing yet - let the playback effect handle initial seek
+    if (playbackState !== 'playing') return;
+    if (audioElement.paused) return;
 
     const currentNode = responseNodes.get(currentTrack);
     if (!currentNode) return;
@@ -204,11 +242,20 @@ export const AudioManager: React.FC = () => {
     const absoluteTimeMs = audio_start + storeCurrentTime;
     const currentAudioTimeMs = audioElement.currentTime * 1000;
 
+    console.log('🔄 [Seek Effect] Checking sync:', {
+      storeCurrentTime,
+      absoluteTimeMs,
+      currentAudioTimeMs,
+      diff: Math.abs(currentAudioTimeMs - absoluteTimeMs),
+      willSync: Math.abs(currentAudioTimeMs - absoluteTimeMs) > 150
+    });
+
     // Only update if significantly different (avoid feedback loop)
     if (Math.abs(currentAudioTimeMs - absoluteTimeMs) > 150) {
+      console.log('🔄 [Seek Effect] ⚠️ OUT OF SYNC - correcting position');
       audioElement.currentTime = absoluteTimeMs / 1000;
     }
-  }, [currentTrack, storeCurrentTime, responseNodes]);
+  }, [currentTrack, storeCurrentTime, responseNodes, playbackState]);
 
   // Component renders nothing - audio element is managed internally
   return null;

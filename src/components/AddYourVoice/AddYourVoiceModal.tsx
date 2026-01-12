@@ -219,28 +219,6 @@ export const AddYourVoiceModal = memo<AddYourVoiceModalProps>(({ open, onClose, 
         throw new Error('Could not infer conversation for selected question.');
       }
 
-      // Generate embedding for the new response content
-      setStatus('Generating embedding…');
-      let embedding: number[] | undefined;
-      try {
-        const resp = await fetch('/api/embeddings/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ texts: [transcript.trim()] }),
-        });
-        if (resp.ok) {
-          const json = await resp.json();
-          if (Array.isArray(json.embeddings) && json.embeddings.length > 0) {
-            embedding = json.embeddings[0];
-          }
-        } else {
-          console.warn('[AddYourVoiceModal] Embedding generation failed:', resp.status);
-        }
-      } catch (embErr) {
-        console.warn('[AddYourVoiceModal] Embedding generation error:', embErr);
-        // Do not block submission if embedding fails, but warn the user or log it
-      }
-
       setStatus('Saving response…');
       const created = await AdminService.addResponseToQuestion({
         conversationId,
@@ -250,7 +228,6 @@ export const AddYourVoiceModal = memo<AddYourVoiceModalProps>(({ open, onClose, 
         recordingId: uploadedRecordingId,
         recordingDurationMs,
         wordTimestamps,
-        embedding,
       });
 
       setStatus('Refreshing graph…');
