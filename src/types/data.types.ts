@@ -140,7 +140,7 @@ export interface GraphNode {
   color?: string; // Inherited from conversation
 }
 
-export type EdgeType = 'question-response' | 'chronological';
+export type EdgeType = 'question-response' | 'chronological' | 'response-response';
 
 export interface GraphEdge {
   source: string | GraphNode;
