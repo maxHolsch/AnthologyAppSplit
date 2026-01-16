@@ -119,9 +119,12 @@ export const assignColors = (
  */
 export const assignSpeakerColors = (
   conversations: Conversation[],
-  scheme: keyof typeof COLOR_SCHEMES = 'default'
+  schemeOrPalette: keyof typeof COLOR_SCHEMES | string[] = 'default'
 ): Map<string, SpeakerColorAssignment> => {
-  const palette = COLOR_SCHEMES[scheme];
+  // Allow passing either a scheme name or a custom palette array
+  const palette = Array.isArray(schemeOrPalette)
+    ? schemeOrPalette
+    : COLOR_SCHEMES[schemeOrPalette];
   const assignments = new Map<string, SpeakerColorAssignment>();
 
   conversations.forEach((conv) => {
@@ -143,6 +146,32 @@ export const assignSpeakerColors = (
   });
 
   return assignments;
+};
+
+/**
+ * Speaker color scheme type
+ */
+export interface SpeakerColorScheme {
+  circle_color: string;
+  faded_circle_color: string;
+  quote_rectangle_color: string;
+  faded_quote_rectangle_color: string;
+  quote_text_color: string;
+  faded_quote_text_color: string;
+}
+
+/**
+ * Builds a complete speaker color scheme from a base color
+ */
+export const buildSpeakerColorScheme = (base: string): SpeakerColorScheme => {
+  return {
+    circle_color: base,
+    faded_circle_color: hexToRgba(base, 0.35),
+    quote_rectangle_color: hexToRgba(base, 0.15),
+    faded_quote_rectangle_color: hexToRgba(base, 0.08),
+    quote_text_color: darkenColor(base, 0.4),
+    faded_quote_text_color: darkenColor(base, 0.4),
+  };
 };
 
 /**

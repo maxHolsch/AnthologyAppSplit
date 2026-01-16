@@ -27,6 +27,7 @@ import type {
 import { useVisualizationStore } from './VisualizationStore';
 import { calculateSemanticPositions } from '@utils/semanticLayout';
 import { createLogger } from '@utils';
+import { assignSpeakerColors } from '@/utils/colorAssignment';
 
 // Create namespaced logger for this store
 const logger = createLogger('AnthologyStore');
@@ -62,32 +63,8 @@ const assignConversationColors = (conversations: Conversation[]): Map<string, Co
   return assignments;
 };
 
-// Helper function to assign colors to speakers within conversations
-const assignSpeakerColorsFromConversations = (
-  conversations: Conversation[]
-): Map<string, SpeakerColorAssignment> => {
-  const assignments = new Map<string, SpeakerColorAssignment>();
-
-  conversations.forEach((conv) => {
-    const speakerColors = conv.metadata.speaker_colors || {};
-    const participants = conv.metadata.participants || [];
-
-    participants.forEach((speaker, index) => {
-      // Use color from metadata if available, otherwise assign from palette
-      const color = speakerColors[speaker] || DEFAULT_COLORS[index % DEFAULT_COLORS.length];
-      const key = `${conv.conversation_id}:${speaker}`;
-
-      assignments.set(key, {
-        speaker_name: speaker,
-        conversation_id: conv.conversation_id,
-        color,
-        index
-      });
-    });
-  });
-
-  return assignments;
-};
+// Note: Speaker color assignment now uses the canonical function from utils/colorAssignment
+// with the DEFAULT_COLORS palette to maintain existing color scheme
 
 // Helper function to assign colors to narratives
 const assignNarrativeColors = (narrativeIds: string[]): Map<string, string> => {
@@ -295,7 +272,7 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
 
           // Assign colors to conversations and speakers
           const colorAssignments = assignConversationColors(data.conversations);
-          const speakerColorAssignments = assignSpeakerColorsFromConversations(data.conversations);
+          const speakerColorAssignments = assignSpeakerColors(data.conversations, DEFAULT_COLORS);
 
           // Assign colors to narratives
           const narrativeIds = Array.from(narrativeMap.keys());

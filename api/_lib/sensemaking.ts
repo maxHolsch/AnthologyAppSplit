@@ -8,7 +8,7 @@ import {
   type AssemblyTranscript,
   type AssemblyUtterance,
 } from './assemblyai';
-import { hexToRgba, darkenColor } from './colorUtils';
+import { buildSpeakerColorScheme } from './colorUtils';
 
 // LangGraph note: we orchestrate the pipeline with a time-sliced job runner in tickSensemaking()
 // (kept intentionally minimal for Vercel function timeouts).
@@ -716,7 +716,7 @@ async function ensureConversationSkeleton({
   const speakerDbIds: Record<string, string> = {};
   for (const [idx, name] of speakerNames.entries()) {
     const base = SPEAKER_PALETTE[idx % SPEAKER_PALETTE.length];
-    const colors = speakerColors(base);
+    const colors = buildSpeakerColorScheme(base);
     const { data: s, error: sErr } = await supabase
       .from('anthology_speakers')
       .insert({
@@ -1123,17 +1123,6 @@ const SPEAKER_PALETTE = [
   '#4ECDC4',
   '#95E1D3',
 ];
-
-function speakerColors(base: string) {
-  return {
-    circle_color: base,
-    faded_circle_color: hexToRgba(base, 0.35),
-    quote_rectangle_color: hexToRgba(base, 0.15),
-    faded_quote_rectangle_color: hexToRgba(base, 0.08),
-    quote_text_color: darkenColor(base, 0.4),
-    faded_quote_text_color: darkenColor(base, 0.4),
-  };
-}
 
 // --------------------------------------------
 // Public API: start/status/tick

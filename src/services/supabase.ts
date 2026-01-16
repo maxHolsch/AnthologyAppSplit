@@ -14,7 +14,7 @@ import type {
   WordTimestamp
 } from '@/types/data.types';
 
-import { DEFAULT_PALETTE, hexToRgba, darkenColor } from '@/utils/colorAssignment';
+import { DEFAULT_PALETTE, buildSpeakerColorScheme } from '@/utils/colorAssignment';
 import { parseVectorString } from '@/utils/semanticLayout';
 
 // ============================================
@@ -121,17 +121,6 @@ const CONVERSATIONS_BUCKET = import.meta.env.VITE_SUPABASE_CONVERSATIONS_BUCKET 
 // ============================================
 
 const pickSpeakerBaseColor = (index: number) => DEFAULT_PALETTE[index % DEFAULT_PALETTE.length];
-
-const buildSpeakerColors = (base: string) => {
-  return {
-    circle_color: base,
-    faded_circle_color: hexToRgba(base, 0.35),
-    quote_rectangle_color: hexToRgba(base, 0.15),
-    faded_quote_rectangle_color: hexToRgba(base, 0.08),
-    quote_text_color: darkenColor(base, 0.4),
-    faded_quote_text_color: darkenColor(base, 0.4),
-  };
-};
 
 // ============================================
 // DATABASE TYPES
@@ -337,7 +326,7 @@ export const SpeakerService = {
 
     const index = (allSpeakers?.length ?? 0);
     const base = pickSpeakerBaseColor(index);
-    const colors = buildSpeakerColors(base);
+    const colors = buildSpeakerColorScheme(base);
 
     const { data: created, error: createErr } = await supabase
       .from('anthology_speakers')

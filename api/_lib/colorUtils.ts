@@ -4,6 +4,18 @@
  */
 
 /**
+ * Speaker color scheme type
+ */
+export interface SpeakerColorScheme {
+  circle_color: string;
+  faded_circle_color: string;
+  quote_rectangle_color: string;
+  faded_quote_rectangle_color: string;
+  quote_text_color: string;
+  faded_quote_text_color: string;
+}
+
+/**
  * Converts hex color to rgba
  */
 export function hexToRgba(hex: string, alpha: number): string {
@@ -28,4 +40,18 @@ export function darkenColor(hex: string, percent: number): string {
   g = Math.round(g * (1 - percent));
   b = Math.round(b * (1 - percent));
   return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+}
+
+/**
+ * Builds a complete speaker color scheme from a base color
+ */
+export function buildSpeakerColorScheme(base: string): SpeakerColorScheme {
+  return {
+    circle_color: base,
+    faded_circle_color: hexToRgba(base, 0.35),
+    quote_rectangle_color: hexToRgba(base, 0.15),
+    faded_quote_rectangle_color: hexToRgba(base, 0.08),
+    quote_text_color: darkenColor(base, 0.4),
+    faded_quote_text_color: darkenColor(base, 0.4),
+  };
 }
