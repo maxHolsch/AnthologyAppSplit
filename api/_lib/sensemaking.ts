@@ -8,6 +8,7 @@ import {
   type AssemblyTranscript,
   type AssemblyUtterance,
 } from './assemblyai';
+import { hexToRgba, darkenColor } from './colorUtils';
 
 // LangGraph note: we orchestrate the pipeline with a time-sliced job runner in tickSensemaking()
 // (kept intentionally minimal for Vercel function timeouts).
@@ -1122,27 +1123,6 @@ const SPEAKER_PALETTE = [
   '#4ECDC4',
   '#95E1D3',
 ];
-
-function hexToRgba(hex: string, alpha: number): string {
-  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  if (!result) return `rgba(0, 0, 0, ${alpha})`;
-  const r = parseInt(result[1], 16);
-  const g = parseInt(result[2], 16);
-  const b = parseInt(result[3], 16);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
-
-function darkenColor(hex: string, percent: number): string {
-  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  if (!result) return hex;
-  let r = parseInt(result[1], 16);
-  let g = parseInt(result[2], 16);
-  let b = parseInt(result[3], 16);
-  r = Math.round(r * (1 - percent));
-  g = Math.round(g * (1 - percent));
-  b = Math.round(b * (1 - percent));
-  return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
-}
 
 function speakerColors(base: string) {
   return {
