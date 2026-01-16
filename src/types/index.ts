@@ -32,7 +32,6 @@ export type {
 
   // Collections
   AnthologyData,
-  ProcessedNode,
   ProcessedEdge,
   ColorAssignment,
   SpeakerColorAssignment,

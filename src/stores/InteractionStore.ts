@@ -42,11 +42,22 @@ export const useInteractionStore = create<InteractionStoreType>()(
         });
       },
 
+      /**
+       * Update drag position during a drag operation.
+       *
+       * Note: This method is intentionally minimal because D3 handles
+       * the actual node position updates directly via the simulation.
+       * This method exists to:
+       * 1. Maintain interface contract with useD3Drag hook
+       * 2. Validate that a drag operation is in progress
+       * 3. Allow for future state tracking if needed
+       *
+       * The position parameter is unused because D3's drag behavior
+       * updates node positions directly in the simulation.
+       */
       updateDrag: (_pos: { x: number; y: number }) => {
         if (!get().isDragging) return;
-
-        // Update logic will be handled by the D3 visualization
-        // This just tracks the state
+        // D3 simulation handles actual position updates
       },
 
       endDrag: () => {

@@ -84,19 +84,6 @@ export function getPullQuoteBackgroundColor(baseColor: string): string {
 }
 
 /**
- * Calculate edge opacity based on selection state
- */
-export function getEdgeOpacity(
-  sourceSelected: boolean,
-  targetSelected: boolean,
-  anySelected: boolean
-): number {
-  if (!anySelected) return 1;
-  if (sourceSelected || targetSelected) return 1;
-  return 0.3;
-}
-
-/**
  * Extract circle color from color scheme based on selection state
  * Supports both new (object) and old (string) color formats
  */
