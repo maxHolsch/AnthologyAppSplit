@@ -146,34 +146,6 @@ export const assignSpeakerColors = (
 };
 
 /**
- * Gets participant color set based on color value
- */
-export const getParticipantColorSet = (color: string) => {
-  // Try to match with predefined participant colors
-  const colorLower = color.toLowerCase();
-
-  for (const colors of Object.values(PARTICIPANT_COLORS)) {
-    if (colors.primary.toLowerCase() === colorLower) {
-      return colors;
-    }
-  }
-
-  // Generate color set from base color
-  return generateColorSet(color);
-};
-
-/**
- * Generates background and text colors from a base color
- */
-export const generateColorSet = (baseColor: string) => {
-  return {
-    primary: baseColor,
-    background: hexToRgba(baseColor, 0.15),
-    text: darkenColor(baseColor, 0.4)
-  };
-};
-
-/**
  * Converts hex color to rgba
  */
 export const hexToRgba = (hex: string, alpha: number): string => {
@@ -203,38 +175,6 @@ export const darkenColor = (hex: string, percent: number): string => {
   b = Math.round(b * (1 - percent));
 
   return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
-};
-
-/**
- * Lightens a color by a percentage
- */
-export const lightenColor = (hex: string, percent: number): string => {
-  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  if (!result) return hex;
-
-  let r = parseInt(result[1], 16);
-  let g = parseInt(result[2], 16);
-  let b = parseInt(result[3], 16);
-
-  r = Math.round(r + (255 - r) * percent);
-  g = Math.round(g + (255 - g) * percent);
-  b = Math.round(b + (255 - b) * percent);
-
-  return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
-};
-
-/**
- * Adjusts opacity based on selection state
- */
-export const getNodeOpacity = (
-  isSelected: boolean,
-  otherSelected: boolean,
-  sameConversation: boolean
-): number => {
-  if (isSelected) return 1.0;
-  if (!otherSelected) return 1.0; // No selection, all full opacity
-  if (sameConversation) return 0.7;
-  return 0.4;
 };
 
 /**

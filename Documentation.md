@@ -51,10 +51,17 @@ Anthology/
 │   │   │   └── http.ts            # HTTP utilities
 │   │   ├── transcribe.ts          # POST /api/transcribe
 │   │   ├── judge-question.ts      # POST /api/judge-question
+│   │   ├── embeddings/            # Embedding generation
+│   │   │   └── generate.ts        # POST /api/embeddings/generate
 │   │   └── sensemaking/           # Sensemaking job endpoints
 │   │       ├── start.ts           # POST /api/sensemaking/start
 │   │       ├── tick.ts            # POST /api/sensemaking/tick
 │   │       └── status.ts          # GET /api/sensemaking/status
+│   ├── scripts/                   # Maintenance and utility scripts
+│   │   ├── check-anthologies.ts   # Verify anthology counts
+│   │   ├── check-db-schema.ts     # Validate table structures
+│   │   ├── inspect-anthology.ts   # Dump data for a specific slug
+│   │   └── migrate-hearst-anthology.ts # Legacy migration script
 │   ├── src/
 │   │   ├── components/            # React components
 │   │   │   ├── AddYourVoice/      # Recording/upload UI
@@ -68,7 +75,7 @@ Anthology/
 │   │   │   ├── HomePage/          # Anthology list page
 │   │   │   └── ViewerPage/        # Anthology viewer page
 │   │   ├── services/              # API/data services
-│   │   │   ├── supabase.ts        # Supabase service layer
+│   │   │   ├── supabase.ts        # Canonical Supabase service layer
 │   │   │   ├── transcription.ts   # Transcription service
 │   │   │   └── questionPlacement.ts
 │   │   ├── stores/                # Zustand state stores
@@ -83,8 +90,8 @@ Anthology/
 │   │   ├── utils/                 # Utility functions
 │   │   │   ├── audioUtils.ts      # Audio playback helpers
 │   │   │   ├── colorAssignment.ts # Speaker color system
-│   │   │   ├── colorUtils.ts      # Color manipulation
 │   │   │   ├── dataProcessor.ts   # JSON to graph conversion
+│   │   │   ├── semanticLayout.ts  # UMAP and semantic positioning
 │   │   │   └── slugify.ts         # URL slug generation
 │   │   ├── App.tsx                # Main app component
 │   │   ├── Root.tsx               # Route definitions
@@ -95,14 +102,11 @@ Anthology/
 │   ├── vercel.json                # Vercel deployment config
 │   └── .env.example               # Environment template
 │
-├── database/                      # Database schema and migrations
-│   ├── schema_prefixed.sql        # Canonical Supabase schema
+├── database/                      # Database migrations
 │   ├── migrations/                # SQL migration files
-│   ├── migrate_json_to_sql_prefixed.ts
-│   ├── backfill_word_timestamps_prefixed.ts
-│   └── upload_recordings_to_storage.ts
+│   └── ...                        # Legacy migration scripts
 │
-├── package.json                   # Root dependencies
+├── cloud_schema.sql               # Canonical database schema dump
 ├── Design.md                      # Design specifications
 └── Documentation.md               # This file
 ```
@@ -152,18 +156,45 @@ interface QuestionNode {
 interface ResponseNode {
   type: 'response';
   id: string;
-  responds_to: string;          // Question or response ID
+  responds_to: string;            // Question, Response, or Narrative ID
+  responds_to_narrative_id?: string; // Explicit narrative link
   speaker_name: string;
   speaker_text: string;
-  pull_quote?: string;          // Featured excerpt for rectangle display
-  audio_start: number;          // Timestamp in ms
-  audio_end: number;            // Timestamp in ms
+  pull_quote?: string;            // Featured excerpt for rectangle display
+  audio_start: number;            // Timestamp in ms
+  audio_end: number;              // Timestamp in ms
   conversation_id: string;
-  path_to_recording?: string;   // Optional standalone recording
+  path_to_recording?: string;     // Optional standalone recording
   turn_number?: number;
   word_timestamps?: WordTimestamp[];
-  medium?: 'audio' | 'text';    // Response medium type
+  medium?: 'audio' | 'text';      // Response medium type
   synchronicity?: 'sync' | 'asynchronous'; // Response synchronicity
+  embedding?: number[];           // 1536-dim vector for semantic layout
+}
+```
+
+#### Narrative Node
+```typescript
+interface NarrativeNode {
+  type: 'narrative';
+  id: string;
+  narrative_text: string;         // Prompt/story text
+  related_responses?: string[];   // Response node IDs
+  notes?: string;
+  path_to_recording?: string;
+}
+```
+
+#### Narrative Label Node (Visual)
+```typescript
+interface NarrativeLabelNode {
+  type: 'narrative_label';
+  id: string;
+  narrative_id: string;
+  narrative_name: string;
+  narrative_color: string;
+  centroid_x: number;             // Weighted center of response cluster
+  centroid_y: number;
 }
 ```
 
@@ -200,143 +231,23 @@ interface GraphEdge {
 
 ## Database Schema
 
-All tables are prefixed with `anthology_` and support Row Level Security (RLS).
+The Anthology platform uses a Supabase-hosted PostgreSQL database. 
 
-### Tables
+> [!IMPORTANT]
+> The canonical source of truth for the database schema is [cloud_schema.sql](file:///Users/alrightsettledownwethroughtoday/Desktop/Coding/Anthology/Anthology/anthology-app/cloud_schema.sql).
 
-#### `anthology_anthologies`
-Top-level dataset partition (collection of conversations).
-```sql
-- id: UUID (PK)
-- slug: TEXT (unique, URL-friendly identifier)
-- title: TEXT
-- description: TEXT
-- is_public: BOOLEAN (default: true)
-- metadata: JSONB
-- created_at, updated_at: TIMESTAMPTZ
-```
+### Core Tables
+- `anthology_anthologies`: Top-level dataset partitions.
+- `anthology_conversations`: Discussion sessions.
+- `anthology_questions`: Prompt nodes.
+- `anthology_narratives`: Storytelling prompts (supports embeddings).
+- `anthology_responses`: Speaker contribution nodes (supports embeddings).
+- `anthology_speakers`: Participant color assignments.
+- `anthology_recordings`: Audio file metadata.
+- `anthology_word_timestamps`: Fine-grained timing for karaoke display.
+- `anthology_sensemaking_jobs`: Async AI pipeline status.
 
-#### `anthology_conversations`
-Discussion sessions containing questions and responses.
-```sql
-- id: UUID (PK)
-- anthology_id: UUID (FK to anthologies)
-- legacy_id: TEXT (for JSON import compatibility)
-- title: TEXT
-- date: DATE
-- location: TEXT
-- facilitator: TEXT
-- color: TEXT (hex color, e.g., '#4A90E2')
-- topics: TEXT[]
-- participants: TEXT[]
-- created_at, updated_at: TIMESTAMPTZ
-```
-
-#### `anthology_recordings`
-Audio files linked to conversations or individual nodes.
-```sql
-- id: UUID (PK)
-- anthology_id: UUID (FK, nullable)
-- file_path: TEXT (Supabase Storage URL)
-- file_name: TEXT
-- file_size_bytes: BIGINT
-- mime_type: TEXT
-- duration_ms: INTEGER
-- created_at, updated_at: TIMESTAMPTZ
-```
-
-#### `anthology_conversation_recordings`
-Many-to-many link between conversations and recordings.
-```sql
-- id: UUID (PK)
-- conversation_id: UUID (FK)
-- recording_id: UUID (FK)
-- is_primary: BOOLEAN
-- recording_order: INTEGER
-```
-
-#### `anthology_speakers`
-Participants with visual color assignments.
-```sql
-- id: UUID (PK)
-- anthology_id: UUID (FK)
-- conversation_id: UUID (FK)
-- name: TEXT
-- circle_color: TEXT
-- faded_circle_color: TEXT
-- quote_rectangle_color: TEXT
-- faded_quote_rectangle_color: TEXT
-- quote_text_color: TEXT
-- faded_quote_text_color: TEXT
-- created_at, updated_at: TIMESTAMPTZ
-```
-
-#### `anthology_questions`
-Question nodes in the visualization graph.
-```sql
-- id: UUID (PK)
-- anthology_id: UUID (FK)
-- conversation_id: UUID (FK)
-- legacy_id: TEXT
-- question_text: TEXT
-- facilitator: TEXT
-- recording_id: UUID (FK, optional)
-- audio_start_ms, audio_end_ms: INTEGER
-- notes: TEXT
-- created_at, updated_at: TIMESTAMPTZ
-```
-
-#### `anthology_responses`
-Response nodes in the visualization graph.
-```sql
-- id: UUID (PK)
-- anthology_id: UUID (FK)
-- conversation_id: UUID (FK)
-- legacy_id: TEXT
-- responds_to_question_id: UUID (FK)
-- responds_to_response_id: UUID (FK) -- for response-to-response threading
-- speaker_id: UUID (FK)
-- speaker_name: TEXT (denormalized)
-- speaker_text: TEXT
-- pull_quote: TEXT
-- recording_id: UUID (FK)
-- audio_start_ms, audio_end_ms: INTEGER
-- medium: TEXT ("audio" or "text")
-- synchronicity: TEXT ("sync" or "asynchronous")
-- turn_number: INTEGER
-- created_at, updated_at: TIMESTAMPTZ
-```
-
-#### `anthology_word_timestamps`
-Word-level timestamps for karaoke-style highlighting.
-```sql
-- id: UUID (PK)
-- response_id: UUID (FK, nullable)
-- question_id: UUID (FK, nullable)
-- text: TEXT
-- start_ms, end_ms: INTEGER
-- confidence: FLOAT
-- speaker: TEXT
-- word_order: INTEGER
-- created_at: TIMESTAMPTZ
-```
-
-#### `anthology_sensemaking_jobs`
-Async job tracking for the AI sensemaking pipeline.
-```sql
-- id: UUID (PK)
-- anthology_id: UUID (FK)
-- anthology_slug: TEXT
-- status: TEXT (queued/running/done/error)
-- progress: JSONB
-- file_paths: TEXT[]
-- template_questions: TEXT[]
-- created_at, completed_at: TIMESTAMPTZ
-```
-
-### Useful Views
-- `anthology_response_details`: Complete response view with speaker, question, and recording info
-- `anthology_question_summary`: Question summary with response counts
+For detailed table relationships, foreign keys, and RLS policies, please refer directly to the [cloud_schema.sql](file:///Users/alrightsettledownwethroughtoday/Desktop/Coding/Anthology/Anthology/anthology-app/cloud_schema.sql) file.
 
 ---
 
@@ -353,10 +264,12 @@ interface DataState {
   nodes: Map<string, GraphNode>;
   edges: Map<string, GraphEdge>;
   questionNodes: Map<string, QuestionNode>;
+  narrativeNodes: Map<string, NarrativeNode>;
   responseNodes: Map<string, ResponseNode>;
   conversations: Map<string, Conversation>;
   colorAssignments: Map<string, ColorAssignment>;
   speakerColorAssignments: Map<string, SpeakerColorAssignment>;
+  narrativeColorAssignments: Map<string, string>;
   isLoading: boolean;
   loadError: string | null;
 }
@@ -378,8 +291,9 @@ interface SelectionState {
 interface ViewState {
   railExpanded: boolean;
   railWidth: number;
-  railMode: 'conversations' | 'question' | 'single';
+  railMode: 'conversations' | 'question' | 'narrative' | 'single';
   activeQuestion: string | null;
+  activeNarrative: string | null;
   activeResponse: string | null;
   mapTransform: MapTransform;
   zoomLevel: number;
@@ -469,11 +383,17 @@ RecordingService.getById(id): Promise<Recording | null>
 RecordingService.upload(file, durationMs?): Promise<Recording | null>
 ```
 
+#### NarrativeService
+```typescript
+NarrativeService.getByConversation(conversationId): Promise<NarrativeNode[]>
+```
+
 #### AdminService
 ```typescript
 AdminService.addResponse({ conversationId, questionId, speakerName, ... })
 AdminService.addResponseToResponse({ conversationId, parentResponseId, ... })
 AdminService.addResponseToQuestion({ conversationId, questionId, ... })
+AdminService.addResponseToNarrative({ conversationId, narrativeId, ... })
 ```
 
 ---
@@ -578,6 +498,13 @@ Returns job progress and status.
 }
 ```
 
+### Embeddings
+
+#### `POST /api/embeddings/generate`
+Generates OpenAI embeddings for a set of text strings.
+- **Request Body**: `{ "text": string | string[] }`
+- **Response**: `{ "embeddings": number[][] }`
+
 ---
 
 ## Sensemaking Pipeline
@@ -646,6 +573,16 @@ Anthology uses a semantic layout engine to position response nodes based on the 
 > - **Condition**: `responses.length === responsesWithEmbeddings.length`
 > - **Behavior**: If **even a single response** is missing an embedding (e.g., empty text, failed backfill), the system completely disables UMAP.
 > - **Fallback**: The layout reverts to a "Radial Orbit" mode, where responses are positioned in a circle around their parent question.
+
+---
+
+## Visualization Details
+
+### Force Simulation "Reheating"
+The D3 force simulation includes a fix for over-cooling during pre-warming.
+- **Problem**: Pre-warming (175 ticks) could drop `alpha` below `alphaMin` (0.001) before rendering, making nodes appear static.
+- **Solution**: The simulation is "reheated" after pre-warming to ensure it animations correctly on screen.
+- **Implementation**: `simulation.alpha(1).restart()` is called in `VisualizationStore.ts` after initial ticks.
 
 ---
 
@@ -933,6 +870,16 @@ Work in progress on multi-anthology support.
 - `e203b71`: Audio karaoke improvements and upload button
 - `f361a66`: Write your own answer feature
 
+### Maintenance Scripts
+Located in `anthology-app/scripts/`:
+
+- `check-anthologies.ts`: Verify count of data nodes per anthology.
+- `check-db-schema.ts`: Validate table columns and constraints.
+- `inspect-anthology.ts`: Dump data for a specific anthology slug.
+- `migrate-hearst-anthology.ts`: Historical migration utility.
+
+Run using `npx tsx scripts/<filename>.ts`.
+
 ---
 
 ## Key Files Reference
@@ -940,9 +887,9 @@ Work in progress on multi-anthology support.
 | File | Purpose |
 |------|---------|
 | `anthology-app/src/App.tsx` | Main application component |
-| `anthology-app/src/services/supabase.ts` | Core data service layer |
+| `anthology-app/src/services/supabase.ts` | Canonical data service layer |
 | `anthology-app/src/stores/AnthologyStore.ts` | Main state management |
 | `anthology-app/src/components/Map/D3Visualization.tsx` | Force simulation |
 | `anthology-app/src/components/Audio/AudioManager.tsx` | Audio orchestration |
 | `anthology-app/api/_lib/sensemaking.ts` | AI pipeline |
-| `database/schema_prefixed.sql` | Database schema |
+| `cloud_schema.sql` | Canonical database schema |

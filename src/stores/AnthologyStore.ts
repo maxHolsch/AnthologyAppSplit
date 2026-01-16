@@ -26,6 +26,10 @@ import type {
 } from '@types';
 import { useVisualizationStore } from './VisualizationStore';
 import { calculateSemanticPositions } from '@utils/semanticLayout';
+import { createLogger } from '@utils';
+
+// Create namespaced logger for this store
+const logger = createLogger('AnthologyStore');
 
 // Default color palette for conversations
 const DEFAULT_COLORS = [
@@ -135,12 +139,12 @@ const calculateNarrativeCentroid = (
     y: sumY / positions.length
   };
 
-  // Debug logging for this specific narrative
-  console.log(`[calculateNarrativeCentroid] Narrative ${narrativeId}:`);
-  console.log(`  - Found ${narrativeResponses.length} responses`);
-  console.log(`  - Valid positions: ${positions.length}`);
-  console.log(`  - Position range: x[${Math.min(...positions.map(p => p.x)).toFixed(2)} to ${Math.max(...positions.map(p => p.x)).toFixed(2)}], y[${Math.min(...positions.map(p => p.y)).toFixed(2)} to ${Math.max(...positions.map(p => p.y)).toFixed(2)}]`);
-  console.log(`  - Calculated centroid:`, centroid);
+  // Debug logging for this specific narrative (only shown in development)
+  logger.debug(`Narrative ${narrativeId}:`);
+  logger.debug(`  - Found ${narrativeResponses.length} responses`);
+  logger.debug(`  - Valid positions: ${positions.length}`);
+  logger.debug(`  - Position range: x[${Math.min(...positions.map(p => p.x)).toFixed(2)} to ${Math.max(...positions.map(p => p.x)).toFixed(2)}], y[${Math.min(...positions.map(p => p.y)).toFixed(2)} to ${Math.max(...positions.map(p => p.y)).toFixed(2)}]`);
+  logger.debug(`  - Calculated centroid:`, centroid);
 
   return centroid;
 };

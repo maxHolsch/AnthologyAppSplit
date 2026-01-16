@@ -2,18 +2,13 @@
  * Central export for all utility functions
  */
 
-// Data processing
+// Logger utilities
 export {
-  validateAnthologyData,
-  filterResponseNodes,
-  createQuestionResponseMap,
-  createGraphNodes,
-  createGraphEdges,
-  calculateStatistics,
-  findConnectedComponents,
-  calculateInitialPositions,
-  type DataStatistics
-} from './dataProcessor';
+  debugLog,
+  warnLog,
+  errorLog,
+  createLogger
+} from './logger';
 
 // Color assignment
 export {
@@ -21,12 +16,8 @@ export {
   PARTICIPANT_COLORS,
   COLOR_SCHEMES,
   assignColors,
-  getParticipantColorSet,
-  generateColorSet,
   hexToRgba,
   darkenColor,
-  lightenColor,
-  getNodeOpacity,
   getEdgeOpacity,
   isLightColor,
   getContrastingTextColor
