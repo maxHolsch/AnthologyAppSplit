@@ -16,6 +16,7 @@ import type {
 
 import { DEFAULT_PALETTE, buildSpeakerColorScheme } from '@/utils/colorAssignment';
 import { parseVectorString } from '@/utils/semanticLayout';
+import { supabaseQuery } from './supabaseQuery';
 
 // ============================================
 // SUPABASE CLIENT
@@ -88,15 +89,17 @@ export const AnthologyService = {
 // ============================================
 
 async function getAnthologyIdForConversation(conversationDbId: string): Promise<string> {
-  const { data, error } = await supabase
-    .from('anthology_conversations')
-    .select('anthology_id')
-    .eq('id', conversationDbId)
-    .single();
-
-  if (error) {
-    throw error;
-  }
+  const data = await supabaseQuery(
+    () => supabase
+      .from('anthology_conversations')
+      .select('anthology_id')
+      .eq('id', conversationDbId)
+      .single(),
+    {
+      operation: 'get anthology ID for conversation',
+      context: { conversationDbId }
+    }
+  );
 
   if (!data?.anthology_id) {
     throw new Error('Conversation has no anthology_id (schema migration may be incomplete)');
