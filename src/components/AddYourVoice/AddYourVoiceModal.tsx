@@ -1,38 +1,12 @@
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
-import { useAudioRecorder } from '@hooks';
+import { useRecordAndTranscribe } from '@hooks';
 import { useAnthologyStore } from '@stores';
-import { transcribeAudioUrl } from '@/services/transcription';
 import { judgeQuestionPlacement } from '@/services/questionPlacement';
-import { AdminService, GraphDataService, RecordingService } from '@/services';
+import { AdminService, GraphDataService } from '@/services';
 import type { QuestionNode, ResponseNode, WordTimestamp } from '@types';
 import styles from './AddYourVoiceModal.module.css';
 
 type Stage = 'record' | 'review';
-
-async function getAudioDurationMs(blob: Blob): Promise<number> {
-  const url = URL.createObjectURL(blob);
-  try {
-    const audio = document.createElement('audio');
-    audio.preload = 'metadata';
-    audio.src = url;
-    await new Promise<void>((resolve, reject) => {
-      audio.onloadedmetadata = () => resolve();
-      audio.onerror = () => reject(new Error('Failed to load audio metadata'));
-    });
-    const durationSec = Number.isFinite(audio.duration) ? audio.duration : 0;
-    return Math.max(0, Math.round(durationSec * 1000));
-  } finally {
-    URL.revokeObjectURL(url);
-  }
-}
-
-function pickFileName(mimeType: string | null) {
-  const base = `voice_${Date.now()}`;
-  if (!mimeType) return `${base}.webm`;
-  if (mimeType.includes('mp4')) return `${base}.m4a`;
-  if (mimeType.includes('ogg')) return `${base}.ogg`;
-  return `${base}.webm`;
-}
 
 function inferConversationIdForQuestion(questionId: string, responses: Map<string, ResponseNode>, rawConversations: any) {
   for (const r of responses.values()) {
@@ -66,7 +40,10 @@ export const AddYourVoiceModal = memo<AddYourVoiceModalProps>(({ open, onClose, 
   const [status, setStatus] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
 
-  const recorder = useAudioRecorder();
+  const { recorder, audioPreviewUrl, uploadAndTranscribe } = useRecordAndTranscribe({
+    fileNamePrefix: 'voice',
+    speakerName: name.trim(),
+  });
 
   const loadData = useAnthologyStore((s) => s.loadData);
   const selectResponse = useAnthologyStore((s) => s.selectResponse);
@@ -79,17 +56,6 @@ export const AddYourVoiceModal = memo<AddYourVoiceModalProps>(({ open, onClose, 
     // Keep stable ordering for dropdown.
     return arr.sort((a, b) => (a.question_text || '').localeCompare(b.question_text || ''));
   }, [questionNodes]);
-
-  const audioPreviewUrl = useMemo(() => {
-    if (!recorder.audioBlob) return null;
-    return URL.createObjectURL(recorder.audioBlob);
-  }, [recorder.audioBlob]);
-
-  useEffect(() => {
-    return () => {
-      if (audioPreviewUrl) URL.revokeObjectURL(audioPreviewUrl);
-    };
-  }, [audioPreviewUrl]);
 
   useEffect(() => {
     if (!open) {
@@ -133,44 +99,17 @@ export const AddYourVoiceModal = memo<AddYourVoiceModalProps>(({ open, onClose, 
 
     setIsWorking(true);
     try {
-      setStatus('Uploading recording…');
-      const durationMs = await getAudioDurationMs(recorder.audioBlob);
-      const file = new File([recorder.audioBlob], pickFileName(recorder.mimeType), {
-        type: recorder.audioBlob.type || recorder.mimeType || 'audio/webm',
-      });
+      setStatus('Uploading and transcribing…');
+      const result = await uploadAndTranscribe();
 
-      const uploaded = await RecordingService.upload(file, durationMs);
-      if (!uploaded) {
-        throw new Error('Failed to upload recording to Supabase.');
-      }
-
-      setUploadedRecordingId(uploaded.id);
-      setRecordingDurationMs(durationMs);
-
-      setStatus('Transcribing with AssemblyAI…');
-      const transcription = await transcribeAudioUrl(uploaded.file_path);
-      const text = (transcription.text || '').trim();
-      if (!text) {
-        throw new Error('Transcription returned empty text.');
-      }
-      setTranscript(text);
-
-      const words = Array.isArray(transcription.words) ? transcription.words : [];
-      setWordTimestamps(
-        words
-          .filter((w) => typeof w?.text === 'string' && typeof w?.start === 'number' && typeof w?.end === 'number')
-          .map((w) => ({
-            text: w.text,
-            start: w.start,
-            end: w.end,
-            confidence: typeof w.confidence === 'number' ? w.confidence : undefined,
-            speaker: trimmedName,
-          }))
-      );
+      setUploadedRecordingId(result.recordingId);
+      setRecordingDurationMs(result.recordingDurationMs);
+      setTranscript(result.transcript);
+      setWordTimestamps(result.wordTimestamps);
 
       setStatus('Asking the LLM to suggest the best question…');
       const placement = await judgeQuestionPlacement(
-        text,
+        result.transcript,
         questionsArray.map((q) => ({ id: q.id, text: q.question_text }))
       );
 
@@ -185,7 +124,7 @@ export const AddYourVoiceModal = memo<AddYourVoiceModalProps>(({ open, onClose, 
     } finally {
       setIsWorking(false);
     }
-  }, [name, recorder.audioBlob, recorder.mimeType, questionsArray]);
+  }, [name, recorder.audioBlob, uploadAndTranscribe, questionsArray]);
 
   const handleSubmit = useCallback(async () => {
     setError(null);

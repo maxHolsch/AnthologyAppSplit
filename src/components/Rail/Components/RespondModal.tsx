@@ -1,37 +1,11 @@
-import { memo, useCallback, useEffect, useMemo, useState } from 'react';
-import type { ResponseNode, WordTimestamp } from '@types';
-import { useAudioRecorder } from '@hooks';
-import { transcribeAudioUrl } from '@/services/transcription';
-import { AdminService, GraphDataService, RecordingService } from '@/services';
+import { memo, useCallback, useEffect, useState } from 'react';
+import type { ResponseNode } from '@types';
+import { useRecordAndTranscribe } from '@hooks';
+import { AdminService, GraphDataService } from '@/services';
 import { useAnthologyStore } from '@stores';
 import styles from './RespondModal.module.css';
 
 type Mode = 'choose' | 'record' | 'write';
-
-async function getAudioDurationMs(blob: Blob): Promise<number> {
-  const url = URL.createObjectURL(blob);
-  try {
-    const audio = document.createElement('audio');
-    audio.preload = 'metadata';
-    audio.src = url;
-    await new Promise<void>((resolve, reject) => {
-      audio.onloadedmetadata = () => resolve();
-      audio.onerror = () => reject(new Error('Failed to load audio metadata'));
-    });
-    const durationSec = Number.isFinite(audio.duration) ? audio.duration : 0;
-    return Math.max(0, Math.round(durationSec * 1000));
-  } finally {
-    URL.revokeObjectURL(url);
-  }
-}
-
-function pickFileName(mimeType: string | null) {
-  const base = `response_${Date.now()}`;
-  if (!mimeType) return `${base}.webm`;
-  if (mimeType.includes('mp4')) return `${base}.m4a`;
-  if (mimeType.includes('ogg')) return `${base}.ogg`;
-  return `${base}.webm`;
-}
 
 export interface RespondModalProps {
   open: boolean;
@@ -51,7 +25,10 @@ export const RespondModal = memo<RespondModalProps>(({ open, targetResponse, onC
   const loadData = useAnthologyStore((s) => s.loadData);
   const selectResponse = useAnthologyStore((s) => s.selectResponse);
 
-  const recorder = useAudioRecorder();
+  const { recorder, audioPreviewUrl, uploadAndTranscribe } = useRecordAndTranscribe({
+    fileNamePrefix: 'response',
+    speakerName: name.trim(),
+  });
 
   useEffect(() => {
     if (!open) {
@@ -64,17 +41,6 @@ export const RespondModal = memo<RespondModalProps>(({ open, targetResponse, onC
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
-
-  const audioPreviewUrl = useMemo(() => {
-    if (!recorder.audioBlob) return null;
-    return URL.createObjectURL(recorder.audioBlob);
-  }, [recorder.audioBlob]);
-
-  useEffect(() => {
-    return () => {
-      if (audioPreviewUrl) URL.revokeObjectURL(audioPreviewUrl);
-    };
-  }, [audioPreviewUrl]);
 
   const close = useCallback(() => {
     onClose();
@@ -95,51 +61,21 @@ export const RespondModal = memo<RespondModalProps>(({ open, targetResponse, onC
       const parentResponseId = targetResponse.id;
 
       if (mode === 'record') {
-        if (!recorder.audioBlob) {
-          throw new Error('No recording captured.');
-        }
+        // Upload and transcribe using the hook
+        const result = await uploadAndTranscribe();
 
-        const durationMs = await getAudioDurationMs(recorder.audioBlob);
-        const file = new File(
-          [recorder.audioBlob],
-          pickFileName(recorder.mimeType),
-          { type: recorder.audioBlob.type || recorder.mimeType || 'audio/webm' }
-        );
-
-        // 1) Upload recording so we get a public URL for AssemblyAI
-        const uploaded = await RecordingService.upload(file, durationMs);
-        if (!uploaded) {
-          throw new Error('Failed to upload recording to Supabase.');
-        }
-
-        // 2) Transcribe
-        const transcript = await transcribeAudioUrl(uploaded.file_path);
-        const speakerText = transcript.text || '';
-
-        const wordTimestamps: WordTimestamp[] = Array.isArray(transcript.words)
-          ? transcript.words
-            .filter((w) => typeof w?.text === 'string' && typeof w?.start === 'number' && typeof w?.end === 'number')
-            .map((w) => ({
-              text: w.text,
-              start: w.start,
-              end: w.end,
-              confidence: typeof w.confidence === 'number' ? w.confidence : undefined,
-              speaker: trimmedName,
-            }))
-          : [];
-
-        // 3) Insert response (responds-to-response)
+        // Insert response (responds-to-response)
         const created = await AdminService.addResponseToResponse({
           conversationId,
           parentResponseId,
           respondentName: trimmedName,
-          speakerText,
-          recordingId: uploaded.id,
-          recordingDurationMs: durationMs,
-          wordTimestamps,
+          speakerText: result.transcript,
+          recordingId: result.recordingId,
+          recordingDurationMs: result.recordingDurationMs,
+          wordTimestamps: result.wordTimestamps,
         });
 
-        // 4) Reload graph + select the newly-created response
+        // Reload graph + select the newly-created response
         const graph = await GraphDataService.loadAll({ anthologySlug });
         await loadData(graph);
         selectResponse(created.legacy_id || created.id);
@@ -170,7 +106,7 @@ export const RespondModal = memo<RespondModalProps>(({ open, targetResponse, onC
     } finally {
       setIsSubmitting(false);
     }
-  }, [name, typedText, mode, recorder.audioBlob, recorder.mimeType, targetResponse, loadData, selectResponse, close]);
+  }, [name, typedText, mode, uploadAndTranscribe, targetResponse, anthologySlug, loadData, selectResponse, close]);
 
   if (!open) return null;
 
