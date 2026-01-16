@@ -8,7 +8,7 @@ import { Legend } from '@components/UI/Legend';
 import { AudioManager } from '@components/Audio/AudioManager';
 import { AddYourVoiceButton } from '@/components/AddYourVoice/AddYourVoiceButton';
 import { useAnthologyStore, useInteractionStore } from '@stores';
-import { GraphDataService } from '@/services/supabase';
+import { GraphDataService } from '@/services';
 import './App.css';
 
 /**

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import styles from './HomePage.module.css';
-import { AnthologyService, type AnthologySummary } from '@/services/supabase';
+import { AnthologyService, type AnthologySummary } from '@/services';
 import { CreateAnthologyModal } from '@/components/CreateAnthology/CreateAnthologyModal';
 
 export function HomePage() {
