@@ -1,0 +1,50 @@
+.legend {
+    position: absolute;
+    bottom: 16px;
+    left: 16px;
+    z-index: 100;
+    pointer-events: auto;
+
+    background: #FFFFFF;
+    border-radius: 12px;
+    padding: 12px;
+
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.legend-header {
+    font-family: 'Hedvig Letters Sans', -apple-system, sans-serif;
+    font-size: 11px;
+    line-height: 1.4;
+    color: rgba(0, 0, 0, 0.4);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 400;
+    margin-bottom: 4px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.legend-icon {
+    width: 14px;
+    height: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    opacity: 0.4;
+}
+
+.legend-label {
+    font-family: 'Hedvig Letters Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 400;
+    color: rgba(0, 0, 0, 0.7);
+    white-space: nowrap;
+}

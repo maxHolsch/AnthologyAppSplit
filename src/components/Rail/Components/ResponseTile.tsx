@@ -23,13 +23,24 @@ export const ResponseTile = memo<ResponseTileProps>(({
   showSeparator = false
 }) => {
   const speakerColorAssignments = useAnthologyStore(state => state.data.speakerColorAssignments);
+  const narrativeColorAssignments = useAnthologyStore(state => state.data.narrativeColorAssignments);
   const colorAssignments = useAnthologyStore(state => state.data.colorAssignments);
 
-  // Get speaker color from speaker assignments, fallback to conversation color
+  // Get narrative color if response belongs to a narrative (matches D3 node logic)
+  const narrativeId = response.responds_to_narrative_id;
+  const narrativeColor = narrativeId
+    ? narrativeColorAssignments.get(narrativeId)
+    : null;
+
+  // Get speaker/conversation color as fallback
   const speakerColorKey = `${response.conversation_id}:${response.speaker_name}`;
-  const colorScheme = speakerColorAssignments.get(speakerColorKey)?.color ||
-                      colorAssignments.get(response.conversation_id)?.color ||
-                      '#999999';
+  const speakerColorScheme = speakerColorAssignments.get(speakerColorKey)?.color ||
+                              colorAssignments.get(response.conversation_id)?.color ||
+                              '#999999';
+
+  // Priority: narrative color || speaker/conversation color || grey fallback
+  // This matches the exact logic in ResponseNode.tsx
+  const colorScheme = narrativeColor || speakerColorScheme;
 
   // Handle SpeakerColorScheme objects (extract circle property for the dot)
   const speakerColor = typeof colorScheme === 'string'

@@ -24,8 +24,9 @@ export const SingleView = memo<SingleViewProps>(({ anthologySlug }) => {
   const responseNodes = useAnthologyStore(state => state.data.responseNodes);
   const questionNodes = useAnthologyStore(state => state.data.questionNodes);
   const narrativeNodes = useAnthologyStore(state => state.data.narrativeNodes);
-  const conversations = useAnthologyStore(state => state.data.conversations);
+  const narrativeColorAssignments = useAnthologyStore(state => state.data.narrativeColorAssignments);
   const speakerColorAssignments = useAnthologyStore(state => state.data.speakerColorAssignments);
+  const colorAssignments = useAnthologyStore(state => state.data.colorAssignments);
   const setRailMode = useAnthologyStore(state => state.setRailMode);
   const setActiveQuestion = useAnthologyStore(state => state.setActiveQuestion);
   const setActiveNarrative = useAnthologyStore(state => state.setActiveNarrative);
@@ -49,30 +50,33 @@ export const SingleView = memo<SingleViewProps>(({ anthologySlug }) => {
     return narrativeNodes.get(response.responds_to_narrative_id);
   }, [response, narrativeNodes]);
 
-  // Get the conversation for fallback color
-  const conversation = useMemo(() => {
-    if (!response?.conversation_id) return null;
-    return conversations.get(response.conversation_id);
-  }, [response, conversations]);
-
-  // Resolve speaker-specific color with proper hierarchy
+  // Resolve color with proper hierarchy - matches D3 ResponseNode logic
   const speakerColor = useMemo(() => {
     if (!response) return '#999999'; // Grey fallback
 
-    // Build the speaker color key (conversationId:speakerName)
-    const speakerColorKey = `${response.conversation_id}:${response.speaker_name}`;
-    const colorScheme = speakerColorAssignments.get(speakerColorKey)?.color;
+    // Get narrative color if response belongs to a narrative (matches D3 node logic)
+    const narrativeId = response.responds_to_narrative_id;
+    const narrativeColor = narrativeId
+      ? narrativeColorAssignments.get(narrativeId)
+      : null;
 
-    // Priority: speaker color > conversation color > grey fallback
-    const resolvedColor = colorScheme || conversation?.color || '#999999';
+    // Get speaker/conversation color as fallback
+    const speakerColorKey = `${response.conversation_id}:${response.speaker_name}`;
+    const speakerColorScheme = speakerColorAssignments.get(speakerColorKey)?.color ||
+                                colorAssignments.get(response.conversation_id)?.color ||
+                                '#999999';
+
+    // Priority: narrative color || speaker/conversation color || grey fallback
+    // This matches the exact logic in ResponseNode.tsx and ResponseTile.tsx
+    const colorScheme = narrativeColor || speakerColorScheme;
 
     // Handle SpeakerColorScheme objects (extract circle property for avatar)
-    if (typeof resolvedColor === 'string') {
-      return resolvedColor;
+    if (typeof colorScheme === 'string') {
+      return colorScheme;
     }
     // For SpeakerColorScheme objects, use the circle color
-    return resolvedColor.circle;
-  }, [response, speakerColorAssignments, conversation]);
+    return colorScheme.circle;
+  }, [response, narrativeColorAssignments, speakerColorAssignments, colorAssignments]);
 
   const handleBack = () => {
     console.log('[SingleView.handleBack] previousRailMode:', previousRailMode);
@@ -147,6 +151,7 @@ export const SingleView = memo<SingleViewProps>(({ anthologySlug }) => {
         <SpeakerHeader
           speakerName={response.speaker_name}
           color={speakerColor}
+          response={response}
         />
 
         <button

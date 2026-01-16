@@ -38,23 +38,23 @@ export function EdgePath({
     const cx = (sx + tx) / 2 + Math.cos(perpAngle) * offset;
     const cy = (sy + ty) / 2 + Math.sin(perpAngle) * offset;
 
-    // Determine target node radius based on node type
-    const isPullQuote = targetNode.data.type === 'response' && targetNode.data.pull_quote;
-    let targetRadius: number;
+    // Determine source node radius based on node type
+    const isPullQuote = sourceNode.data.type === 'response' && sourceNode.data.pull_quote;
+    let sourceRadius: number;
 
     if (isPullQuote) {
       // Pull quote node: rectangle 204x146, use diagonal distance from center to corner
       const width = 204;
       const height = 146;
-      targetRadius = Math.sqrt((width / 2) ** 2 + (height / 2) ** 2);
+      sourceRadius = Math.sqrt((width / 2) ** 2 + (height / 2) ** 2);
     } else {
       // Circle node: 7px radius
-      targetRadius = 7;
+      sourceRadius = 7;
     }
 
-    // Find the point on the curve that intersects with the target node's edge
-    // Start from t=0.99 and work backwards to find intersection
-    let t = 0.99;
+    // Find the point on the curve that intersects with the source node's edge
+    // Start from t=0.01 and work forwards to find intersection
+    let t = 0.01;
     let arrowX = 0;
     let arrowY = 0;
 
@@ -63,18 +63,18 @@ export function EdgePath({
       const px = (1 - t) * (1 - t) * sx + 2 * (1 - t) * t * cx + t * t * tx;
       const py = (1 - t) * (1 - t) * sy + 2 * (1 - t) * t * cy + t * t * ty;
 
-      // Calculate distance from this point to target center
-      const distToTarget = Math.sqrt((px - tx) ** 2 + (py - ty) ** 2);
+      // Calculate distance from this point to source center
+      const distToSource = Math.sqrt((px - sx) ** 2 + (py - sy) ** 2);
 
       // If we're at or just outside the node radius, this is our arrow position
-      if (distToTarget >= targetRadius) {
+      if (distToSource >= sourceRadius) {
         arrowX = px;
         arrowY = py;
         break;
       }
 
-      // Move further back along the curve
-      t -= 0.01;
+      // Move further forward along the curve
+      t += 0.01;
     }
 
     // Create cubic Bezier curve path
@@ -83,7 +83,7 @@ export function EdgePath({
     // Calculate tangent angle at the arrow position for rotation
     const tangentX = 2 * (1 - t) * (cx - sx) + 2 * t * (tx - cx);
     const tangentY = 2 * (1 - t) * (cy - sy) + 2 * t * (ty - cy);
-    const arrowAngle = Math.atan2(tangentY, tangentX) * (180 / Math.PI);
+    const arrowAngle = Math.atan2(tangentY, tangentX) * (180 / Math.PI) + 180;
 
     // Create chevron arrow path (small V shape)
     const arrowSize = 4;
@@ -113,7 +113,7 @@ export function EdgePath({
         fill="none"
         stroke={color}
         strokeWidth={1.25}
-        strokeOpacity={0.35 * opacity}
+        strokeOpacity={0.3 * opacity}
         strokeLinecap="round"
         pointerEvents="none"
         style={{ transition: 'stroke-opacity 200ms ease' }}
@@ -125,7 +125,7 @@ export function EdgePath({
         fill="none"
         stroke={color}
         strokeWidth={1.25}
-        strokeOpacity={0.35 * opacity}
+        strokeOpacity={0.3 * opacity}
         strokeLinecap="round"
         strokeLinejoin="round"
         pointerEvents="none"
@@ -144,9 +144,12 @@ export function EdgePath({
           style={{ transition: 'fill-opacity 200ms ease' }}
         >
           <animateMotion
-            dur="4s"
+            dur="10s"
             repeatCount="indefinite"
-            begin={`${offset * 4}s`}
+            begin={`${offset * 10}s`}
+            keyPoints="1;0"
+            keyTimes="0;1"
+            calcMode="linear"
           >
             <mpath href={`#${pathId}`} />
           </animateMotion>

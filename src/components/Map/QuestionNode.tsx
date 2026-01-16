@@ -60,8 +60,8 @@ export function QuestionNode({ node, onClick, onMouseEnter, onMouseLeave }: Ques
   const x = node.x ?? 0;
   const y = node.y ?? 0;
 
-  // Opacity based on selection state
-  const opacity = isSelected || selectedNodes.size === 0 ? 0.8 : 0.3;
+  // Text opacity based on selection state
+  const textOpacity = isSelected || selectedNodes.size === 0 ? 0.8 : 0.3;
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -84,9 +84,9 @@ export function QuestionNode({ node, onClick, onMouseEnter, onMouseLeave }: Ques
   // Wrap text and calculate dimensions
   const wrappedLines = useMemo(() => wrapText(text, 30), [text]);
 
-  // Calculate dynamic dimensions based on text
+  // Calculate dynamic dimensions based on text - tight fit like a highlight
   const lineHeight = 16.8; // 1.4 * 12px font size
-  const padding = 20; // Padding inside the pill
+  const padding = 6; // Minimal padding for tight fit
   const rectWidth = 180; // Fixed width for consistent pill shape
   const rectHeight = Math.max(50, wrappedLines.length * lineHeight + padding * 2);
   const rectX = -rectWidth / 2;
@@ -112,28 +112,9 @@ export function QuestionNode({ node, onClick, onMouseEnter, onMouseLeave }: Ques
           height={rectHeight}
           rx={25}
           fill="#F6F6F1"
-          fillOpacity={opacity}
+          fillOpacity={1.0}
           pointerEvents="none"
-          style={{
-            transition: 'fill-opacity 200ms ease',
-          }}
         />
-
-        {/* Hover indicator (subtle border on hover) */}
-        {isHovered && (
-          <rect
-            x={rectX}
-            y={rectY}
-            width={rectWidth}
-            height={rectHeight}
-            rx={25}
-            fill="none"
-            stroke="#000000"
-            strokeWidth={1}
-            strokeOpacity={0.15}
-            pointerEvents="none"
-          />
-        )}
 
         {/* Text element with semantic zoom and proper wrapping */}
         <text
@@ -143,7 +124,7 @@ export function QuestionNode({ node, onClick, onMouseEnter, onMouseLeave }: Ques
           fontFamily="Hedvig Letters Sans, sans-serif"
           fontWeight={400}
           fill="#000000"
-          fillOpacity={opacity}
+          fillOpacity={textOpacity}
           style={{
             userSelect: 'none',
             pointerEvents: 'all',

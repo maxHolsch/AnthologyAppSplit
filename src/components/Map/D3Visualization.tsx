@@ -217,13 +217,16 @@ export function D3Visualization() {
           const opacity = getEdgeOpacity(sourceSelected, targetSelected, anySelected);
           const edgeId = `${sourceId}-${targetId}`;
 
+          // Use source node's color for the edge
+          const edgeColor = sourceNode.color || edge.color || '#000000';
+
           return (
             <EdgePath
               key={edgeId}
               edge={edge}
               sourceNode={sourceNode}
               targetNode={targetNode}
-              color={edge.color || '#000000'}
+              color={edgeColor}
               opacity={opacity}
             />
           );

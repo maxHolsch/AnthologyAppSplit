@@ -4,7 +4,6 @@
  */
 
 import { memo, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
 import { useAnthologyStore } from '@stores';
 import { NarrativeTile } from '../Components/NarrativeTile';
 import { TabSwitcher } from '../Components/TabSwitcher';
@@ -12,8 +11,8 @@ import AnthologyIcon from '../../../assets/icon.svg';
 import styles from './ConversationsView.module.css'; // Reuse same styles
 
 export const NarrativesView = memo(() => {
-  const { slug } = useParams();
   const narrativeNodes = useAnthologyStore(state => state.data.narrativeNodes);
+  const responseNodes = useAnthologyStore(state => state.data.responseNodes);
   const narrativeColorAssignments = useAnthologyStore(state => state.data.narrativeColorAssignments);
   const getResponsesForNarrative = useAnthologyStore(state => state.getResponsesForNarrative);
   const selectNarrative = useAnthologyStore(state => state.selectNarrative);
@@ -60,6 +59,9 @@ export const NarrativesView = memo(() => {
       return true;
     });
 
+  // Count total responses
+  const totalResponses = responseNodes.size;
+
   if (narratives.length === 0) {
     return (
       <div className={styles.emptyState}>
@@ -72,7 +74,7 @@ export const NarrativesView = memo(() => {
     <div className={styles.container}>
       <img src={AnthologyIcon} alt="Anthology" className={styles.logo} />
       <h1 className={styles.mainTitle}>
-        highlights from {slug ?? 'this'} conversation
+        {totalResponses} {totalResponses === 1 ? 'response' : 'responses'}
       </h1>
       <TabSwitcher />
       <div className={styles.questionList}>

@@ -22,8 +22,8 @@ export interface UMAPOptions {
 
 const DEFAULT_UMAP_OPTIONS: UMAPOptions = {
   nNeighbors: 15,      // Number of neighbors to consider for local structure
-  minDist: 0.1,        // Minimum distance between points in low-dimensional space
-  spread: 1.0,         // Scale of the embedded points
+  minDist: 0.2,        // Minimum distance between points in low-dimensional space
+  spread: 2.0,         // Scale of the embedded points (increased for more spacing)
   nComponents: 2,      // Output dimensions (2D for our visualization)
 };
 

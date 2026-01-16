@@ -13,7 +13,7 @@ export const AddYourVoiceButton = memo<AddYourVoiceButtonProps>(({ anthologySlug
   return (
     <div className={styles.container}>
       <button className={styles.button} onClick={() => setOpen(true)}>
-        add your voice
+        Add your voice
       </button>
       <AddYourVoiceModal open={open} onClose={() => setOpen(false)} anthologySlug={anthologySlug} />
     </div>

@@ -3,7 +3,6 @@
  */
 
 import { memo, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
 import { useAnthologyStore } from '@stores';
 import { QuestionTile } from '../Components/QuestionTile';
 import { TabSwitcher } from '../Components/TabSwitcher';
@@ -11,8 +10,8 @@ import AnthologyIcon from '../../../assets/icon.svg';
 import styles from './ConversationsView.module.css';
 
 export const ConversationsView = memo(() => {
-  const { slug } = useParams();
   const questionNodes = useAnthologyStore(state => state.data.questionNodes);
+  const responseNodes = useAnthologyStore(state => state.data.responseNodes);
   const selectQuestion = useAnthologyStore(state => state.selectQuestion);
 
   const handleQuestionClick = useCallback((questionId: string) => {
@@ -22,6 +21,9 @@ export const ConversationsView = memo(() => {
 
   // Convert Map to array for rendering
   const questions = Array.from(questionNodes.values());
+
+  // Count total responses
+  const totalResponses = responseNodes.size;
 
   if (questions.length === 0) {
     return (
@@ -35,7 +37,7 @@ export const ConversationsView = memo(() => {
     <div className={styles.container}>
       <img src={AnthologyIcon} alt="Anthology" className={styles.logo} />
       <h1 className={styles.mainTitle}>
-        highlights from {slug ?? 'this'} conversation
+        {totalResponses} {totalResponses === 1 ? 'response' : 'responses'}
       </h1>
       <TabSwitcher />
       <div className={styles.questionList}>

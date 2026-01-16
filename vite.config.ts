@@ -350,6 +350,209 @@ function localJudgeQuestionApiPlugin(env: Record<string, string>) {
   };
 }
 
+/**
+ * Local dev-only implementation of `/api/assign-narrative`.
+ */
+function localAssignNarrativeApiPlugin(env: Record<string, string>) {
+  const openaiKey = env.OPENAI_API_KEY;
+  const supabaseUrl = env.VITE_SUPABASE_URL;
+  const supabaseKey = env.SUPABASE_SERVICE_KEY;
+
+  return {
+    name: 'local-assign-narrative-api',
+    configureServer(server: any) {
+      server.middlewares.use('/api/assign-narrative', async (req: any, res: any) => {
+        if (req.method !== 'POST') {
+          res.statusCode = 405;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ error: 'Method not allowed' }));
+          return;
+        }
+
+        if (!openaiKey) {
+          res.statusCode = 500;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ error: 'OPENAI_API_KEY not configured' }));
+          return;
+        }
+
+        if (!supabaseUrl || !supabaseKey) {
+          res.statusCode = 500;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ error: 'Missing VITE_SUPABASE_URL or SUPABASE_SERVICE_KEY in .env file' }));
+          return;
+        }
+
+        const chunks: Buffer[] = [];
+        await new Promise<void>((resolve) => {
+          req.on('data', (c: Buffer) => chunks.push(c));
+          req.on('end', () => resolve());
+        });
+
+        let body: Json;
+        try {
+          body = JSON.parse(Buffer.concat(chunks).toString('utf8')) as Json;
+        } catch {
+          res.statusCode = 400;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ error: 'Invalid JSON body' }));
+          return;
+        }
+
+        const anthologyId = (body as any).anthologyId;
+        const responseText = (body as any).responseText;
+
+        if (!anthologyId || !responseText) {
+          res.statusCode = 400;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ error: 'Missing required fields: anthologyId, responseText' }));
+          return;
+        }
+
+        try {
+          const { createClient } = await import('@supabase/supabase-js');
+          const supabase = createClient(supabaseUrl, supabaseKey);
+
+          // Fetch all narratives for this anthology
+          const { data: narratives, error: narrativesError } = await supabase
+            .from('anthology_narratives')
+            .select('id, narrative_text, embedding')
+            .eq('anthology_id', anthologyId);
+
+          if (narrativesError) {
+            console.error('[assign-narrative] Error fetching narratives:', narrativesError);
+            res.statusCode = 500;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ error: 'Failed to fetch narratives' }));
+            return;
+          }
+
+          if (!narratives || narratives.length === 0) {
+            res.statusCode = 404;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ error: 'No narratives found for anthology' }));
+            return;
+          }
+
+          // Find Misc narrative
+          const miscNarrative = narratives.find((n: any) => n.narrative_text === 'Misc');
+          if (!miscNarrative) {
+            res.statusCode = 500;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ error: 'Misc narrative not found' }));
+            return;
+          }
+
+          // Filter narratives that have embeddings (excluding Misc)
+          const narrativesWithEmbeddings = narratives.filter((n: any) => n.embedding && n.id !== miscNarrative.id);
+
+          // If no narratives have embeddings, assign to Misc
+          if (narrativesWithEmbeddings.length === 0) {
+            console.log('[assign-narrative] No narrative embeddings found, assigning to Misc');
+            res.statusCode = 200;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ narrativeId: miscNarrative.id, similarity: 0 }));
+            return;
+          }
+
+          // Generate embedding for response text
+          const embeddingResp = await fetch('https://api.openai.com/v1/embeddings', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${openaiKey}`,
+            },
+            body: JSON.stringify({
+              model: 'text-embedding-3-small',
+              input: responseText,
+              encoding_format: 'float',
+            }),
+          });
+
+          if (!embeddingResp.ok) {
+            const error = await embeddingResp.text();
+            res.statusCode = 502;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ error: `OpenAI API error: ${error}` }));
+            return;
+          }
+
+          const embeddingData = await embeddingResp.json();
+          const responseEmbedding = embeddingData.data[0].embedding;
+
+          // Calculate cosine similarity
+          function cosineSimilarity(a: number[], b: number[]): number {
+            let dotProduct = 0;
+            let normA = 0;
+            let normB = 0;
+            for (let i = 0; i < a.length; i++) {
+              dotProduct += a[i] * b[i];
+              normA += a[i] * a[i];
+              normB += b[i] * b[i];
+            }
+            return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+          }
+
+          // Calculate similarities with all narratives
+          // Use "best match" approach: find highest similarity, then check minimum threshold
+          let bestNarrativeId = miscNarrative.id;
+          let bestNarrativeName = 'Misc';
+          let bestSimilarity = 0;
+          const minThreshold = 0.25; // Minimum similarity to avoid Misc
+
+          for (const narrative of narrativesWithEmbeddings) {
+            let narrativeEmbedding: number[];
+
+            if (typeof narrative.embedding === 'string') {
+              if (narrative.embedding.startsWith('[') && narrative.embedding.endsWith(']')) {
+                narrativeEmbedding = narrative.embedding
+                  .slice(1, -1)
+                  .split(',')
+                  .map((s: string) => parseFloat(s.trim()));
+              } else {
+                console.warn(`[assign-narrative] Invalid embedding format for narrative ${narrative.id}`);
+                continue;
+              }
+            } else if (Array.isArray(narrative.embedding)) {
+              narrativeEmbedding = narrative.embedding;
+            } else {
+              console.warn(`[assign-narrative] Unknown embedding type for narrative ${narrative.id}`);
+              continue;
+            }
+
+            const similarity = cosineSimilarity(responseEmbedding, narrativeEmbedding);
+            console.log(`[assign-narrative] Narrative "${narrative.narrative_text}" similarity: ${similarity.toFixed(3)}`);
+
+            if (similarity > bestSimilarity) {
+              bestSimilarity = similarity;
+              bestNarrativeId = narrative.id;
+              bestNarrativeName = narrative.narrative_text;
+            }
+          }
+
+          // If best match is below minimum threshold, assign to Misc
+          if (bestSimilarity < minThreshold) {
+            console.log(`[assign-narrative] Best similarity ${bestSimilarity.toFixed(3)} below threshold ${minThreshold}, assigning to Misc`);
+            bestNarrativeId = miscNarrative.id;
+            bestNarrativeName = 'Misc';
+          }
+
+          console.log(`[assign-narrative] Assigned to narrative "${bestNarrativeName}" (${bestNarrativeId}) with similarity ${bestSimilarity.toFixed(3)}`);
+
+          res.statusCode = 200;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ narrativeId: bestNarrativeId, similarity: bestSimilarity }));
+        } catch (e) {
+          console.error('[assign-narrative] Error:', e);
+          res.statusCode = 500;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ error: e instanceof Error ? e.message : 'Unknown error' }));
+        }
+      });
+    },
+  };
+}
+
 // https://vite.dev/config/
 export default defineConfig(({ command, mode }) => {
   // Load all env vars (NOT just VITE_*) for dev server middleware.
@@ -364,6 +567,7 @@ export default defineConfig(({ command, mode }) => {
       react(),
       command === 'serve' ? localTranscribeApiPlugin(env) : undefined,
       command === 'serve' ? localJudgeQuestionApiPlugin(env) : undefined,
+      command === 'serve' ? localAssignNarrativeApiPlugin(env) : undefined,
       command === 'serve'
         ? {
           name: 'local-sensemaking-api',

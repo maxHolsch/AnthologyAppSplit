@@ -557,13 +557,13 @@ function cosineSimilarity(vecA: number[], vecB: number[]): number {
  *
  * @param turnEmbeddings - Embeddings for each turn text
  * @param narrativeEmbeddings - Embeddings for each narrative (including "Misc" as last)
- * @param similarityThreshold - Minimum similarity to assign (default 0.4)
+ * @param similarityThreshold - Minimum similarity to assign (default 0.25)
  * @returns Array of narrative indices matching turns
  */
 async function assignNarrativesToTurnsBatch({
   turnEmbeddings,
   narrativeEmbeddings,
-  similarityThreshold = 0.4,
+  similarityThreshold = 0.25,
 }: {
   turnEmbeddings: number[][];
   narrativeEmbeddings: number[][];
@@ -1663,7 +1663,7 @@ export async function tickSensemaking({ jobId, timeBudgetMs = 15000 }: { jobId: 
               narrativeIdxs = await assignNarrativesToTurnsBatch({
                 turnEmbeddings,
                 narrativeEmbeddings,
-                similarityThreshold: 0.4,
+                similarityThreshold: 0.25,
               });
 
               log('turn_filtering.chunk.narratives_assigned', {

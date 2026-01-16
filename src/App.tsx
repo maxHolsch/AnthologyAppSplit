@@ -4,6 +4,7 @@ import { CommentRail } from '@components/Rail';
 import { Tooltip } from '@components/UI/Tooltip';
 import { NotificationContainer } from '@components/UI/Notification';
 import { PhysicsControl } from '@components/UI/PhysicsControl';
+import { Legend } from '@components/UI/Legend';
 import { AudioManager } from '@components/Audio/AudioManager';
 import { AddYourVoiceButton } from '@/components/AddYourVoice/AddYourVoiceButton';
 import { useAnthologyStore, useInteractionStore } from '@stores';
@@ -121,6 +122,9 @@ function App({ anthologySlug }: { anthologySlug?: string }) {
 
       {/* Physics Control Toggle */}
       <PhysicsControl />
+
+      {/* Legend */}
+      <Legend />
 
       <main className="app-main">
         <div className="map-container" style={{ width: mapWidth }}>

@@ -1093,12 +1093,46 @@ export const AdminService = {
 
     const nextTurn = (last?.turn_number ?? 0) + 1;
 
+    // Assign narrative based on semantic similarity
+    let narrativeId: string | null = null;
+    try {
+      console.log('[AdminService.addResponseToResponse] Calling assign-narrative API...');
+      const response = await fetch('/api/assign-narrative', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          anthologyId,
+          responseText: speakerText
+        })
+      });
+
+      console.log('[AdminService.addResponseToResponse] API response status:', response.status);
+
+      if (response.ok) {
+        const data = await response.json();
+        narrativeId = data.narrativeId;
+        console.log('[AdminService.addResponseToResponse] ✅ Assigned narrative:', {
+          narrativeId,
+          similarity: data.similarity
+        });
+      } else {
+        const errorText = await response.text();
+        console.warn('[AdminService.addResponseToResponse] ❌ Failed to assign narrative:', {
+          status: response.status,
+          error: errorText
+        });
+      }
+    } catch (error) {
+      console.error('[AdminService.addResponseToResponse] ❌ Error calling assign-narrative API:', error);
+    }
+
     const { data: response, error } = await supabase
       .from('anthology_responses')
       .insert({
         anthology_id: anthologyId,
         conversation_id: conversationDbId,
         responds_to_response_id: parentResponseDbId,
+        responds_to_narrative_id: narrativeId,
         speaker_id: speaker.id,
         speaker_name: respondentName,
         speaker_text: speakerText,
@@ -1235,13 +1269,47 @@ export const AdminService = {
 
     const nextTurn = (last?.turn_number ?? 0) + 1;
 
+    // Assign narrative based on semantic similarity
+    let narrativeId: string | null = null;
+    try {
+      console.log('[AdminService.addResponseToQuestion] Calling assign-narrative API...');
+      const response = await fetch('/api/assign-narrative', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          anthologyId,
+          responseText: speakerText
+        })
+      });
+
+      console.log('[AdminService.addResponseToQuestion] API response status:', response.status);
+
+      if (response.ok) {
+        const data = await response.json();
+        narrativeId = data.narrativeId;
+        console.log('[AdminService.addResponseToQuestion] ✅ Assigned narrative:', {
+          narrativeId,
+          similarity: data.similarity
+        });
+      } else {
+        const errorText = await response.text();
+        console.warn('[AdminService.addResponseToQuestion] ❌ Failed to assign narrative:', {
+          status: response.status,
+          error: errorText
+        });
+      }
+    } catch (error) {
+      console.error('[AdminService.addResponseToQuestion] ❌ Error calling assign-narrative API:', error);
+    }
+
     console.log('[AdminService.addResponseToQuestion] Inserting response:', {
       anthologyId,
       conversationDbId,
       questionDbId,
       respondentName,
       nextTurn,
-      hasRecording
+      hasRecording,
+      narrativeId
     });
 
     const { data: response, error } = await supabase
@@ -1250,6 +1318,7 @@ export const AdminService = {
         anthology_id: anthologyId,
         conversation_id: conversationDbId,
         responds_to_question_id: questionDbId,
+        responds_to_narrative_id: narrativeId,
         speaker_id: speaker.id,
         speaker_name: respondentName,
         speaker_text: speakerText,

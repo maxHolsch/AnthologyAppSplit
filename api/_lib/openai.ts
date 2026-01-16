@@ -112,6 +112,12 @@ type OpenAIJsonSchemaOptions = {
 };
 
 function extractOutputText(openaiResponse: any): string {
+  // Chat Completions API format
+  if (openaiResponse?.choices?.[0]?.message?.content) {
+    return openaiResponse.choices[0].message.content;
+  }
+
+  // Legacy Responses API format (fallback)
   if (typeof openaiResponse?.output_text === 'string') return openaiResponse.output_text;
 
   const output = openaiResponse?.output;
@@ -204,7 +210,7 @@ export async function openaiJsonSchema<T>({
     }
 
     try {
-      const resp = await fetch(`${OPENAI_API_BASE}/responses`, {
+      const resp = await fetch(`${OPENAI_API_BASE}/chat/completions`, {
         method: 'POST',
         signal: controller.signal,
         headers: {
@@ -213,12 +219,16 @@ export async function openaiJsonSchema<T>({
         },
         body: JSON.stringify({
           model,
-          input: prompt,
-          // Keep outputs small (and avoid timeouts / excessive tokens).
-          max_output_tokens: maxOutputTokens,
-          text: {
-            format: {
-              type: 'json_schema',
+          messages: [
+            {
+              role: 'user',
+              content: prompt,
+            },
+          ],
+          max_completion_tokens: maxOutputTokens,
+          response_format: {
+            type: 'json_schema',
+            json_schema: {
               name: schemaName,
               strict: true,
               schema,
