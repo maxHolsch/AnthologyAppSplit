@@ -8,6 +8,7 @@ import { devtools } from 'zustand/middleware';
 import * as d3 from 'd3';
 import type { GraphNode, GraphEdge } from '@types';
 import type { VisualizationState, VisualizationActions } from '@types';
+import { useAnthologyStore } from './AnthologyStore';
 
 interface VisualizationStoreType extends VisualizationState, VisualizationActions { }
 
@@ -25,7 +26,7 @@ export const useVisualizationStore = create<VisualizationStoreType>()(
       resetZoom: null, // Reset zoom utility function
       needsUpdate: false,
       isSimulating: false,
-      isPhysicsEnabled: false,
+      isPhysicsEnabled: true,
       tickCount: 0, // Increments on each simulation tick
       renderFrameRate: 60,
       nodeCount: 0,
@@ -75,8 +76,16 @@ export const useVisualizationStore = create<VisualizationStoreType>()(
             return true;
           });
 
-        // Use provided dimensions or defaults
-        const centerX = width ? width / 2 : window.innerWidth / 2;
+        // Get rail dimensions from AnthologyStore to account for visible area
+        const anthologyState = useAnthologyStore.getState();
+        const railWidth = anthologyState.view.railWidth;
+        const railExpanded = anthologyState.view.railExpanded;
+        const panelWidth = railExpanded ? railWidth : 0;
+
+        // Use provided dimensions or defaults, accounting for rail panel
+        const fullWidth = width || window.innerWidth;
+        const visibleWidth = fullWidth - panelWidth;
+        const centerX = visibleWidth / 2;
         const centerY = height ? height / 2 : (window.innerHeight - 100) / 2;
 
         // Create force simulation with optimized forces for good spread
@@ -94,6 +103,7 @@ export const useVisualizationStore = create<VisualizationStoreType>()(
             .radius((d: any) => {
               // Optimized radii to match visual sizes and prevent overlap
               if (d.type === 'question') return 95; // Covers ~190px width (180px pill + padding)
+              if (d.type === 'narrative_label') return 60; // Covers narrative label pills (~24px height, variable width)
               if (d.data?.pull_quote) return 140; // Covers ~280px width for pull quotes
               return 10; // Matches 10px visual hover radius for standard nodes
             })
@@ -122,6 +132,9 @@ export const useVisualizationStore = create<VisualizationStoreType>()(
           if (typeof node.x === 'number' && typeof node.y === 'number') {
             originalPositions.set(node.id, { x: node.x, y: node.y });
           }
+          // Ensure nodes are unpinned since physics is enabled by default
+          node.fx = undefined;
+          node.fy = undefined;
         });
 
         // Store simulation AND the D3-mutated node array
@@ -130,6 +143,7 @@ export const useVisualizationStore = create<VisualizationStoreType>()(
           simulationNodes: d3Nodes, // Store reference to D3's node array
           originalPositions, // Store original UMAP positions
           isSimulating: true,
+          isPhysicsEnabled: true, // Physics enabled by default
           nodeCount: nodes.length,
           edgeCount: edges.length
         });
@@ -220,7 +234,7 @@ export const useVisualizationStore = create<VisualizationStoreType>()(
 
         // Apply state change to nodes immediately
         simulationNodes.forEach(node => {
-          if (node.type === 'response' || node.type === 'question') {
+          if (node.type === 'response' || node.type === 'question' || node.type === 'narrative_label') {
             if (newState) {
               // Enable physics: Unpin so forces take over
               node.fx = undefined;

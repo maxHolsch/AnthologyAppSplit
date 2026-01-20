@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
 import { useAnthologyStore } from '@stores';
-import { getQuoteBackgroundColor, getQuoteTextColor } from '@utils';
 import type { PullQuoteNodeProps } from '@types';
 
 /**
@@ -10,6 +9,7 @@ import type { PullQuoteNodeProps } from '@types';
 export function PullQuoteNode({ node, onClick, onMouseEnter, onMouseLeave }: PullQuoteNodeProps) {
   const selectedNodes = useAnthologyStore(state => state.selection.selectedNodes);
   const hoveredNode = useAnthologyStore(state => state.selection.hoveredNode);
+  const hoveredNodes = useAnthologyStore(state => state.selection.hoveredNodes);
   const narrativeColorAssignments = useAnthologyStore(state => state.data.narrativeColorAssignments);
   const currentTrack = useAnthologyStore(state => state.audio.currentTrack);
   const playbackState = useAnthologyStore(state => state.audio.playbackState);
@@ -17,6 +17,17 @@ export function PullQuoteNode({ node, onClick, onMouseEnter, onMouseLeave }: Pul
   const isSelected = selectedNodes.has(node.id);
   const isHovered = hoveredNode === node.id;
   const isPlaying = currentTrack === node.id && playbackState === 'playing';
+
+  // Calculate overlay visibility based on hover state (priority) and selection state
+  const anyHovered = hoveredNodes.size > 0;
+  const anySelected = selectedNodes.size > 0;
+  const isHighlightedByHover = hoveredNodes.has(node.id);
+  const isHighlightedBySelection = selectedNodes.has(node.id);
+
+  // Hover takes priority over selection
+  const shouldShowOverlay = anyHovered
+    ? !isHighlightedByHover  // If hovering, show overlay on non-hovered nodes
+    : (anySelected ? !isHighlightedBySelection : false); // Else if selected, show overlay on non-selected nodes
 
   // Get position with fallback
   const x = node.x ?? 0;
@@ -33,14 +44,14 @@ export function PullQuoteNode({ node, onClick, onMouseEnter, onMouseLeave }: Pul
   // Priority: node.color (from store) || narrative color || grey fallback
   const colorScheme = node.color || narrativeColor || '#999999';
 
-  // Get appropriate colors based on selection state
-  const anySelected = selectedNodes.size > 0;
+  // Use full colors always (no opacity adjustment)
   const colors = useMemo(() => {
-    const bgColor = getQuoteBackgroundColor(colorScheme, isSelected, anySelected);
-    const textColor = getQuoteTextColor(colorScheme, isSelected, anySelected);
+    // Extract colors from colorScheme - use the color as-is
+    const bgColor = typeof colorScheme === 'string' ? colorScheme : '#FF5F1F';
+    const textColor = '#FFFFFF'; // White text for pull quotes
 
     return { bgColor, textColor };
-  }, [colorScheme, isSelected, anySelected]);
+  }, [colorScheme]);
 
   // Get pull quote text from node data
   const pullQuoteText = node.data.type === 'response' ? (node.data.pull_quote || '') : '';
@@ -156,22 +167,6 @@ export function PullQuoteNode({ node, onClick, onMouseEnter, onMouseLeave }: Pul
         </rect>
       )}
 
-      {/* Hover border */}
-      {isHovered && (
-        <rect
-          x={-width / 2 - 2}
-          y={-height / 2 - 2}
-          width={width + 4}
-          height={height + 4}
-          rx={borderRadius + 2}
-          fill="none"
-          stroke={baseColor}
-          strokeWidth={2}
-          strokeOpacity={0.3}
-          pointerEvents="none"
-        />
-      )}
-
       {/* Background rectangle */}
       <rect
         x={-width / 2}
@@ -227,6 +222,20 @@ export function PullQuoteNode({ node, onClick, onMouseEnter, onMouseLeave }: Pul
           </tspan>
         ))}
       </text>
+
+      {/* Overlay for dimming when not highlighted */}
+      {shouldShowOverlay && (
+        <rect
+          x={-width / 2}
+          y={-height / 2}
+          width={width}
+          height={height}
+          rx={borderRadius}
+          fill="#F6F6F1"
+          fillOpacity={0.8}
+          pointerEvents="none"
+        />
+      )}
     </g>
   );
 }

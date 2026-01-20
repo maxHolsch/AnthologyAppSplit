@@ -741,9 +741,36 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
           return;
         }
 
-        // Select the narrative label node and all its responses
+        // Select the narrative label node, all its responses, and connected questions
         const narrativeLabelNodeId = `narrative_label_${narrativeId}`;
-        const relatedNodeIds = [narrativeLabelNodeId, ...responses.map(r => r.id)];
+        const narrativeResponseIds = responses.map(r => r.id);
+
+        // Find all questions connected to these responses
+        const { edges, responseNodes } = get().data;
+        const connectedQuestionIds = new Set<string>();
+        edges.forEach(edge => {
+          const sourceId = typeof edge.source === 'string' ? edge.source : edge.source?.id;
+          const targetId = typeof edge.target === 'string' ? edge.target : edge.target?.id;
+
+          // Check if response is source or target
+          if (narrativeResponseIds.includes(sourceId)) {
+            // Source is a narrative response, target might be a question
+            const targetNode = responseNodes.get(targetId);
+            if (!targetNode) {
+              // It's a question node
+              connectedQuestionIds.add(targetId);
+            }
+          } else if (narrativeResponseIds.includes(targetId)) {
+            // Target is a narrative response, source might be a question
+            const sourceNode = responseNodes.get(sourceId);
+            if (!sourceNode) {
+              // It's a question node
+              connectedQuestionIds.add(sourceId);
+            }
+          }
+        });
+
+        const relatedNodeIds = [narrativeLabelNodeId, ...narrativeResponseIds, ...Array.from(connectedQuestionIds)];
 
         set((state) => ({
           selection: {

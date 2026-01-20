@@ -48,10 +48,22 @@ function wrapText(text: string, maxCharsPerLine: number = 30): string[] {
 export function QuestionNode({ node, onClick, onMouseEnter, onMouseLeave }: QuestionNodeProps) {
   const selectedNodes = useAnthologyStore(state => state.selection.selectedNodes);
   const hoveredNode = useAnthologyStore(state => state.selection.hoveredNode);
+  const hoveredNodes = useAnthologyStore(state => state.selection.hoveredNodes);
   const mapTransform = useAnthologyStore(state => state.view.mapTransform);
 
   const isSelected = selectedNodes.has(node.id);
   const isHovered = hoveredNode === node.id;
+
+  // Calculate overlay visibility based on hover state (priority) and selection state
+  const anyHovered = hoveredNodes.size > 0;
+  const anySelected = selectedNodes.size > 0;
+  const isHighlightedByHover = hoveredNodes.has(node.id);
+  const isHighlightedBySelection = selectedNodes.has(node.id);
+
+  // Hover takes priority over selection
+  const shouldShowOverlay = anyHovered
+    ? !isHighlightedByHover  // If hovering, show overlay on non-hovered nodes
+    : (anySelected ? !isHighlightedBySelection : false); // Else if selected, show overlay on non-selected nodes
 
   // Calculate inverse scale for semantic zoom (text stays same size)
   const inverseScale = 1 / mapTransform.k;
@@ -60,8 +72,8 @@ export function QuestionNode({ node, onClick, onMouseEnter, onMouseLeave }: Ques
   const x = node.x ?? 0;
   const y = node.y ?? 0;
 
-  // Text opacity based on selection state
-  const textOpacity = isSelected || selectedNodes.size === 0 ? 0.8 : 0.3;
+  // Use full opacity always (no opacity adjustment)
+  const textOpacity = 0.8;
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -149,6 +161,20 @@ export function QuestionNode({ node, onClick, onMouseEnter, onMouseLeave }: Ques
             );
           })}
         </text>
+
+        {/* Overlay for dimming when not highlighted */}
+        {shouldShowOverlay && (
+          <rect
+            x={rectX}
+            y={rectY}
+            width={rectWidth}
+            height={rectHeight}
+            rx={25}
+            fill="#F6F6F1"
+            fillOpacity={0.8}
+            pointerEvents="none"
+          />
+        )}
       </g>
     </g>
   );

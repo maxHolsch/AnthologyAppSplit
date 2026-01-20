@@ -45,28 +45,34 @@ export function NarrativeLabelNode({ node, onClick, onMouseEnter, onMouseLeave }
   const narrativeColor = narrativeData.narrative_color;
   const narrativeId = narrativeData.narrative_id;
 
-  // Calculate opacity based on hover state
+  // Calculate overlay visibility based on hover state (priority) and selection state
+  const selectedNodes = useAnthologyStore(state => state.selection.selectedNodes);
   const anyHovered = hoveredNodes.size > 0;
-  const isHighlighted = hoveredNodes.has(node.id);
-  const opacity = anyHovered ? (isHighlighted ? 1.0 : 0.3) : 1.0;
+  const anySelected = selectedNodes.size > 0;
+  const isHighlightedByHover = hoveredNodes.has(node.id);
+  const isHighlightedBySelection = selectedNodes.has(node.id);
+
+  // Hover takes priority over selection
+  const shouldShowOverlay = anyHovered
+    ? !isHighlightedByHover  // If hovering, show overlay on non-hovered nodes
+    : (anySelected ? !isHighlightedBySelection : false); // Else if selected, show overlay on non-selected nodes
 
   // Calculate inverse scale for semantic zoom (label stays same size)
   const inverseScale = 1 / mapTransform.k;
 
   // Pill dimensions
-  const paddingHorizontal = 12; // Consistent horizontal padding
-  const fontSize = 12;
-  const height = 32;
+  const paddingHorizontal = 10; // Consistent horizontal padding
+  const fontSize = 10;
+  const height = 24;
 
   // Calculate width based on monospace character width (DM Mono)
-  const charWidth = 7.2; // Exact character width at 12px for DM Mono
+  const charWidth = 6.0; // Exact character width at 10px for DM Mono
   const textWidth = narrativeName.length * charWidth;
   const width = textWidth + paddingHorizontal * 2;
 
-  // Click handler: Open narrative view in side panel
+  // Click handler: Open narrative view in side panel and select all related nodes
   const handleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    console.log('[NarrativeLabelNode.handleClick] Calling selectNarrative with:', narrativeId);
     selectNarrative(narrativeId);
   }, [narrativeId, selectNarrative]);
 
@@ -124,7 +130,7 @@ export function NarrativeLabelNode({ node, onClick, onMouseEnter, onMouseLeave }
       style={{ cursor: 'pointer' }}
     >
       {/* Semantic zoom group - maintains constant size */}
-      <g transform={`scale(${inverseScale})`} opacity={opacity}>
+      <g transform={`scale(${inverseScale})`}>
         {/* Pill background */}
         <rect
           x={-width / 2}
@@ -152,6 +158,20 @@ export function NarrativeLabelNode({ node, onClick, onMouseEnter, onMouseLeave }
         >
           {narrativeName}
         </text>
+
+        {/* Overlay for dimming when not highlighted */}
+        {shouldShowOverlay && (
+          <rect
+            x={-width / 2}
+            y={-height / 2}
+            width={width}
+            height={height}
+            rx={height / 2}
+            fill="#F6F6F1"
+            fillOpacity={0.8}
+            pointerEvents="none"
+          />
+        )}
       </g>
     </g>
   );

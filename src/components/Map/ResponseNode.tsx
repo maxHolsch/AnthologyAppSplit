@@ -1,6 +1,5 @@
 import { useAnthologyStore } from '@stores';
 import type { ResponseNodeProps } from '@types';
-import { getCircleColor } from '@utils';
 import { SyncIcon, AsyncAudioIcon, AsyncTextIcon } from '@components/Icons/NodeIcons';
 
 /**
@@ -19,6 +18,17 @@ export function ResponseNode({ node, onClick, onMouseEnter, onMouseLeave }: Resp
   const isHovered = hoveredNode === node.id || hoveredNodes.has(node.id);
   const isPlaying = currentTrack === node.id && playbackState === 'playing';
 
+  // Calculate overlay visibility based on hover state (priority) and selection state
+  const anyHovered = hoveredNodes.size > 0;
+  const anySelected = selectedNodes.size > 0;
+  const isHighlightedByHover = hoveredNodes.has(node.id);
+  const isHighlightedBySelection = selectedNodes.has(node.id);
+
+  // Hover takes priority over selection
+  const shouldShowOverlay = anyHovered
+    ? !isHighlightedByHover  // If hovering, show overlay on non-hovered nodes
+    : (anySelected ? !isHighlightedBySelection : false); // Else if selected, show overlay on non-selected nodes
+
   // Get position with fallback
   const x = node.x ?? 0;
   const y = node.y ?? 0;
@@ -34,9 +44,8 @@ export function ResponseNode({ node, onClick, onMouseEnter, onMouseLeave }: Resp
   // Priority: node.color (from store) || narrative color || grey fallback
   const colorScheme = node.color || narrativeColor || '#999999';
 
-  // Get appropriate color based on selection state (no opacity adjustment needed)
-  const anySelected = selectedNodes.size > 0;
-  const color = getCircleColor(colorScheme, isSelected, anySelected);
+  // Use full color always (no opacity adjustment)
+  const color = colorScheme;
 
   // Determine visual style based on medium and synchronicity
   const responseData = node.data.type === 'response' ? node.data : null;
@@ -75,31 +84,6 @@ export function ResponseNode({ node, onClick, onMouseEnter, onMouseLeave }: Resp
       onMouseLeave={handleMouseLeave}
       style={{ cursor: 'pointer' }}
     >
-      {/* Hover ring */}
-      {isHovered && !isSquareShape && (
-        <circle
-          r={10}
-          fill="none"
-          stroke={color}
-          strokeWidth={2}
-          strokeOpacity={0.3}
-          pointerEvents="none"
-        />
-      )}
-      {isHovered && isSquareShape && (
-        <rect
-          x={-10}
-          y={-10}
-          width={20}
-          height={20}
-          fill="none"
-          stroke={color}
-          strokeWidth={2}
-          strokeOpacity={0.3}
-          pointerEvents="none"
-        />
-      )}
-
       {/* Pulsing ring for playing state */}
       {isPlaying && !isSquareShape && (
         <circle
@@ -184,6 +168,27 @@ export function ResponseNode({ node, onClick, onMouseEnter, onMouseLeave }: Resp
         {isAsync && !isTextMedium && <AsyncAudioIcon color={color} size={14} />}
         {isAsync && isTextMedium && <AsyncTextIcon color={color} size={14} />}
       </foreignObject>
+
+      {/* Overlay for dimming when not highlighted */}
+      {shouldShowOverlay && !isSquareShape && (
+        <circle
+          r={7}
+          fill="#F6F6F1"
+          fillOpacity={0.8}
+          pointerEvents="none"
+        />
+      )}
+      {shouldShowOverlay && isSquareShape && (
+        <rect
+          x={-7}
+          y={-7}
+          width={14}
+          height={14}
+          fill="#F6F6F1"
+          fillOpacity={0.8}
+          pointerEvents="none"
+        />
+      )}
 
       {/* Selection indicator */}
       {isSelected && !isSquareShape && (

@@ -17,6 +17,8 @@ export const NarrativesView = memo(() => {
   const getResponsesForNarrative = useAnthologyStore(state => state.getResponsesForNarrative);
   const selectNarrative = useAnthologyStore(state => state.selectNarrative);
   const hoverNodes = useAnthologyStore(state => state.hoverNodes);
+  const edges = useAnthologyStore(state => state.data.edges);
+  const nodesMap = useAnthologyStore(state => state.data.nodes);
 
   const handleNarrativeClick = useCallback((narrativeId: string) => {
     // Navigate to narrative view mode showing all responses for this narrative with zoom
@@ -27,13 +29,49 @@ export const NarrativesView = memo(() => {
     if (narrativeId) {
       // Get all response IDs for this narrative
       const responses = getResponsesForNarrative(narrativeId);
-      const responseIds = responses.map(r => r.id);
-      hoverNodes(responseIds);
+      const narrativeResponseIds = responses.map(r => r.id);
+
+      // Find all questions connected to these responses (same logic as NarrativeLabelNode)
+      const connectedQuestionIds = new Set<string>();
+      edges.forEach(edge => {
+        const sourceId = typeof edge.source === 'string' ? edge.source : edge.source?.id;
+        const targetId = typeof edge.target === 'string' ? edge.target : edge.target?.id;
+
+        // Check if response is source or target
+        if (narrativeResponseIds.includes(sourceId)) {
+          // Source is a narrative response, target might be a question
+          const targetNode = responseNodes.get(targetId);
+          if (!targetNode) {
+            // It's a question node
+            connectedQuestionIds.add(targetId);
+          }
+        } else if (narrativeResponseIds.includes(targetId)) {
+          // Target is a narrative response, source might be a question
+          const sourceNode = responseNodes.get(sourceId);
+          if (!sourceNode) {
+            // It's a question node
+            connectedQuestionIds.add(sourceId);
+          }
+        }
+      });
+
+      // Find the narrative label node for this narrative (if it exists)
+      const narrativeLabelNodeId = Array.from(nodesMap.values()).find(
+        node => node.type === 'narrative_label' && (node.data as any).narrative_id === narrativeId
+      )?.id;
+
+      // Combine response, question IDs, and narrative label node ID
+      const allNodeIds = [
+        ...narrativeResponseIds,
+        ...Array.from(connectedQuestionIds),
+        ...(narrativeLabelNodeId ? [narrativeLabelNodeId] : [])
+      ];
+      hoverNodes(allNodeIds);
     } else {
       // Clear hover
       hoverNodes([]);
     }
-  }, [getResponsesForNarrative, hoverNodes]);
+  }, [getResponsesForNarrative, hoverNodes, edges, responseNodes, nodesMap]);
 
   // Build narratives list from all narrative nodes
   // Filter out "Misc" narrative if it has 0 responses
@@ -86,6 +124,7 @@ export const NarrativesView = memo(() => {
             narrativeColor={narrative.color}
             responseCount={narrative.responses.length}
             onClick={handleNarrativeClick}
+            onHover={handleNarrativeHover}
           />
         ))}
       </div>

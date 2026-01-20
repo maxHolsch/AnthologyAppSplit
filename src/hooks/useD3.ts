@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import * as d3 from 'd3';
-import { useVisualizationStore } from '@stores';
+import { useVisualizationStore, useAnthologyStore } from '@stores';
 import type { GraphNode, GraphEdge } from '@types';
 
 /**
@@ -69,8 +69,16 @@ export function useD3(
   // Update center force when dimensions change
   useEffect(() => {
     if (simulation) {
+      // Get rail dimensions to account for visible area
+      const anthologyState = useAnthologyStore.getState();
+      const railWidth = anthologyState.view.railWidth;
+      const railExpanded = anthologyState.view.railExpanded;
+      const panelWidth = railExpanded ? railWidth : 0;
+      const visibleWidth = width - panelWidth;
+
       simulation
-        .force('center', d3.forceCenter(width / 2, height / 2))
+        .force('center', d3.forceCenter(visibleWidth / 2, height / 2))
+        .force('x', d3.forceX(visibleWidth / 2).strength(0.01))
         .alpha(0.3)
         .restart();
     }

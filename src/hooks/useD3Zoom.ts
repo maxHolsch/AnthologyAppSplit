@@ -25,6 +25,8 @@ export function useD3Zoom(
 
   const mapTransform = useAnthologyStore(state => state.view.mapTransform);
   const setMapTransform = useAnthologyStore(state => state.setMapTransform);
+  const railWidth = useAnthologyStore(state => state.view.railWidth);
+  const railExpanded = useAnthologyStore(state => state.view.railExpanded);
   const zoomBehaviorRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
 
   // Initialize zoom behavior
@@ -93,19 +95,23 @@ export function useD3Zoom(
     const svg = svgRef.current;
     const svgRect = svg.getBoundingClientRect();
 
+    // Calculate visible area accounting for rail panel
+    const panelWidth = railExpanded ? railWidth : 0;
+    const visibleWidth = svgRect.width - panelWidth;
+
     // Calculate scale to fit bounds
     const scale = Math.min(
-      (svgRect.width - padding * 2) / bounds.width,
+      (visibleWidth - padding * 2) / bounds.width,
       (svgRect.height - padding * 2) / bounds.height,
       maxZoom
     );
 
-    // Calculate translation to center bounds
-    const x = svgRect.width / 2 - (bounds.x + bounds.width / 2) * scale;
+    // Calculate translation to center bounds in visible area
+    const x = visibleWidth / 2 - (bounds.x + bounds.width / 2) * scale;
     const y = svgRect.height / 2 - (bounds.y + bounds.height / 2) * scale;
 
     zoomTo(scale, x, y, duration);
-  }, [maxZoom, zoomTo]);
+  }, [maxZoom, zoomTo, railWidth, railExpanded]);
 
   // Center on specific node
   const centerOnNode = useCallback((
@@ -120,12 +126,16 @@ export function useD3Zoom(
     const svgRect = svg.getBoundingClientRect();
     const scale = targetScale || mapTransform.k;
 
-    // Calculate translation to center node
-    const x = svgRect.width / 2 - nodeX * scale;
+    // Calculate visible area accounting for rail panel
+    const panelWidth = railExpanded ? railWidth : 0;
+    const visibleWidth = svgRect.width - panelWidth;
+
+    // Calculate translation to center node in visible area
+    const x = visibleWidth / 2 - nodeX * scale;
     const y = svgRect.height / 2 - nodeY * scale;
 
     zoomTo(scale, x, y, duration);
-  }, [mapTransform.k, zoomTo]);
+  }, [mapTransform.k, zoomTo, railWidth, railExpanded]);
 
   // Reset zoom to show all nodes (zoom out to full map view)
   const resetZoom = useCallback((duration: number = 750) => {
@@ -177,19 +187,23 @@ export function useD3Zoom(
     const centerX = (minX + maxX) / 2;
     const centerY = (minY + maxY) / 2;
 
+    // Calculate visible area accounting for rail panel
+    const panelWidth = railExpanded ? railWidth : 0;
+    const visibleWidth = svgRect.width - panelWidth;
+
     // Calculate scale to fit all nodes with padding
     const padding = 100;
     const scale = Math.max(
       minZoom,
       Math.min(
-        (svgRect.width - padding * 2) / boundsWidth,
+        (visibleWidth - padding * 2) / boundsWidth,
         (svgRect.height - padding * 2) / boundsHeight,
         initialZoom
       )
     );
 
-    // Calculate translation to center the bounds
-    const x = svgRect.width / 2 - centerX * scale;
+    // Calculate translation to center the bounds in visible area
+    const x = visibleWidth / 2 - centerX * scale;
     const y = svgRect.height / 2 - centerY * scale;
 
     const transform = d3.zoomIdentity
@@ -199,7 +213,7 @@ export function useD3Zoom(
     svg.transition()
       .duration(duration)
       .call(zoomBehaviorRef.current.transform, transform);
-  }, [minZoom, initialZoom]);
+  }, [minZoom, initialZoom, railWidth, railExpanded]);
 
   return {
     zoomTo,
