@@ -8,14 +8,12 @@ import type { PullQuoteNodeProps } from '@types';
  */
 export function PullQuoteNode({ node, onClick, onMouseEnter, onMouseLeave }: PullQuoteNodeProps) {
   const selectedNodes = useAnthologyStore(state => state.selection.selectedNodes);
-  const hoveredNode = useAnthologyStore(state => state.selection.hoveredNode);
   const hoveredNodes = useAnthologyStore(state => state.selection.hoveredNodes);
   const narrativeColorAssignments = useAnthologyStore(state => state.data.narrativeColorAssignments);
   const currentTrack = useAnthologyStore(state => state.audio.currentTrack);
   const playbackState = useAnthologyStore(state => state.audio.playbackState);
 
   const isSelected = selectedNodes.has(node.id);
-  const isHovered = hoveredNode === node.id;
   const isPlaying = currentTrack === node.id && playbackState === 'playing';
 
   // Calculate overlay visibility based on hover state (priority) and selection state
@@ -126,7 +124,7 @@ export function PullQuoteNode({ node, onClick, onMouseEnter, onMouseLeave }: Pul
   };
 
   // Get base circle color for stroke effects (selected state)
-  const baseColor = typeof colorScheme === 'string' ? colorScheme : (colorScheme.circle || '#FF5F1F');
+  const baseColor = typeof colorScheme === 'string' ? colorScheme : '#FF5F1F';
 
   return (
     <g

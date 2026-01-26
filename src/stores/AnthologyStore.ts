@@ -15,7 +15,6 @@ import type {
   ViewState,
   MapTransform,
   ColorAssignment,
-  SpeakerColorAssignment,
   RailViewMode,
   MapViewMode,
   Notification
@@ -146,6 +145,13 @@ interface AnthologyStoreActions {
   processData: () => void;
   getNodeById: (id: string) => GraphNode | undefined;
   getResponsesForQuestion: (questionId: string) => ResponseNode[];
+  getResponsesForNarrative: (narrativeId: string) => ResponseNode[];
+  getNarrativesWithResponses: () => Array<{
+    id: string;
+    name: string;
+    color: string;
+    responses: ResponseNode[];
+  }>;
   getConversationForNode: (nodeId: string) => Conversation | undefined;
   clearData: () => void;
 
@@ -156,9 +162,11 @@ interface AnthologyStoreActions {
   // Selection actions
   selectNode: (nodeId: string, mode?: 'single' | 'multi') => void;
   selectQuestion: (questionId: string) => void;
+  selectNarrative: (narrativeId: string) => void;
   selectResponse: (responseId: string) => void;
   clearSelection: () => void;
   hoverNode: (nodeId: string | null) => void;
+  hoverNodes: (nodeIds: string[]) => void;
   isNodeSelected: (nodeId: string) => boolean;
 
   // View actions
@@ -168,6 +176,7 @@ interface AnthologyStoreActions {
   setRailWidth: (width: number) => void;
   setMapViewMode: (mode: MapViewMode) => void;
   setActiveQuestion: (questionId: string | null) => void;
+  setActiveNarrative: (narrativeId: string | null) => void;
   setActiveResponse: (responseId: string | null) => void;
   setMapTransform: (transform: MapTransform) => void;
   centerOnNode: (nodeId: string) => void;

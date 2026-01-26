@@ -29,7 +29,7 @@ export const NarrativesView = memo(() => {
     if (narrativeId) {
       // Get all response IDs for this narrative
       const responses = getResponsesForNarrative(narrativeId);
-      const narrativeResponseIds = responses.map(r => r.id);
+      const narrativeResponseIds = responses.map((r: { id: string }) => r.id);
 
       // Find all questions connected to these responses (same logic as NarrativeLabelNode)
       const connectedQuestionIds = new Set<string>();
@@ -96,9 +96,6 @@ export const NarrativesView = memo(() => {
       }
       return true;
     });
-
-  // Count total responses
-  const totalResponses = responseNodes.size;
 
   if (narratives.length === 0) {
     return (

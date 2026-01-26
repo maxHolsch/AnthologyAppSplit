@@ -11,7 +11,6 @@ export const TabSwitcher = memo(() => {
   const mapViewMode = useAnthologyStore(state => state.view.mapViewMode);
   const setRailMode = useAnthologyStore(state => state.setRailMode);
   const setMapViewMode = useAnthologyStore(state => state.setMapViewMode);
-  const clearSelection = useAnthologyStore(state => state.clearSelection);
   const zoomToFullMap = useAnthologyStore(state => state.zoomToFullMap);
 
   const isQuestionsActive = railMode === 'conversations' || railMode === 'question';

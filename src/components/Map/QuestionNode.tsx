@@ -47,12 +47,8 @@ function wrapText(text: string, maxCharsPerLine: number = 30): string[] {
 
 export function QuestionNode({ node, onClick, onMouseEnter, onMouseLeave }: QuestionNodeProps) {
   const selectedNodes = useAnthologyStore(state => state.selection.selectedNodes);
-  const hoveredNode = useAnthologyStore(state => state.selection.hoveredNode);
   const hoveredNodes = useAnthologyStore(state => state.selection.hoveredNodes);
   const mapTransform = useAnthologyStore(state => state.view.mapTransform);
-
-  const isSelected = selectedNodes.has(node.id);
-  const isHovered = hoveredNode === node.id;
 
   // Calculate overlay visibility based on hover state (priority) and selection state
   const anyHovered = hoveredNodes.size > 0;

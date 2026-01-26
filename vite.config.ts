@@ -477,7 +477,7 @@ function localAssignNarrativeApiPlugin(env: Record<string, string>) {
             return;
           }
 
-          const embeddingData = await embeddingResp.json();
+          const embeddingData = await embeddingResp.json() as { data: Array<{ embedding: number[] }> };
           const responseEmbedding = embeddingData.data[0].embedding;
 
           // Calculate cosine similarity

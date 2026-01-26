@@ -29,7 +29,7 @@ export const NarrativeView = memo(() => {
   }, [activeNarrative, getResponsesForNarrative]);
 
   const responseIds = useMemo(() => {
-    return responses.map(r => r.id);
+    return responses.map((r: { id: string }) => r.id);
   }, [responses]);
 
   // Get narrative name from the narrative node
@@ -100,7 +100,7 @@ export const NarrativeView = memo(() => {
           </div>
         ) : (
           <div className={styles.responseList}>
-            {responses.map((response, index) => (
+            {responses.map((response: any, index: number) => (
               <ResponseTile
                 key={response.id}
                 response={response}

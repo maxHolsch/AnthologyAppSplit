@@ -8,14 +8,12 @@ import { SyncIcon, AsyncAudioIcon, AsyncTextIcon } from '@components/Icons/NodeI
  */
 export function ResponseNode({ node, onClick, onMouseEnter, onMouseLeave }: ResponseNodeProps) {
   const selectedNodes = useAnthologyStore(state => state.selection.selectedNodes);
-  const hoveredNode = useAnthologyStore(state => state.selection.hoveredNode);
   const hoveredNodes = useAnthologyStore(state => state.selection.hoveredNodes);
   const narrativeColorAssignments = useAnthologyStore(state => state.data.narrativeColorAssignments);
   const currentTrack = useAnthologyStore(state => state.audio.currentTrack);
   const playbackState = useAnthologyStore(state => state.audio.playbackState);
 
   const isSelected = selectedNodes.has(node.id);
-  const isHovered = hoveredNode === node.id || hoveredNodes.has(node.id);
   const isPlaying = currentTrack === node.id && playbackState === 'playing';
 
   // Calculate overlay visibility based on hover state (priority) and selection state

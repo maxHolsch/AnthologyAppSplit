@@ -10,13 +10,18 @@ import type { PostgrestError } from '@supabase/supabase-js';
  * Standard error class for Supabase operations
  */
 export class SupabaseQueryError extends Error {
+  public readonly originalError: PostgrestError;
+  public readonly context?: Record<string, unknown>;
+
   constructor(
     message: string,
-    public readonly originalError: PostgrestError,
-    public readonly context?: Record<string, unknown>
+    originalError: PostgrestError,
+    context?: Record<string, unknown>
   ) {
     super(message);
     this.name = 'SupabaseQueryError';
+    this.originalError = originalError;
+    this.context = context;
   }
 }
 

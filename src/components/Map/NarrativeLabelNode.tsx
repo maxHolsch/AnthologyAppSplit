@@ -25,7 +25,7 @@ interface NarrativeLabelNodeProps {
   onMouseLeave?: (node: GraphNode) => void;
 }
 
-export function NarrativeLabelNode({ node, onClick, onMouseEnter, onMouseLeave }: NarrativeLabelNodeProps) {
+export function NarrativeLabelNode({ node }: NarrativeLabelNodeProps) {
   const mapTransform = useAnthologyStore(state => state.view.mapTransform);
   const responseNodes = useAnthologyStore(state => state.data.responseNodes);
   const edges = useAnthologyStore(state => state.data.edges);
@@ -77,7 +77,7 @@ export function NarrativeLabelNode({ node, onClick, onMouseEnter, onMouseLeave }
   }, [narrativeId, selectNarrative]);
 
   // Hover handler: Highlight all responses and questions in this narrative
-  const handleMouseEnter = useCallback((e: React.MouseEvent) => {
+  const handleMouseEnter = useCallback(() => {
     // Find all responses in this narrative
     const narrativeResponseIds: string[] = [];
     responseNodes.forEach((response, responseId) => {

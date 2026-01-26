@@ -11,7 +11,6 @@ import styles from './ConversationsView.module.css';
 
 export const ConversationsView = memo(() => {
   const questionNodes = useAnthologyStore(state => state.data.questionNodes);
-  const responseNodes = useAnthologyStore(state => state.data.responseNodes);
   const selectQuestion = useAnthologyStore(state => state.selectQuestion);
 
   const handleQuestionClick = useCallback((questionId: string) => {

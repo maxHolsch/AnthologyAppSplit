@@ -12,23 +12,26 @@ import { supabaseQuery } from './supabaseQuery';
 // ============================================
 
 async function getAnthologyIdForConversation(conversationDbId: string): Promise<string> {
-  const data = await supabaseQuery(
-    () => supabase
-      .from('anthology_conversations')
-      .select('anthology_id')
-      .eq('id', conversationDbId)
-      .single(),
+  const data = await supabaseQuery<{ anthology_id: string }>(
+    async () => {
+      const result = await supabase
+        .from('anthology_conversations')
+        .select('anthology_id')
+        .eq('id', conversationDbId)
+        .single();
+      return result;
+    },
     {
       operation: 'get anthology ID for conversation',
       context: { conversationDbId }
     }
   );
 
-  if (!data?.anthology_id) {
+  if (!data.anthology_id) {
     throw new Error('Conversation has no anthology_id (schema migration may be incomplete)');
   }
 
-  return data.anthology_id as string;
+  return data.anthology_id;
 }
 
 const pickSpeakerBaseColor = (index: number) => DEFAULT_PALETTE[index % DEFAULT_PALETTE.length];
