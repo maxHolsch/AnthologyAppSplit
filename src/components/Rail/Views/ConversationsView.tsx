@@ -22,9 +22,6 @@ export const ConversationsView = memo(() => {
   // Convert Map to array for rendering
   const questions = Array.from(questionNodes.values());
 
-  // Count total responses
-  const totalResponses = responseNodes.size;
-
   if (questions.length === 0) {
     return (
       <div className={styles.emptyState}>
@@ -37,7 +34,7 @@ export const ConversationsView = memo(() => {
     <div className={styles.container}>
       <img src={AnthologyIcon} alt="Anthology" className={styles.logo} />
       <h1 className={styles.mainTitle}>
-        {totalResponses} {totalResponses === 1 ? 'response' : 'responses'}
+        What role should AI play in the future of work?
       </h1>
       <TabSwitcher />
       <div className={styles.questionList}>
