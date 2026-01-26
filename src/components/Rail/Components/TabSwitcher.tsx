@@ -17,29 +17,32 @@ export const TabSwitcher = memo(() => {
   const isQuestionsActive = railMode === 'conversations' || railMode === 'question';
   const isNarrativesActive = railMode === 'narratives' || railMode === 'narrative';
 
-  const handleQuestionsClick = () => {
-    clearSelection(); // Clear any active selection
+  const handleQuestionsClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent event bubbling
     zoomToFullMap(); // Reset zoom to full map view
-    setRailMode('conversations');
-    // Sync map view mode - only change if not already in question mode
+    // Sync map view mode first (this will call clearSelection internally)
     if (mapViewMode !== 'question') {
       setMapViewMode('question');
     }
+    // Set rail mode AFTER map view mode to ensure it's not overridden
+    setRailMode('conversations');
   };
 
-  const handleNarrativesClick = () => {
-    clearSelection(); // Clear any active selection
+  const handleNarrativesClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent event bubbling
     zoomToFullMap(); // Reset zoom to full map view
-    setRailMode('narratives');
-    // Sync map view mode - only change if not already in narrative mode
+    // Sync map view mode first (this will call clearSelection internally)
     if (mapViewMode !== 'narrative') {
       setMapViewMode('narrative');
     }
+    // Set rail mode AFTER map view mode to ensure it's not overridden
+    setRailMode('narratives');
   };
 
   return (
     <div className={styles.tabSwitcher}>
       <button
+        type="button"
         className={`${styles.tab} ${isQuestionsActive ? styles.active : ''}`}
         onClick={handleQuestionsClick}
         aria-label="View questions"
@@ -48,6 +51,7 @@ export const TabSwitcher = memo(() => {
       </button>
       <span className={styles.separator}>|</span>
       <button
+        type="button"
         className={`${styles.tab} ${isNarrativesActive ? styles.active : ''}`}
         onClick={handleNarrativesClick}
         aria-label="View narratives"
