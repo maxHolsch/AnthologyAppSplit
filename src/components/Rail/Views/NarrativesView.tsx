@@ -112,7 +112,7 @@ export const NarrativesView = memo(() => {
     <div className={styles.container}>
       <img src={AnthologyIcon} alt="Anthology" className={styles.logo} />
       <h1 className={styles.mainTitle}>
-        {totalResponses} {totalResponses === 1 ? 'response' : 'responses'}
+        What role should AI play in the future of work?
       </h1>
       <TabSwitcher />
       <div className={styles.questionList}>
