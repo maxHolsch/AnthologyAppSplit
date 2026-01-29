@@ -54,6 +54,7 @@ export async function assemblyStartTranscription({
 
   if (!createResp.ok) {
     const msg = await createResp.text().catch(() => '');
+    console.error('[assemblyai] Create failed:', createResp.status, msg);
     throw new Error(msg || 'Failed to create transcription job');
   }
 

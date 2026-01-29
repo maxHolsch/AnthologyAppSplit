@@ -10,6 +10,7 @@ import { assemblyTranscribeBlocking } from './_lib/assemblyai';
 type Json = Record<string, unknown>;
 
 export default async function handler(req: any, res: any) {
+  console.log('[transcribe] Handler invoked, method:', req.method);
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed' });
     return;
@@ -36,6 +37,7 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
+    console.log('[transcribe] Starting transcription for:', audioUrl);
     // Use the shared library which enables speaker_labels for reliable word timestamps
     const transcript = await assemblyTranscribeBlocking({
       apiKey,
@@ -43,6 +45,7 @@ export default async function handler(req: any, res: any) {
       maxPolls: 120,
       pollMs: 1500,
     });
+    console.log('[transcribe] Completed successfully');
 
     // Return in the same format the frontend expects
     res.status(200).json({

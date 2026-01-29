@@ -904,15 +904,34 @@ export const useAnthologyStore = create<AnthologyStoreState & AnthologyStoreActi
         // Stop any current playback when switching focus
         get().stop();
 
-        // Auto-zoom to response node
+        // Auto-zoom to response node with smooth animation
         const vizStore = useVisualizationStore.getState();
-        const position = vizStore.getNodePosition(responseId);
         const centerOnNode = vizStore.centerOnNode;
 
-        if (position && centerOnNode) {
-          // Zoom to 2x scale for focused view on individual response
-          centerOnNode(position.x, position.y, 2.0, 750);
-        }
+        // Wait for physics to settle, then pin the node and animate to it
+        // This prevents the jarring jump when a new node is still being positioned
+        setTimeout(() => {
+          const position = vizStore.getNodePosition(responseId);
+          if (!position || !centerOnNode) return;
+
+          // Find and temporarily pin the node so it doesn't drift during animation
+          const node = vizStore.simulationNodes.find(n => n.id === responseId);
+          if (node) {
+            node.fx = node.x;
+            node.fy = node.y;
+          }
+
+          // Smooth pan to the new node over 1.5 seconds at 1.5x zoom (slightly zoomed out)
+          centerOnNode(position.x, position.y, 1.5, 1500);
+
+          // Unpin after animation completes so physics can resume
+          setTimeout(() => {
+            if (node && vizStore.isPhysicsEnabled) {
+              node.fx = undefined;
+              node.fy = undefined;
+            }
+          }, 1600);
+        }, 200); // Wait 200ms for physics to settle
       },
 
       clearSelection: () => {
