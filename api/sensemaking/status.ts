@@ -1,8 +1,8 @@
 // Vercel Serverless Function
 // GET /api/sensemaking/status?jobId=...
 
-import { sendJson } from '../_lib/http';
-import { getSensemakingStatus } from '../_lib/sensemaking';
+import { sendJson } from '../_lib/http.js';
+import { getSensemakingStatus } from '../_lib/sensemaking.js';
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'GET') {

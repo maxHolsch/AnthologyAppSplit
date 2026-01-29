@@ -6,7 +6,7 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { generateEmbeddings, EMBEDDINGS_DIMENSIONS } from '../_lib/openai';
+import { generateEmbeddings, EMBEDDINGS_DIMENSIONS } from '../_lib/openai.js';
 
 function requireEnv(name: string): string {
   const v = process.env[name];

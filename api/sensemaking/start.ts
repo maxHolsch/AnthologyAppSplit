@@ -1,8 +1,8 @@
 // Vercel Serverless Function
 // POST /api/sensemaking/start
 
-import { readJsonBody, sendJson } from '../_lib/http';
-import { startSensemaking } from '../_lib/sensemaking';
+import { readJsonBody, sendJson } from '../_lib/http.js';
+import { startSensemaking } from '../_lib/sensemaking.js';
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') {

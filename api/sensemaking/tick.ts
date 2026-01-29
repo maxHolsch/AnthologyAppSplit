@@ -1,8 +1,8 @@
 // Vercel Serverless Function
 // POST /api/sensemaking/tick
 
-import { readJsonBody, sendJson } from '../_lib/http';
-import { tickSensemaking } from '../_lib/sensemaking';
+import { readJsonBody, sendJson } from '../_lib/http.js';
+import { tickSensemaking } from '../_lib/sensemaking.js';
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') {

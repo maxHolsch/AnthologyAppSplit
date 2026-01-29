@@ -5,7 +5,7 @@
 // This endpoint uses the shared AssemblyAI library for consistent transcription
 // with speaker diarization and reliable word-level timestamps.
 
-import { assemblyTranscribeBlocking } from './_lib/assemblyai';
+import { assemblyTranscribeBlocking } from './_lib/assemblyai.js';
 
 type Json = Record<string, unknown>;
 

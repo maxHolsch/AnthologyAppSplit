@@ -1,14 +1,14 @@
 import { createClient } from '@supabase/supabase-js';
 import path from 'path';
 
-import { openaiJsonSchema, generateEmbeddings } from './openai';
+import { openaiJsonSchema, generateEmbeddings } from './openai.js';
 import {
   assemblyPollTranscript,
   assemblyStartTranscription,
   type AssemblyTranscript,
   type AssemblyUtterance,
-} from './assemblyai';
-import { buildSpeakerColorScheme } from './colorUtils';
+} from './assemblyai.js';
+import { buildSpeakerColorScheme } from './colorUtils.js';
 
 // LangGraph note: we orchestrate the pipeline with a time-sliced job runner in tickSensemaking()
 // (kept intentionally minimal for Vercel function timeouts).
