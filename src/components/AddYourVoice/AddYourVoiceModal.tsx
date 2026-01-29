@@ -11,8 +11,16 @@ type Stage = 'record' | 'review';
 function inferConversationIdForQuestion(questionId: string, responses: Map<string, ResponseNode>, rawConversations: any) {
   for (const r of responses.values()) {
     if (r.responds_to === questionId && typeof r.conversation_id === 'string' && r.conversation_id.length > 0) {
-      // If the response object has a _db_id (added by some service transforms), use it
-      return (r as any)._db_id || r.conversation_id;
+      // Find the conversation's _db_id by matching conversation_id
+      // r.conversation_id is the legacy_id or id of the conversation
+      const matchingConv = rawConversations?.find(
+        (c: any) => c._db_id === r.conversation_id || c.conversation_id === r.conversation_id
+      );
+      if (matchingConv?._db_id) {
+        return matchingConv._db_id;
+      }
+      // Fallback to conversation_id if no match found (may be UUID already)
+      return r.conversation_id;
     }
   }
 
