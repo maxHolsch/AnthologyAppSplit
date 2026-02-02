@@ -1,0 +1,18 @@
+# Default - require review from anyone on the team
+* @maxHolsch
+
+# Frontend team owns these
+/src/ @maxHolsch
+/index.html @maxHolsch
+/vite.config.ts @maxHolsch
+/tsconfig.app.json @maxHolsch
+*.css @maxHolsch
+
+# Backend team owns these
+/api/ @maxHolsch
+/supabase/ @maxHolsch
+
+# Shared config - both teams should review
+/package.json @maxHolsch
+/.env.example @maxHolsch
+/vercel.json @maxHolsch

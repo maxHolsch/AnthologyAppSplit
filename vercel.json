@@ -1,11 +1,10 @@
 {
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "devCommand": "npm run dev",
   "installCommand": "npm install",
   "framework": "vite",
   "functions": {
-    "api/transcribe.ts": {
+    "api/**/*.ts": {
       "maxDuration": 60
     }
   },

@@ -1,75 +1,80 @@
 /**
  * Question Service
- * Handles question and question-response operations
+ * Handles question and question-response operations via REST API
  */
 
 import type { QuestionNode, ResponseNode } from '@/types/data.types';
-import { supabase } from './supabaseClient';
+import { apiClient } from './apiClient';
+import type { ApiQuestion, ApiResponse } from '../../shared/types/api.types';
+
+/**
+ * Transform API question to legacy QuestionNode type
+ */
+function toQuestion(api: ApiQuestion): QuestionNode & { _db_id: string } {
+  return {
+    type: 'question' as const,
+    id: api.legacyId || api.id,
+    _db_id: api.id,
+    question_text: api.questionText,
+    related_responses: api.relatedResponses,
+    path_to_recording: api.pathToRecording,
+    facilitator: api.facilitator,
+    notes: api.notes,
+  };
+}
+
+/**
+ * Transform API response to legacy ResponseNode type
+ */
+function toResponse(api: ApiResponse): ResponseNode {
+  return {
+    type: 'response' as const,
+    id: api.legacyId || api.id,
+    responds_to: api.respondsToQuestionId || api.respondsToResponseId || '',
+    responds_to_narrative_id: api.respondsToNarrativeId || undefined,
+    speaker_name: api.speakerName,
+    speaker_text: api.speakerText,
+    pull_quote: api.pullQuote || undefined,
+    audio_start: api.audioStartMs || 0,
+    audio_end: api.audioEndMs || 0,
+    conversation_id: api.conversationId,
+    path_to_recording: api.pathToRecording,
+    turn_number: api.turnNumber || undefined,
+    chronological_turn_number: api.chronologicalTurnNumber || undefined,
+    embedding: api.embedding,
+    medium: api.medium || undefined,
+    synchronicity: api.synchronicity || undefined,
+  };
+}
 
 export const QuestionService = {
   /**
    * Get all questions for a conversation
    */
   async getByConversation(conversationId: string): Promise<QuestionNode[]> {
-    const { data, error } = await supabase
-      .from('anthology_questions')
-      .select(`
-        *,
-        recording:anthology_recordings (*)
-      `)
-      .eq('conversation_id', conversationId)
-      .order('created_at');
-
-    if (error) {
+    try {
+      const questions = await apiClient.get<ApiQuestion[]>(
+        `/conversations/${conversationId}/questions`
+      );
+      return questions.map(toQuestion);
+    } catch (error) {
       console.error('Error fetching questions:', error);
       return [];
     }
-
-    return data.map((q: any) => ({
-      type: 'question' as const,
-      id: q.legacy_id || q.id,
-      _db_id: q.id,
-      question_text: q.question_text,
-      related_responses: [], // Will be populated when loading responses
-      path_to_recording: q.recording?.file_path,
-      audio_start_ms: q.audio_start_ms,
-      audio_end_ms: q.audio_end_ms,
-      facilitator: q.facilitator,
-      notes: q.notes
-    }));
   },
 
   /**
    * Get responses for a question
    */
   async getResponses(questionId: string): Promise<ResponseNode[]> {
-    const { data, error } = await supabase
-      .from('anthology_responses')
-      .select(`
-        *,
-        recording:anthology_recordings (*),
-        speaker:anthology_speakers (*)
-      `)
-      .eq('responds_to_question_id', questionId)
-      .order('turn_number');
-
-    if (error) {
+    try {
+      const responses = await apiClient.get<ApiResponse[]>(
+        `/questions/${questionId}/responses`
+      );
+      return responses.map(toResponse);
+    } catch (error) {
       console.error('Error fetching question responses:', error);
       return [];
     }
-
-    return data.map((r: any) => ({
-      type: 'response' as const,
-      id: r.legacy_id || r.id,
-      responds_to: questionId,
-      speaker_name: r.speaker_name,
-      speaker_text: r.speaker_text,
-      pull_quote: r.pull_quote,
-      audio_start: r.audio_start_ms,
-      audio_end: r.audio_end_ms,
-      conversation_id: r.conversation_id,
-      path_to_recording: r.recording?.file_path,
-      turn_number: r.turn_number
-    }));
-  }
+  },
 };

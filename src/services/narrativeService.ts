@@ -1,35 +1,40 @@
 /**
  * Narrative Service
- * Handles narrative operations
+ * Handles narrative operations via REST API
  */
 
 import type { NarrativeNode } from '@/types/data.types';
-import { supabase } from './supabaseClient';
+import { apiClient } from './apiClient';
+import type { ApiNarrative } from '../../shared/types/api.types';
+
+/**
+ * Transform API narrative to legacy NarrativeNode type
+ */
+function toNarrative(api: ApiNarrative): NarrativeNode & { _db_id: string } {
+  return {
+    type: 'narrative' as const,
+    id: api.legacyId || api.id,
+    _db_id: api.id,
+    narrative_text: api.narrativeText,
+    related_responses: api.relatedResponses,
+    path_to_recording: undefined, // Narratives don't have recordings
+    notes: api.notes,
+  };
+}
 
 export const NarrativeService = {
   /**
    * Get all narratives for a conversation
    */
   async getByConversation(conversationId: string): Promise<NarrativeNode[]> {
-    const { data, error } = await supabase
-      .from('anthology_narratives')
-      .select('*')
-      .eq('conversation_id', conversationId)
-      .order('created_at');
-
-    if (error) {
+    try {
+      const narratives = await apiClient.get<ApiNarrative[]>(
+        `/conversations/${conversationId}/narratives`
+      );
+      return narratives.map(toNarrative);
+    } catch (error) {
       console.error('Error fetching narratives:', error);
       return [];
     }
-
-    return data.map((n: any) => ({
-      type: 'narrative' as const,
-      id: n.legacy_id || n.id,
-      _db_id: n.id,
-      narrative_text: n.narrative_text,
-      related_responses: [], // Will be populated if needed
-      path_to_recording: undefined, // Narratives don't have recordings
-      notes: n.notes
-    }));
-  }
+  },
 };

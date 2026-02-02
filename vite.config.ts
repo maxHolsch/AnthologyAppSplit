@@ -726,6 +726,46 @@ export default defineConfig(({ command, mode }) => {
         '@types': path.resolve(__dirname, './src/types'),
         '@styles': path.resolve(__dirname, './src/styles'),
       }
-    }
+    },
+    server: {
+      proxy: {
+        // Proxy REST API requests to the local API server
+        // Middleware plugins above handle: /api/transcribe, /api/judge-question,
+        // /api/assign-narrative, /api/sensemaking/*
+        // All other /api/* requests go to the Express API server
+        '/api/anthologies': {
+          target: 'http://localhost:3001',
+          changeOrigin: true,
+        },
+        '/api/conversations': {
+          target: 'http://localhost:3001',
+          changeOrigin: true,
+        },
+        '/api/questions': {
+          target: 'http://localhost:3001',
+          changeOrigin: true,
+        },
+        '/api/responses': {
+          target: 'http://localhost:3001',
+          changeOrigin: true,
+        },
+        '/api/narratives': {
+          target: 'http://localhost:3001',
+          changeOrigin: true,
+        },
+        '/api/speakers': {
+          target: 'http://localhost:3001',
+          changeOrigin: true,
+        },
+        '/api/graph': {
+          target: 'http://localhost:3001',
+          changeOrigin: true,
+        },
+        '/api/docs': {
+          target: 'http://localhost:3001',
+          changeOrigin: true,
+        },
+      },
+    },
   };
 })

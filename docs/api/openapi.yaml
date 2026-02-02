@@ -1,0 +1,2175 @@
+openapi: 3.0.3
+info:
+  title: Anthology API
+  description: |
+    ## Overview
+
+    The Anthology API provides programmatic access to oral history conversations and their visual representation data.
+    This API powers the Anthology visualization application, which displays interconnected conversations as an
+    interactive graph where responses, questions, narratives, and speakers form a web of relationships.
+
+    ### Key Concepts
+
+    - **Anthology**: A collection of related conversations, typically from a specific project, community, or theme
+    - **Conversation**: A recorded discussion containing multiple responses, questions, and narratives
+    - **Response**: A segment of speech from a single speaker, the core content unit
+    - **Question**: Facilitator prompts that elicit responses from participants
+    - **Narrative**: Thematic groupings that connect related responses across a conversation
+    - **Speaker**: A participant in a conversation with associated visual styling
+
+    ### Data Relationships
+
+    ```
+    Anthology
+      └── Conversations (1:many)
+            ├── Speakers (1:many)
+            ├── Questions (1:many)
+            │     └── Responses (1:many via respondsToQuestionId)
+            ├── Narratives (1:many)
+            │     └── Responses (1:many via respondsToNarrativeId)
+            └── Responses (1:many)
+                  └── WordTimestamps (1:many, embedded)
+    ```
+
+    ## Authentication
+
+    Most read operations are public and do not require authentication. Write operations (POST, PATCH, DELETE)
+    require a valid Supabase JWT token passed in the Authorization header.
+
+    ```
+    Authorization: Bearer <your-supabase-jwt-token>
+    ```
+
+    Tokens are obtained through Supabase Auth. Contact the API administrator for access credentials.
+
+    ## Pagination
+
+    List endpoints support offset-based pagination with the following query parameters:
+
+    | Parameter | Type | Default | Max | Description |
+    |-----------|------|---------|-----|-------------|
+    | `limit` | integer | 50 | 100 | Maximum items to return |
+    | `offset` | integer | 0 | - | Number of items to skip |
+
+    Response includes a `meta` object with pagination details:
+
+    ```json
+    {
+      "data": [...],
+      "meta": {
+        "total": 150,
+        "limit": 50,
+        "offset": 0,
+        "hasMore": true
+      }
+    }
+    ```
+
+    ## Error Handling
+
+    All errors follow a consistent format:
+
+    ```json
+    {
+      "error": {
+        "code": "NOT_FOUND",
+        "message": "Resource not found",
+        "details": {}
+      }
+    }
+    ```
+
+    ### Error Codes
+
+    | Code | HTTP Status | Description |
+    |------|-------------|-------------|
+    | `BAD_REQUEST` | 400 | Invalid request format |
+    | `VALIDATION_ERROR` | 400 | Request validation failed |
+    | `UNAUTHORIZED` | 401 | Missing or invalid authentication |
+    | `FORBIDDEN` | 403 | Insufficient permissions |
+    | `NOT_FOUND` | 404 | Resource does not exist |
+    | `METHOD_NOT_ALLOWED` | 405 | HTTP method not supported |
+    | `CONFLICT` | 409 | Resource conflict (e.g., duplicate) |
+    | `INTERNAL_ERROR` | 500 | Server error |
+    | `DATABASE_ERROR` | 500 | Database operation failed |
+    | `SERVICE_UNAVAILABLE` | 503 | Service temporarily unavailable |
+
+    ## Rate Limiting
+
+    Currently no rate limits are enforced. This may change in future versions.
+
+  version: 1.0.0
+  contact:
+    name: API Support
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: /api
+    description: API endpoints (relative to application host)
+
+tags:
+  - name: Anthologies
+    description: |
+      Anthologies are top-level containers that group related conversations. Each anthology has a unique
+      URL-friendly slug used for routing. Anthologies can be public (visible to all) or private
+      (requires authentication).
+
+      **Common use cases:**
+      - List all public anthologies for a landing page
+      - Retrieve a specific anthology by slug for deep linking
+
+  - name: Conversations
+    description: |
+      Conversations represent recorded discussions within an anthology. Each conversation contains
+      audio/video metadata, speaker information, and the full transcript segmented into responses.
+
+      Conversations serve as the primary container for:
+      - Speakers participating in the discussion
+      - Questions asked by facilitators
+      - Responses from participants
+      - Narratives that group related responses
+
+      **Performance note:** Use nested endpoints (e.g., `/conversations/{id}/responses`) when you need
+      data for a single conversation. Use the `/graph/load` endpoint when loading complete visualization data.
+
+  - name: Questions
+    description: |
+      Questions represent prompts from facilitators that guide the conversation. Each question can have
+      multiple responses linked via the `respondsToQuestionId` field.
+
+      Questions include:
+      - The question text as spoken or written
+      - Audio timing information for playback synchronization
+      - Related response references for graph visualization
+
+      **Graph visualization:** Questions appear as nodes that connect to their response nodes.
+
+  - name: Responses
+    description: |
+      Responses are the core content units - segments of speech from participants. Each response
+      represents a continuous utterance from a single speaker and includes:
+
+      - Full transcript text (`speakerText`)
+      - Optional pull quote for highlighting
+      - Audio timing for playback synchronization
+      - Word-level timestamps for karaoke-style highlighting
+      - Semantic embedding vectors for similarity search
+
+      Responses can be linked to:
+      - A question (`respondsToQuestionId`) - direct answer to facilitator
+      - Another response (`respondsToResponseId`) - conversational reply
+      - A narrative (`respondsToNarrativeId`) - thematic connection
+
+      **Performance note:** The `embedding` field contains a 1536-dimension vector. Use `?fields`
+      parameter to exclude it when not needed for similarity operations.
+
+  - name: Narratives
+    description: |
+      Narratives represent thematic groupings that connect related responses across a conversation.
+      They are curator-created labels that highlight recurring themes, topics, or threads.
+
+      Each narrative includes:
+      - Descriptive text explaining the theme
+      - Color for visual distinction in the graph
+      - Related response references
+      - Semantic embedding for similarity matching
+
+      **Graph visualization:** Narratives appear as colored nodes that cluster related responses.
+
+  - name: Speakers
+    description: |
+      Speakers are participants in conversations. Each speaker has a unique color scheme used
+      throughout the visualization for consistent identification.
+
+      **Color fields:**
+      - `circleColor` / `fadedCircleColor`: Node representation colors
+      - `quoteRectangleColor` / `fadedQuoteRectangleColor`: Quote card background
+      - `quoteTextColor` / `fadedQuoteTextColor`: Quote card text
+
+      Faded colors are used when the speaker/response is not in focus.
+
+      **Uniqueness:** Speaker names must be unique within a conversation but can repeat across
+      conversations (same person in different recordings).
+
+  - name: Graph
+    description: |
+      The Graph endpoint provides optimized composite data loading for the visualization application.
+      Instead of making multiple API calls, use `/graph/load` to retrieve all conversations, questions,
+      narratives, and responses in a single request.
+
+      **When to use:**
+      - Initial application load
+      - Full data refresh
+      - Switching between anthologies
+
+      **When NOT to use:**
+      - Loading a single resource
+      - Incremental updates
+      - Server-side rendering of individual pages
+
+paths:
+  /anthologies:
+    get:
+      summary: List anthologies
+      description: |
+        Retrieve a paginated list of anthologies. By default, only public anthologies are returned.
+        Use this endpoint to populate anthology selection interfaces or discover available content.
+
+        **Example use cases:**
+        - Landing page showing all public anthologies
+        - Admin dashboard listing all anthologies (with `publicOnly=false`)
+
+        **Note:** Private anthologies require authentication and appropriate permissions.
+      operationId: listAnthologies
+      tags:
+        - Anthologies
+      parameters:
+        - name: publicOnly
+          in: query
+          description: |
+            When `true` (default), only returns anthologies marked as public.
+            Set to `false` to include private anthologies (requires authentication).
+          schema:
+            type: boolean
+            default: true
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+      responses:
+        '200':
+          description: Paginated list of anthologies
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnthologyListResponse'
+              example:
+                data:
+                  - id: "550e8400-e29b-41d4-a716-446655440000"
+                    slug: "community-voices-2024"
+                    title: "Community Voices 2024"
+                    description: "Oral histories from local community members"
+                    isPublic: true
+                    createdAt: "2024-01-15T10:30:00Z"
+                meta:
+                  total: 12
+                  limit: 50
+                  offset: 0
+                  hasMore: false
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /anthologies/{slug}:
+    get:
+      summary: Get anthology by slug
+      description: |
+        Retrieve a single anthology by its URL-friendly slug. Slugs are unique identifiers
+        suitable for use in URLs (e.g., `/anthology/community-voices-2024`).
+
+        **When to use:**
+        - Deep linking to a specific anthology
+        - Resolving anthology data from a URL route
+
+        **Note:** Returns 404 if the anthology doesn't exist or if it's private and the user lacks access.
+      operationId: getAnthologyBySlug
+      tags:
+        - Anthologies
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          description: URL-friendly unique identifier for the anthology (e.g., "community-voices-2024")
+          schema:
+            type: string
+          example: "community-voices-2024"
+      responses:
+        '200':
+          description: Anthology details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnthologyResponse'
+              example:
+                data:
+                  id: "550e8400-e29b-41d4-a716-446655440000"
+                  slug: "community-voices-2024"
+                  title: "Community Voices 2024"
+                  description: "Oral histories from local community members"
+                  isPublic: true
+                  createdAt: "2024-01-15T10:30:00Z"
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /conversations:
+    get:
+      summary: List conversations
+      description: |
+        Retrieve a paginated list of conversations. Optionally filter by anthology to get
+        all conversations within a specific collection.
+
+        **Example use cases:**
+        - List all conversations in an anthology for navigation
+        - Browse conversations across all anthologies
+
+        **Performance note:** For visualization loading, prefer `/graph/load` which returns
+        all related data in a single optimized request.
+      operationId: listConversations
+      tags:
+        - Conversations
+      parameters:
+        - name: anthologyId
+          in: query
+          description: Filter conversations belonging to a specific anthology
+          schema:
+            type: string
+            format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+      responses:
+        '200':
+          description: Paginated list of conversations
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationListResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /conversations/{id}:
+    get:
+      summary: Get conversation by ID
+      description: |
+        Retrieve detailed information about a single conversation including its metadata,
+        audio file reference, and duration.
+
+        The `metadata` object contains rich contextual information:
+        - `title`: Display name for the conversation
+        - `date`: When the conversation was recorded
+        - `participants`: List of participant names
+        - `speakerColors`: Color assignments for visualization
+        - `location`: Where the conversation took place
+        - `facilitator`: Who led the conversation
+        - `topics`: Subject tags for categorization
+
+        **Related endpoints:**
+        - Use `/conversations/{id}/speakers` for speaker details
+        - Use `/conversations/{id}/responses` for full transcript
+      operationId: getConversationById
+      tags:
+        - Conversations
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Unique identifier for the conversation
+          schema:
+            type: string
+            format: uuid
+          example: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+      responses:
+        '200':
+          description: Conversation details with metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /conversations/{id}/speakers:
+    get:
+      summary: Get speakers for a conversation
+      description: |
+        Retrieve all speakers participating in a specific conversation. Each speaker includes
+        their complete color scheme for consistent visualization rendering.
+
+        **Color scheme fields:**
+        - Primary colors (`circleColor`, `quoteRectangleColor`, `quoteTextColor`) for focused state
+        - Faded colors for unfocused/background state
+
+        **Ordering:** Speakers are returned in creation order, typically reflecting their
+        first appearance in the conversation.
+      operationId: getConversationSpeakers
+      tags:
+        - Conversations
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Conversation UUID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: List of speakers in the conversation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpeakerListResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /conversations/{id}/questions:
+    get:
+      summary: Get questions for a conversation
+      description: |
+        Retrieve all facilitator questions from a specific conversation. Questions serve as
+        prompts that elicit responses from participants.
+
+        **Graph relationships:** Each question has a `relatedResponses` array containing
+        IDs of responses that directly answer this question. These form edges in the
+        visualization graph.
+
+        **Audio timing:** `audioStartMs` and `audioEndMs` enable playback synchronization
+        with the conversation recording.
+      operationId: getConversationQuestions
+      tags:
+        - Conversations
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Conversation UUID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: List of questions in the conversation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuestionListResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /conversations/{id}/responses:
+    get:
+      summary: Get responses for a conversation
+      description: |
+        Retrieve all responses (speech segments) from a specific conversation. This is the
+        primary content of the conversation, containing the full transcript segmented by speaker.
+
+        **Ordering:** Responses are returned in chronological order based on `audioStartMs`
+        or `turnNumber`, representing the natural flow of the conversation.
+
+        **Performance note:** Responses may include large `embedding` arrays (1536 dimensions)
+        and `wordTimestamps` arrays. For visualization-only use cases, consider using
+        `/graph/load` which optimizes the data payload.
+      operationId: getConversationResponses
+      tags:
+        - Conversations
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Conversation UUID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: List of responses in the conversation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseListResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /conversations/{id}/narratives:
+    get:
+      summary: Get narratives for a conversation
+      description: |
+        Retrieve all narratives (thematic groupings) for a specific conversation. Narratives
+        are curator-created labels that connect related responses around common themes.
+
+        **Graph visualization:** Narratives appear as colored nodes that cluster responses
+        sharing a theme. The `relatedResponses` array identifies which responses belong
+        to each narrative.
+
+        **Example narratives:**
+        - "Childhood memories"
+        - "Career transitions"
+        - "Community impact"
+      operationId: getConversationNarratives
+      tags:
+        - Conversations
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Conversation UUID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: List of narratives in the conversation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NarrativeListResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /questions:
+    get:
+      summary: List questions
+      description: |
+        Retrieve a paginated list of facilitator questions. Filter by conversation or anthology
+        to narrow results.
+
+        **Filtering:**
+        - `conversationId`: Get questions from a specific conversation
+        - `anthologyId`: Get questions from all conversations in an anthology
+
+        **Use cases:**
+        - Building a question index across an anthology
+        - Analyzing facilitator patterns across conversations
+      operationId: listQuestions
+      tags:
+        - Questions
+      parameters:
+        - name: conversationId
+          in: query
+          description: Filter questions belonging to a specific conversation
+          schema:
+            type: string
+            format: uuid
+        - name: anthologyId
+          in: query
+          description: Filter questions belonging to any conversation in this anthology
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+      responses:
+        '200':
+          description: Paginated list of questions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuestionPaginatedResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /questions/{id}/responses:
+    get:
+      summary: Get responses for a question
+      description: |
+        Retrieve all responses that directly answer a specific question. This returns responses
+        where `respondsToQuestionId` matches the given question ID.
+
+        **Graph relationship:** This endpoint returns the outgoing edges from a question node
+        to its connected response nodes in the visualization.
+
+        **Ordering:** Responses are returned in conversation order (by `turnNumber` or `audioStartMs`),
+        showing how participants answered the question in sequence.
+      operationId: getQuestionResponses
+      tags:
+        - Questions
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Question UUID to find responses for
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: List of responses answering this question
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseListResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /responses:
+    get:
+      summary: List responses
+      description: |
+        Retrieve a paginated list of responses with flexible filtering options.
+        Responses are the core content units containing speaker utterances.
+
+        **Filtering (can be combined):**
+        - `conversationId`: Responses from a specific conversation
+        - `anthologyId`: Responses from all conversations in an anthology
+        - `questionId`: Responses answering a specific question
+        - `narrativeId`: Responses belonging to a narrative theme
+
+        **Performance note:** Responses may include large `embedding` arrays.
+        For bulk loading, use `/graph/load` which optimizes data transfer.
+      operationId: listResponses
+      tags:
+        - Responses
+      parameters:
+        - name: conversationId
+          in: query
+          description: Filter by parent conversation
+          schema:
+            type: string
+            format: uuid
+        - name: anthologyId
+          in: query
+          description: Filter by parent anthology (includes all conversations)
+          schema:
+            type: string
+            format: uuid
+        - name: questionId
+          in: query
+          description: Filter by responses that answer this question
+          schema:
+            type: string
+            format: uuid
+        - name: narrativeId
+          in: query
+          description: Filter by responses belonging to this narrative
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+      responses:
+        '200':
+          description: Paginated list of responses
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponsePaginatedResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      summary: Create a response
+      description: |
+        Create a new response within a conversation. Requires authentication.
+
+        **Required fields:**
+        - `conversationId`: Parent conversation
+        - `speakerName`: Who is speaking
+        - `speakerText`: Full transcript of the utterance
+
+        **Optional relationships:**
+        - `respondsToQuestionId`: Links response to a facilitator question
+        - `respondsToResponseId`: Links response to another participant's response
+        - `respondsToNarrativeId`: Links response to a thematic narrative
+
+        **Audio synchronization:**
+        - `audioStartMs` / `audioEndMs`: Timing for playback sync
+        - Word timestamps are generated separately via processing pipeline
+
+        **Note:** Embeddings are generated server-side and cannot be provided directly.
+      operationId: createResponse
+      tags:
+        - Responses
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateResponseRequest'
+            example:
+              conversationId: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+              speakerName: "Maria"
+              speakerText: "When I think about my childhood, I remember the summers at my grandmother's house."
+              pullQuote: "I remember the summers at my grandmother's house"
+              respondsToQuestionId: "8f14e45f-ceea-467f-a10a-6d6c3b76b98e"
+              audioStartMs: 125000
+              audioEndMs: 132500
+              turnNumber: 5
+              medium: "audio"
+              synchronicity: "sync"
+      responses:
+        '201':
+          description: Response created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /responses/{id}:
+    get:
+      summary: Get response by ID
+      description: |
+        Retrieve a single response with all its details including transcript,
+        timing information, relationships, and word timestamps.
+
+        **Included data:**
+        - Full speaker text and optional pull quote
+        - Audio timing (`audioStartMs`, `audioEndMs`)
+        - Relationship links (`respondsToQuestionId`, etc.)
+        - Word-level timestamps for karaoke highlighting
+        - Embedding vector (1536 dimensions) for similarity search
+      operationId: getResponseById
+      tags:
+        - Responses
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Response UUID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Response details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    patch:
+      summary: Update a response
+      description: |
+        Update specific fields of an existing response. Requires authentication.
+
+        **Updatable fields:**
+        - `speakerText`: Correct transcript errors
+        - `pullQuote`: Set/update highlighted excerpt
+        - `respondsToNarrativeId`: Change narrative association
+        - `audioStartMs` / `audioEndMs`: Adjust timing
+
+        **Non-updatable fields:**
+        - `conversationId`, `speakerName`: Cannot be changed after creation
+        - `embedding`: Regenerated automatically when `speakerText` changes
+        - `wordTimestamps`: Managed separately via processing pipeline
+
+        **Partial updates:** Only include fields you want to change.
+      operationId: updateResponse
+      tags:
+        - Responses
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Response UUID to update
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateResponseRequest'
+            example:
+              pullQuote: "summers at my grandmother's house"
+              audioStartMs: 125500
+              audioEndMs: 132000
+      responses:
+        '200':
+          description: Response updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      summary: Delete a response
+      description: |
+        Permanently delete a response. Requires authentication.
+
+        **Warning:** This action cannot be undone. Deleting a response will:
+        - Remove the response from its conversation
+        - Break any links from other responses (`respondsToResponseId`)
+        - Remove the response from associated narratives
+        - Delete all associated word timestamps
+      operationId: deleteResponse
+      tags:
+        - Responses
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Response UUID to delete
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Response deleted successfully (no content returned)
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /responses/{id}/word-timestamps:
+    get:
+      summary: Get word timestamps for a response
+      description: |
+        Retrieve word-level timing data for karaoke-style highlighting during audio playback.
+        Each word includes start/end times in milliseconds relative to the conversation audio.
+
+        **Use cases:**
+        - Synchronized word highlighting during audio playback
+        - Jump-to-word navigation
+        - Accessibility features (visual feedback for speech)
+
+        **Data structure:**
+        Each timestamp includes:
+        - `text`: The word or punctuation
+        - `start`: Start time in milliseconds
+        - `end`: End time in milliseconds
+        - `speaker`: Speaker identifier (for multi-speaker segments)
+        - `confidence`: Transcription confidence score (0-1)
+
+        **Note:** Not all responses have word timestamps. Returns empty array if unavailable.
+      operationId: getResponseWordTimestamps
+      tags:
+        - Responses
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Response UUID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Word timestamps for the response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WordTimestampListResponse'
+              example:
+                data:
+                  - text: "When"
+                    start: 125000
+                    end: 125200
+                    speaker: "Maria"
+                    confidence: 0.98
+                  - text: "I"
+                    start: 125200
+                    end: 125300
+                    speaker: "Maria"
+                    confidence: 0.99
+                  - text: "think"
+                    start: 125300
+                    end: 125550
+                    speaker: "Maria"
+                    confidence: 0.97
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /narratives:
+    get:
+      summary: List narratives
+      description: |
+        Retrieve a paginated list of thematic narratives. Narratives are curator-created
+        groupings that connect related responses around common themes or topics.
+
+        **Filtering:**
+        - `conversationId`: Narratives from a specific conversation
+        - `anthologyId`: Narratives from all conversations in an anthology
+
+        **Use cases:**
+        - Display narrative themes for navigation
+        - Build a theme index across an anthology
+        - Analyze thematic patterns across conversations
+      operationId: listNarratives
+      tags:
+        - Narratives
+      parameters:
+        - name: conversationId
+          in: query
+          description: Filter narratives belonging to a specific conversation
+          schema:
+            type: string
+            format: uuid
+        - name: anthologyId
+          in: query
+          description: Filter narratives belonging to any conversation in this anthology
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+      responses:
+        '200':
+          description: Paginated list of narratives
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NarrativePaginatedResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /narratives/{id}/responses:
+    get:
+      summary: Get responses for a narrative
+      description: |
+        Retrieve all responses that belong to a specific narrative theme. This returns
+        responses where `respondsToNarrativeId` matches the given narrative ID.
+
+        **Graph relationship:** This endpoint returns the edges from a narrative node
+        to its connected response nodes in the visualization. Narrative nodes typically
+        cluster related responses visually.
+
+        **Ordering:** Responses are returned in conversation order, showing how the
+        theme emerges and develops throughout the discussion.
+      operationId: getNarrativeResponses
+      tags:
+        - Narratives
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Narrative UUID to find responses for
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: List of responses belonging to this narrative
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseListResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /speakers:
+    get:
+      summary: List speakers
+      description: |
+        Retrieve a paginated list of speakers with their complete color schemes.
+        Speakers are conversation participants with assigned visual styling.
+
+        **Filtering:**
+        - `conversationId`: Speakers from a specific conversation
+        - `anthologyId`: Speakers from all conversations in an anthology
+
+        **Note on uniqueness:** Speaker names are unique within a conversation but
+        the same person may appear in multiple conversations with different speaker
+        records (and potentially different color schemes).
+
+        **Use cases:**
+        - Build a participant legend for a conversation
+        - Collect all speakers across an anthology for a directory
+      operationId: listSpeakers
+      tags:
+        - Speakers
+      parameters:
+        - name: conversationId
+          in: query
+          description: Filter speakers belonging to a specific conversation
+          schema:
+            type: string
+            format: uuid
+        - name: anthologyId
+          in: query
+          description: Filter speakers belonging to any conversation in this anthology
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+      responses:
+        '200':
+          description: Paginated list of speakers
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpeakerPaginatedResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      summary: Create a speaker
+      description: |
+        Create a new speaker within a conversation. Requires authentication.
+
+        **Required fields:**
+        - `conversationId`: Parent conversation
+        - `name`: Display name for the speaker
+
+        **Color scheme (optional):**
+        If not provided, colors will be auto-generated. All colors should be
+        valid CSS color values (hex, rgb, rgba, or named colors).
+
+        Color pairs for different UI states:
+        - `circleColor` / `fadedCircleColor`: Node representation
+        - `quoteRectangleColor` / `fadedQuoteRectangleColor`: Quote card background
+        - `quoteTextColor` / `fadedQuoteTextColor`: Quote card text
+
+        **Uniqueness constraint:** Speaker names must be unique within a conversation.
+        Creating a speaker with a duplicate name returns a 400 error.
+      operationId: createSpeaker
+      tags:
+        - Speakers
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSpeakerRequest'
+            example:
+              conversationId: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+              name: "Maria"
+              circleColor: "#E57373"
+              fadedCircleColor: "#FFCDD2"
+              quoteRectangleColor: "#FFEBEE"
+              fadedQuoteRectangleColor: "#FCE4EC"
+              quoteTextColor: "#B71C1C"
+              fadedQuoteTextColor: "#C62828"
+      responses:
+        '201':
+          description: Speaker created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpeakerResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /speakers/{id}:
+    get:
+      summary: Get speaker by ID
+      description: |
+        Retrieve a single speaker with their complete color scheme.
+
+        **Color scheme details:**
+        - Primary colors are used when the speaker/response is in focus
+        - Faded colors are used for background/unfocused elements
+        - This enables visual highlighting when users interact with the graph
+      operationId: getSpeakerById
+      tags:
+        - Speakers
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Speaker UUID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Speaker details with color scheme
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpeakerResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /graph/load:
+    get:
+      summary: Load complete graph data
+      description: |
+        **Optimized composite endpoint** for loading all visualization data in a single request.
+        This endpoint replaces multiple individual API calls and is the recommended approach
+        for initial application load.
+
+        **Returned data:**
+        - All conversations (with metadata)
+        - All questions (with relationship data)
+        - All narratives (with theme information)
+        - All responses (with transcript and relationships)
+
+        **Filtering:**
+        - Use `anthologySlug` for URL-based filtering (e.g., from route params)
+        - Use `anthologyId` for UUID-based filtering (e.g., from state)
+        - Provide only one filter; if both are given, `anthologySlug` takes precedence
+
+        **Performance characteristics:**
+        - Single database round-trip with optimized joins
+        - Typically 50-80% faster than equivalent individual requests
+        - Response may be large for anthologies with many conversations
+
+        **When to use this endpoint:**
+        - Initial visualization load
+        - Full data refresh after extended offline
+        - Switching between anthologies
+
+        **When NOT to use:**
+        - Fetching a single conversation
+        - Incremental updates (use individual endpoints)
+        - Server-side rendering of summary pages
+
+        **Note:** This endpoint does not include speakers. Use `/conversations/{id}/speakers`
+        or `/speakers?anthologyId=` separately if speaker color data is needed.
+      operationId: loadGraphData
+      tags:
+        - Graph
+      parameters:
+        - name: anthologySlug
+          in: query
+          description: |
+            Filter by anthology URL slug. Takes precedence over `anthologyId` if both provided.
+            Use this when the slug is available from the URL route.
+          schema:
+            type: string
+          example: "community-voices-2024"
+        - name: anthologyId
+          in: query
+          description: |
+            Filter by anthology UUID. Ignored if `anthologySlug` is also provided.
+            Use this when you have the anthology ID from application state.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Complete graph data for visualization
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GraphDataResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Supabase JWT token obtained through Supabase Auth.
+
+        Include in the Authorization header:
+        ```
+        Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        ```
+
+        Tokens expire after the configured Supabase session duration.
+        Refresh tokens before expiration to maintain access.
+
+  parameters:
+    limit:
+      name: limit
+      in: query
+      description: |
+        Maximum number of items to return per page.
+        Use with `offset` for pagination.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 50
+    offset:
+      name: offset
+      in: query
+      description: |
+        Number of items to skip before returning results.
+        Use with `limit` for pagination. For page N, use offset = (N-1) * limit.
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+
+  responses:
+    ValidationError:
+      description: |
+        Request validation failed. Check the `details` field for specific field errors.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: "VALIDATION_ERROR"
+              message: "Request validation failed"
+              details:
+                conversationId: "must be a valid UUID"
+    NotFound:
+      description: |
+        The requested resource does not exist or the user lacks permission to access it.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: "NOT_FOUND"
+              message: "Resource not found"
+    Unauthorized:
+      description: |
+        Authentication is required but was not provided or is invalid.
+        Include a valid JWT in the Authorization header.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: "UNAUTHORIZED"
+              message: "Authentication required"
+    InternalError:
+      description: |
+        An unexpected server error occurred. If this persists, contact API support.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: "INTERNAL_ERROR"
+              message: "An unexpected error occurred"
+
+  schemas:
+    # Common schemas
+    PaginationMeta:
+      type: object
+      description: Pagination metadata included with list responses
+      required:
+        - total
+        - limit
+        - offset
+        - hasMore
+      properties:
+        total:
+          type: integer
+          description: Total number of items matching the query (before pagination)
+          example: 150
+        limit:
+          type: integer
+          description: Maximum items returned per page (from request or default)
+          example: 50
+        offset:
+          type: integer
+          description: Number of items skipped (from request or default)
+          example: 0
+        hasMore:
+          type: boolean
+          description: Whether more items exist beyond the current page
+          example: true
+
+    ErrorResponse:
+      type: object
+      description: Standard error response wrapper
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          required:
+            - code
+            - message
+          properties:
+            code:
+              type: string
+              description: Machine-readable error code for programmatic handling
+              enum:
+                - BAD_REQUEST
+                - VALIDATION_ERROR
+                - UNAUTHORIZED
+                - FORBIDDEN
+                - NOT_FOUND
+                - METHOD_NOT_ALLOWED
+                - CONFLICT
+                - INTERNAL_ERROR
+                - DATABASE_ERROR
+                - SERVICE_UNAVAILABLE
+            message:
+              type: string
+              description: Human-readable error description
+            details:
+              type: object
+              description: Additional error context (e.g., field-level validation errors)
+
+    # Anthology schemas
+    Anthology:
+      type: object
+      description: |
+        A collection of related conversations. Anthologies serve as the top-level
+        organizational unit for grouping conversations by project, community, or theme.
+      required:
+        - id
+        - slug
+        - title
+        - isPublic
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the anthology
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        slug:
+          type: string
+          description: URL-friendly identifier, unique across all anthologies. Used in routing (e.g., /anthology/my-slug)
+          example: "community-voices-2024"
+        title:
+          type: string
+          description: Display name for the anthology
+          example: "Community Voices 2024"
+        description:
+          type: string
+          nullable: true
+          description: Optional longer description of the anthology's purpose or content
+          example: "Oral histories from local community members discussing neighborhood changes"
+        isPublic:
+          type: boolean
+          description: Whether this anthology is publicly accessible. Private anthologies require authentication.
+          example: true
+        createdAt:
+          type: string
+          format: date-time
+          description: When the anthology was created (ISO 8601 format)
+          example: "2024-01-15T10:30:00Z"
+
+    AnthologyResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          $ref: '#/components/schemas/Anthology'
+
+    AnthologyListResponse:
+      type: object
+      required:
+        - data
+        - meta
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Anthology'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    # Conversation schemas
+    ConversationMetadata:
+      type: object
+      description: Rich contextual information about a conversation
+      properties:
+        title:
+          type: string
+          description: Display title for the conversation
+          example: "Interview with Maria Garcia"
+        date:
+          type: string
+          description: When the conversation was recorded (may be formatted date string)
+          example: "March 15, 2024"
+        participants:
+          type: array
+          description: List of participant names
+          items:
+            type: string
+          example: ["Maria Garcia", "John Smith", "Facilitator"]
+        speakerColors:
+          type: object
+          additionalProperties: true
+          description: |
+            Legacy color assignments by speaker name. New implementations should use
+            the Speaker entity's color fields instead.
+          example:
+            Maria Garcia: "#E57373"
+            John Smith: "#64B5F6"
+        location:
+          type: string
+          description: Where the conversation took place
+          example: "Community Center, Room 204"
+        facilitator:
+          type: string
+          description: Name of the conversation facilitator/interviewer
+          example: "Dr. Sarah Johnson"
+        topics:
+          type: array
+          description: Subject tags for categorization and search
+          items:
+            type: string
+          example: ["childhood memories", "community history", "immigration"]
+        sourceTranscript:
+          type: string
+          description: Reference to the original transcript source file or identifier
+
+    Conversation:
+      type: object
+      description: |
+        A recorded discussion within an anthology. Contains references to the audio file,
+        duration, and rich metadata. Conversations are the primary container for speakers,
+        questions, responses, and narratives.
+      required:
+        - id
+        - anthologyId
+        - audioFile
+        - duration
+        - color
+        - metadata
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the conversation
+          example: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+        legacyId:
+          type: string
+          nullable: true
+          description: |
+            Identifier from a previous system, used for backward compatibility
+            and data migration. May be null for newly created conversations.
+          example: "conv_123"
+        anthologyId:
+          type: string
+          format: uuid
+          description: Parent anthology this conversation belongs to
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        audioFile:
+          type: string
+          description: Path or URL to the conversation audio file
+          example: "/audio/interviews/maria-garcia-2024.mp3"
+        duration:
+          type: integer
+          description: Total duration of the audio in milliseconds
+          example: 3600000
+        color:
+          type: string
+          description: |
+            Primary color for this conversation in the visualization.
+            Used to distinguish conversations in the graph view.
+          example: "#4CAF50"
+        metadata:
+          $ref: '#/components/schemas/ConversationMetadata'
+        createdAt:
+          type: string
+          format: date-time
+          description: When the conversation record was created (ISO 8601)
+          example: "2024-03-15T14:22:00Z"
+
+    ConversationResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          $ref: '#/components/schemas/Conversation'
+
+    ConversationListResponse:
+      type: object
+      required:
+        - data
+        - meta
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Conversation'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    # Speaker schemas
+    Speaker:
+      type: object
+      description: |
+        A participant in a conversation with assigned visual styling. Each speaker has
+        a complete color scheme for consistent identification throughout the visualization.
+
+        **Color scheme pairs:**
+        - Primary colors: Used when the speaker is in focus
+        - Faded colors: Used when the speaker is in the background
+
+        **Uniqueness:** Speaker names must be unique within a conversation, but the same
+        person may have different Speaker records across conversations.
+      required:
+        - id
+        - anthologyId
+        - conversationId
+        - name
+        - circleColor
+        - fadedCircleColor
+        - quoteRectangleColor
+        - fadedQuoteRectangleColor
+        - quoteTextColor
+        - fadedQuoteTextColor
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the speaker
+          example: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d"
+        anthologyId:
+          type: string
+          format: uuid
+          description: Parent anthology (denormalized for query efficiency)
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        conversationId:
+          type: string
+          format: uuid
+          description: Conversation this speaker participates in
+          example: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+        name:
+          type: string
+          description: Display name for the speaker (unique within conversation)
+          example: "Maria Garcia"
+        circleColor:
+          type: string
+          description: Color for speaker's node/circle in focused state (CSS color value)
+          example: "#E57373"
+        fadedCircleColor:
+          type: string
+          description: Color for speaker's node/circle in unfocused state
+          example: "#FFCDD2"
+        quoteRectangleColor:
+          type: string
+          description: Background color for quote cards in focused state
+          example: "#FFEBEE"
+        fadedQuoteRectangleColor:
+          type: string
+          description: Background color for quote cards in unfocused state
+          example: "#FCE4EC"
+        quoteTextColor:
+          type: string
+          description: Text color for quotes in focused state
+          example: "#B71C1C"
+        fadedQuoteTextColor:
+          type: string
+          description: Text color for quotes in unfocused state
+          example: "#C62828"
+        createdAt:
+          type: string
+          format: date-time
+          description: When the speaker record was created
+          example: "2024-03-15T14:25:00Z"
+
+    SpeakerResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          $ref: '#/components/schemas/Speaker'
+
+    SpeakerListResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Speaker'
+
+    SpeakerPaginatedResponse:
+      type: object
+      required:
+        - data
+        - meta
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Speaker'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    CreateSpeakerRequest:
+      type: object
+      description: Request body for creating a new speaker
+      required:
+        - conversationId
+        - name
+      properties:
+        conversationId:
+          type: string
+          format: uuid
+          description: Conversation this speaker will participate in
+        name:
+          type: string
+          description: Display name (must be unique within the conversation)
+        circleColor:
+          type: string
+          description: Node color in focused state (auto-generated if omitted)
+        fadedCircleColor:
+          type: string
+          description: Node color in unfocused state (auto-generated if omitted)
+        quoteRectangleColor:
+          type: string
+          description: Quote background in focused state (auto-generated if omitted)
+        fadedQuoteRectangleColor:
+          type: string
+          description: Quote background in unfocused state (auto-generated if omitted)
+        quoteTextColor:
+          type: string
+          description: Quote text in focused state (auto-generated if omitted)
+        fadedQuoteTextColor:
+          type: string
+          description: Quote text in unfocused state (auto-generated if omitted)
+
+    # Question schemas
+    Question:
+      type: object
+      description: |
+        A facilitator prompt that guides the conversation. Questions serve as anchor
+        points in the visualization, connecting to the responses they elicit.
+
+        **Graph visualization:** Questions appear as nodes with edges connecting to
+        responses that answer them (via `respondsToQuestionId`).
+      required:
+        - id
+        - conversationId
+        - questionText
+        - relatedResponses
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the question
+          example: "8f14e45f-ceea-467f-a10a-6d6c3b76b98e"
+        legacyId:
+          type: string
+          nullable: true
+          description: Identifier from previous system for backward compatibility
+          example: "q_456"
+        conversationId:
+          type: string
+          format: uuid
+          description: Conversation this question belongs to
+          example: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+        questionText:
+          type: string
+          description: The question as asked by the facilitator
+          example: "Can you tell me about your earliest childhood memories?"
+        relatedResponses:
+          type: array
+          description: |
+            IDs of responses that answer this question. Used for graph edge rendering.
+            May contain legacy IDs for backward compatibility.
+          items:
+            type: string
+          example: ["resp_001", "resp_002", "resp_003"]
+        facilitator:
+          type: string
+          description: Name of the person who asked this question
+          example: "Dr. Sarah Johnson"
+        notes:
+          type: string
+          description: Curator notes about this question (not displayed to users)
+          example: "Good icebreaker question, elicited emotional responses"
+        pathToRecording:
+          type: string
+          description: Path to audio file if question has separate recording
+          example: "/audio/questions/q-456.mp3"
+        audioStartMs:
+          type: integer
+          description: Start time in the conversation audio (milliseconds)
+          example: 60000
+        audioEndMs:
+          type: integer
+          description: End time in the conversation audio (milliseconds)
+          example: 65000
+        createdAt:
+          type: string
+          format: date-time
+          description: When the question record was created
+          example: "2024-03-15T14:30:00Z"
+
+    QuestionListResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Question'
+
+    QuestionPaginatedResponse:
+      type: object
+      required:
+        - data
+        - meta
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Question'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    # Response schemas
+    WordTimestamp:
+      type: object
+      description: |
+        Word-level timing data for karaoke-style highlighting. Each entry represents
+        a single word (or punctuation) with its timing in the audio.
+      required:
+        - text
+        - start
+        - end
+      properties:
+        text:
+          type: string
+          description: The word or punctuation mark
+          example: "memories"
+        start:
+          type: integer
+          description: Start time in milliseconds relative to response audio start
+          example: 125300
+        end:
+          type: integer
+          description: End time in milliseconds relative to response audio start
+          example: 125800
+        speaker:
+          type: string
+          description: Speaker identifier (useful for overlapping speech)
+          example: "Maria"
+        confidence:
+          type: number
+          description: Transcription confidence score from 0 to 1
+          example: 0.97
+
+    Response:
+      type: object
+      description: |
+        A segment of speech from a single speaker - the core content unit of the system.
+        Responses contain the transcript, audio timing, and relationships to other entities.
+
+        **Graph visualization:** Responses are the primary nodes in the visualization,
+        connected to questions, other responses, and narratives via relationship fields.
+
+        **Large fields:**
+        - `embedding`: 1536-dimension vector for semantic similarity (can be large)
+        - `wordTimestamps`: Array of timing data (can be large for long responses)
+      required:
+        - id
+        - conversationId
+        - speakerName
+        - speakerText
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the response
+          example: "1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed"
+        legacyId:
+          type: string
+          nullable: true
+          description: |
+            Identifier from previous system. Used for backward compatibility
+            and maintaining links in `relatedResponses` arrays.
+          example: "resp_001"
+        conversationId:
+          type: string
+          format: uuid
+          description: Parent conversation this response belongs to
+          example: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+        respondsToQuestionId:
+          type: string
+          format: uuid
+          nullable: true
+          description: |
+            Links this response to a facilitator question. Creates an edge in
+            the visualization graph from question to response.
+          example: "8f14e45f-ceea-467f-a10a-6d6c3b76b98e"
+        respondsToResponseId:
+          type: string
+          format: uuid
+          nullable: true
+          description: |
+            Links this response to another participant's response. Used for
+            conversational replies and follow-up comments.
+          example: "2c3d4e5f-6789-0abc-def1-234567890abc"
+        respondsToNarrativeId:
+          type: string
+          format: uuid
+          nullable: true
+          description: |
+            Links this response to a thematic narrative. Creates an edge in
+            the visualization graph connecting response to narrative cluster.
+          example: "3d4e5f60-7890-1bcd-ef23-456789012def"
+        speakerName:
+          type: string
+          description: Name of the person speaking (should match a Speaker entity)
+          example: "Maria Garcia"
+        speakerText:
+          type: string
+          description: Full transcript of the spoken utterance
+          example: "When I think about my childhood, I remember the summers at my grandmother's house. We would spend weeks there, playing in the garden and listening to her stories."
+        pullQuote:
+          type: string
+          nullable: true
+          description: |
+            A highlighted excerpt from speakerText, typically a memorable or
+            impactful phrase. Displayed prominently in the UI.
+          example: "listening to her stories"
+        audioStartMs:
+          type: integer
+          nullable: true
+          description: Start time of this response in the conversation audio (milliseconds)
+          example: 125000
+        audioEndMs:
+          type: integer
+          nullable: true
+          description: End time of this response in the conversation audio (milliseconds)
+          example: 142000
+        turnNumber:
+          type: integer
+          nullable: true
+          description: |
+            Position in the curated/edited sequence. May differ from chronological
+            order if responses were reordered for narrative flow.
+          example: 5
+        chronologicalTurnNumber:
+          type: integer
+          nullable: true
+          description: Original position in the conversation's natural time order
+          example: 7
+        pathToRecording:
+          type: string
+          description: Path to audio file (may differ from conversation audio for edited clips)
+          example: "/audio/interviews/maria-garcia-2024.mp3"
+        medium:
+          type: string
+          enum: [audio, text]
+          nullable: true
+          description: |
+            Whether this response was captured via audio recording or text input.
+            Affects how audio timing fields are interpreted.
+          example: "audio"
+        synchronicity:
+          type: string
+          enum: [sync, asynchronous]
+          nullable: true
+          description: |
+            Whether this response was captured in real-time (sync) or submitted
+            later (asynchronous, e.g., written follow-up).
+          example: "sync"
+        embedding:
+          type: array
+          description: |
+            1536-dimension semantic embedding vector for similarity search.
+            Generated server-side using text embedding models.
+            **Note:** This field can be large. Exclude from queries when not needed.
+          items:
+            type: number
+        wordTimestamps:
+          type: array
+          description: |
+            Word-level timing data for karaoke-style highlighting during playback.
+            May be empty if timestamps haven't been generated.
+          items:
+            $ref: '#/components/schemas/WordTimestamp'
+        createdAt:
+          type: string
+          format: date-time
+          description: When the response record was created
+          example: "2024-03-15T14:35:00Z"
+
+    ResponseResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          $ref: '#/components/schemas/Response'
+
+    ResponseListResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Response'
+
+    ResponsePaginatedResponse:
+      type: object
+      required:
+        - data
+        - meta
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Response'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    CreateResponseRequest:
+      type: object
+      description: Request body for creating a new response
+      required:
+        - conversationId
+        - speakerName
+        - speakerText
+      properties:
+        conversationId:
+          type: string
+          format: uuid
+          description: Parent conversation (required, cannot be changed after creation)
+        respondsToQuestionId:
+          type: string
+          format: uuid
+          description: Question this response answers (optional)
+        respondsToResponseId:
+          type: string
+          format: uuid
+          description: Response this is replying to (optional)
+        respondsToNarrativeId:
+          type: string
+          format: uuid
+          description: Narrative theme this response belongs to (optional)
+        speakerName:
+          type: string
+          description: Who is speaking (required, cannot be changed after creation)
+        speakerText:
+          type: string
+          description: Full transcript of the utterance (required)
+        pullQuote:
+          type: string
+          description: Highlighted excerpt to display (optional)
+        audioStartMs:
+          type: integer
+          description: Start time in conversation audio (milliseconds)
+        audioEndMs:
+          type: integer
+          description: End time in conversation audio (milliseconds)
+        turnNumber:
+          type: integer
+          description: Position in curated sequence
+        medium:
+          type: string
+          enum: [audio, text]
+          description: How this response was captured
+        synchronicity:
+          type: string
+          enum: [sync, asynchronous]
+          description: Whether captured in real-time or submitted later
+
+    UpdateResponseRequest:
+      type: object
+      description: |
+        Request body for updating an existing response.
+        Only include fields you want to change (partial update).
+      properties:
+        speakerText:
+          type: string
+          description: Update the transcript text (triggers embedding regeneration)
+        pullQuote:
+          type: string
+          nullable: true
+          description: Update or clear the highlighted excerpt
+        respondsToNarrativeId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Change narrative association (set null to remove)
+        audioStartMs:
+          type: integer
+          description: Adjust audio start timing
+        audioEndMs:
+          type: integer
+          description: Adjust audio end timing
+
+    WordTimestampListResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/WordTimestamp'
+
+    # Narrative schemas
+    Narrative:
+      type: object
+      description: |
+        A thematic grouping that connects related responses. Narratives are curator-created
+        labels that highlight recurring themes, topics, or threads within a conversation.
+
+        **Graph visualization:** Narratives appear as colored nodes that cluster related
+        responses. The `relatedResponses` array and `respondsToNarrativeId` links define
+        the connections.
+
+        **Examples of narratives:**
+        - "Childhood memories"
+        - "Career transitions"
+        - "Community impact"
+        - "Family traditions"
+      required:
+        - id
+        - anthologyId
+        - conversationId
+        - narrativeText
+        - relatedResponses
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the narrative
+          example: "3d4e5f60-7890-1bcd-ef23-456789012def"
+        legacyId:
+          type: string
+          nullable: true
+          description: Identifier from previous system for backward compatibility
+          example: "narr_789"
+        anthologyId:
+          type: string
+          format: uuid
+          description: Parent anthology (denormalized for query efficiency)
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        conversationId:
+          type: string
+          format: uuid
+          description: Conversation this narrative belongs to
+          example: "7c9e6679-7425-40de-944b-e07fc1f90ae7"
+        narrativeText:
+          type: string
+          description: The theme or topic description displayed in the UI
+          example: "Childhood memories and family traditions"
+        relatedResponses:
+          type: array
+          description: |
+            IDs of responses belonging to this narrative theme. Used for graph
+            edge rendering. May contain legacy IDs for backward compatibility.
+          items:
+            type: string
+          example: ["resp_001", "resp_005", "resp_012"]
+        notes:
+          type: string
+          description: Curator notes about this narrative (not displayed to users)
+          example: "Strong emotional resonance, connects well with education theme"
+        color:
+          type: string
+          description: Display color for the narrative node in the visualization
+          example: "#9C27B0"
+        embedding:
+          type: array
+          description: |
+            1536-dimension semantic embedding vector for similarity matching.
+            Generated from narrativeText for theme-based search and clustering.
+          items:
+            type: number
+        createdAt:
+          type: string
+          format: date-time
+          description: When the narrative record was created
+          example: "2024-03-15T15:00:00Z"
+
+    NarrativeListResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Narrative'
+
+    NarrativePaginatedResponse:
+      type: object
+      required:
+        - data
+        - meta
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Narrative'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    # Graph data schema
+    GraphData:
+      type: object
+      description: |
+        Complete data payload for visualization rendering. Contains all entities
+        needed to build the interactive graph: conversations, questions, narratives,
+        and responses with their relationships.
+
+        **Note:** Does not include speakers. Fetch separately via `/speakers?anthologyId=`
+        if color schemes are needed.
+      required:
+        - conversations
+        - questions
+        - narratives
+        - responses
+      properties:
+        conversations:
+          type: array
+          description: All conversations in the anthology with metadata
+          items:
+            $ref: '#/components/schemas/Conversation'
+        questions:
+          type: array
+          description: All facilitator questions with related response links
+          items:
+            $ref: '#/components/schemas/Question'
+        narratives:
+          type: array
+          description: All thematic narratives with related response links
+          items:
+            $ref: '#/components/schemas/Narrative'
+        responses:
+          type: array
+          description: |
+            All responses with transcripts and relationship links.
+            Forms the primary content and node structure of the graph.
+          items:
+            $ref: '#/components/schemas/Response'
+
+    GraphDataResponse:
+      type: object
+      description: Wrapper for graph data endpoint response
+      required:
+        - data
+      properties:
+        data:
+          $ref: '#/components/schemas/GraphData'

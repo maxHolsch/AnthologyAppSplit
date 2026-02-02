@@ -1,15 +1,99 @@
 /**
  * Graph Data Service
- * Main entry point for loading complete graph data for visualization
+ * Main entry point for loading complete graph data for visualization via REST API
  */
 
-import type { WordTimestamp } from '@/types/data.types';
-import { supabase } from './supabaseClient';
-import { AnthologyService } from './anthologyService';
-import { ConversationService } from './conversationService';
-import { QuestionService } from './questionService';
-import { NarrativeService } from './narrativeService';
-import { ResponseService } from './responseService';
+import type {
+  Conversation,
+  QuestionNode,
+  NarrativeNode,
+  ResponseNode,
+} from '@/types/data.types';
+import { apiClient } from './apiClient';
+import type { ApiGraphData } from '../../shared/types/api.types';
+
+/**
+ * Transform API conversation to legacy Conversation type
+ */
+function toConversation(api: ApiGraphData['conversations'][0]): Conversation {
+  return {
+    conversation_id: api.legacyId || api.id,
+    audio_file: api.audioFile,
+    duration: api.duration,
+    color: api.color,
+    metadata: {
+      title: api.metadata.title,
+      date: api.metadata.date,
+      participants: api.metadata.participants,
+      speaker_colors: api.metadata.speakerColors,
+      location: api.metadata.location,
+      facilitator: api.metadata.facilitator,
+      topics: api.metadata.topics,
+      source_transcript: api.metadata.sourceTranscript,
+    },
+    // Store the actual UUID for database queries
+    _db_id: api.id,
+  } as Conversation & { _db_id: string };
+}
+
+/**
+ * Transform API question to legacy QuestionNode type
+ */
+function toQuestion(api: ApiGraphData['questions'][0]): QuestionNode & { _db_id: string } {
+  return {
+    type: 'question' as const,
+    id: api.id, // Already canonical (legacy_id || id)
+    _db_id: (api as any)._dbId || api.id,
+    question_text: api.questionText,
+    related_responses: api.relatedResponses,
+    facilitator: api.facilitator,
+    notes: api.notes,
+    path_to_recording: api.pathToRecording,
+  };
+}
+
+/**
+ * Transform API narrative to legacy NarrativeNode type
+ */
+function toNarrative(api: ApiGraphData['narratives'][0]): NarrativeNode & { _db_id: string } {
+  return {
+    type: 'narrative' as const,
+    id: api.id, // Already canonical (legacy_id || id)
+    _db_id: (api as any)._dbId || api.id,
+    narrative_text: api.narrativeText,
+    related_responses: api.relatedResponses,
+    notes: api.notes,
+  };
+}
+
+/**
+ * Transform API response to legacy ResponseNode type
+ */
+function toResponse(api: ApiGraphData['responses'][0]): ResponseNode & { _db_id: string } {
+  // Determine responds_to: use question ID or response ID (already canonical from API)
+  const responds_to = api.respondsToQuestionId || api.respondsToResponseId || '';
+
+  return {
+    type: 'response' as const,
+    id: api.id, // Already canonical (legacy_id || id)
+    _db_id: (api as any)._dbId || api.id,
+    responds_to,
+    responds_to_narrative_id: api.respondsToNarrativeId || undefined,
+    speaker_name: api.speakerName,
+    speaker_text: api.speakerText,
+    pull_quote: api.pullQuote || undefined,
+    audio_start: api.audioStartMs || 0,
+    audio_end: api.audioEndMs || 0,
+    conversation_id: api.conversationId,
+    path_to_recording: api.pathToRecording,
+    turn_number: api.turnNumber || undefined,
+    chronological_turn_number: api.chronologicalTurnNumber || undefined,
+    word_timestamps: api.wordTimestamps,
+    embedding: api.embedding,
+    medium: api.medium || undefined,
+    synchronicity: api.synchronicity || undefined,
+  };
+}
 
 export const GraphDataService = {
   /**
@@ -18,163 +102,37 @@ export const GraphDataService = {
    */
   async loadAll(opts?: { anthologySlug?: string }) {
     console.log('[GraphDataService] loadAll called with opts:', opts);
+
     try {
-      // Load conversations (optionally scoped to an anthology)
-      let anthologyId: string | undefined;
-      if (opts?.anthologySlug) {
-        const anthology = await AnthologyService.getBySlug(opts.anthologySlug);
-        anthologyId = anthology?.id;
+      // Make a single API call to load all data
+      const graphData = await apiClient.get<ApiGraphData>('/graph/load', {
+        anthologySlug: opts?.anthologySlug,
+      });
 
-        // If user navigated to a slug that doesn't exist, return empty dataset.
-        if (!anthologyId) {
-          console.warn('Anthology slug not found:', opts.anthologySlug);
-          return { conversations: [], questions: [], narratives: [], responses: [] };
-        }
-      }
-
-      const conversations = await ConversationService.getAll({ anthologyId });
-
-      if (conversations.length === 0) {
+      // Check for empty dataset
+      if (graphData.conversations.length === 0) {
         console.warn('No conversations found in database');
         return { conversations: [], questions: [], narratives: [], responses: [] };
       }
 
-      // Load questions, narratives and responses for all conversations
-      const allQuestions: any[] = [];
-      const allNarratives: any[] = [];
-      const allResponses: any[] = [];
+      // Transform API types to legacy types
+      const conversations = graphData.conversations.map(toConversation);
+      const questions = graphData.questions.map(toQuestion);
+      const narratives = graphData.narratives.map(toNarrative);
+      const responses = graphData.responses.map(toResponse);
 
-      for (const conv of conversations) {
-        // Use the database UUID for queries, not the legacy_id
-        const dbId = (conv as any)._db_id || conv.conversation_id;
-
-        const questions = await QuestionService.getByConversation(dbId);
-        const narratives = await NarrativeService.getByConversation(dbId);
-        const responses = await ResponseService.getByConversation(dbId);
-
-        // Get speaker colors for this conversation
-        const speakers = await ConversationService.getSpeakers(dbId);
-
-        // Add speaker colors to conversation metadata
-        if (speakers.size > 0) {
-          conv.metadata.speaker_colors = Object.fromEntries(speakers);
-        }
-
-        allQuestions.push(...questions);
-        allNarratives.push(...narratives);
-        allResponses.push(...responses);
-      }
-
-      // Link questions to responses
-      // Canonicalize `responds_to`.
-      // ResponseService returns raw FK UUIDs in `responds_to` to avoid PostgREST
-      // relationship expansion issues (especially self-joins). Once we have the full
-      // dataset, convert those UUIDs into the canonical node IDs used throughout the app
-      // (legacy_id when present, otherwise UUID).
-      const questionDbIdToCanonicalId = new Map<string, string>();
-      allQuestions.forEach((q: any) => {
-        const dbId = q?._db_id;
-        if (typeof dbId === 'string' && dbId.length > 0) {
-          questionDbIdToCanonicalId.set(dbId, q.id);
-        }
-      });
-
-      const responseDbIdToCanonicalId = new Map<string, string>();
-      allResponses.forEach((r: any) => {
-        const dbId = r?._db_id;
-        if (typeof dbId === 'string' && dbId.length > 0) {
-          responseDbIdToCanonicalId.set(dbId, r.id);
-        }
-      });
-
-      const canonicalizeNodeId = (maybeDbId: string) => {
-        return (
-          questionDbIdToCanonicalId.get(maybeDbId) ||
-          responseDbIdToCanonicalId.get(maybeDbId) ||
-          maybeDbId
-        );
-      };
-
-      const canonicalResponses = allResponses.map((r) => ({
-        ...r,
-        responds_to: canonicalizeNodeId(r.responds_to)
-      }));
-
-      // Attach word timestamps (for karaoke highlighting) when available.
-      // We fetch in batches to avoid a per-response query.
-      const responseDbIds = canonicalResponses
-        .map((r: any) => r?._db_id)
-        .filter((id: any): id is string => typeof id === 'string' && id.length > 0);
-
-      if (responseDbIds.length > 0) {
-        const byResponseDbId = new Map<string, WordTimestamp[]>();
-
-        console.log('[GraphDataService] Fetching word timestamps for', responseDbIds.length, 'responses');
-
-        const batchSize = 500;
-        for (let i = 0; i < responseDbIds.length; i += batchSize) {
-          const batch = responseDbIds.slice(i, i + batchSize);
-          const { data: words, error: wordsErr } = await supabase
-            .from('anthology_word_timestamps')
-            .select('*')
-            .in('response_id', batch)
-            .order('response_id', { ascending: true })
-            .order('word_order', { ascending: true });
-
-          if (wordsErr) {
-            console.warn('Failed to load word timestamps:', wordsErr);
-            break;
-          }
-
-          console.log('[GraphDataService] Fetched', words?.length ?? 0, 'word timestamp rows');
-
-          (words || []).forEach((w: any) => {
-            const responseId = w.response_id as string | undefined;
-            if (!responseId) return;
-            const arr = byResponseDbId.get(responseId) || [];
-            arr.push({
-              text: w.text,
-              start: w.start_ms,
-              end: w.end_ms,
-              confidence: w.confidence || 0,
-              speaker: w.speaker || '',
-            });
-            byResponseDbId.set(responseId, arr);
-          });
-        }
-
-        console.log('[GraphDataService] Word timestamps grouped for', byResponseDbId.size, 'responses');
-
-        let attachedCount = 0;
-        canonicalResponses.forEach((r: any) => {
-          if (Array.isArray(r.word_timestamps) && r.word_timestamps.length > 0) return;
-          const dbId = r?._db_id;
-          if (typeof dbId !== 'string') return;
-          const words = byResponseDbId.get(dbId);
-          if (words && words.length > 0) {
-            r.word_timestamps = words;
-            attachedCount++;
-          }
-        });
-
-        console.log('[GraphDataService] Attached word timestamps to', attachedCount, 'responses');
-      }
-
-      allResponses.length = 0;
-      allResponses.push(...canonicalResponses);
-
-      // Link questions to responses (question-only)
-      allQuestions.forEach((q) => {
-        q.related_responses = allResponses
-          .filter((r) => r.responds_to === q.id)
-          .map((r) => r.id);
+      console.log('[GraphDataService] Loaded:', {
+        conversations: conversations.length,
+        questions: questions.length,
+        narratives: narratives.length,
+        responses: responses.length,
       });
 
       return {
         conversations,
-        questions: allQuestions,
-        narratives: allNarratives,
-        responses: allResponses
+        questions,
+        narratives,
+        responses,
       };
     } catch (error) {
       console.error('Error loading graph data:', error);
@@ -184,27 +142,16 @@ export const GraphDataService = {
 
   /**
    * Subscribe to real-time updates
+   * Note: Real-time subscriptions still require direct Supabase connection
+   * This is intentionally kept for now as it's a separate concern from the data layer
    */
   subscribeToUpdates(callback: () => void) {
-    const channels = [
-      supabase
-        .channel('conversations-changes')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'anthology_conversations' }, callback)
-        .subscribe(),
-
-      supabase
-        .channel('questions-changes')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'anthology_questions' }, callback)
-        .subscribe(),
-
-      supabase
-        .channel('responses-changes')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'anthology_responses' }, callback)
-        .subscribe()
-    ];
-
+    // Real-time updates are not supported through the REST API
+    // For now, return a no-op unsubscribe function
+    // In the future, this could be implemented with WebSockets or SSE
+    console.warn('[GraphDataService] Real-time updates not yet supported via API');
     return () => {
-      channels.forEach((channel) => supabase.removeChannel(channel));
+      // No-op cleanup function
     };
-  }
+  },
 };

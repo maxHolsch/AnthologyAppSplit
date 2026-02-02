@@ -1,44 +1,44 @@
 /**
  * Speaker Service
- * Handles speaker management and color assignment
+ * Handles speaker management and color assignment via REST API
  */
 
-import { supabase, type DbSpeaker } from './supabaseClient';
-import { DEFAULT_PALETTE, buildSpeakerColorScheme } from '@/utils/colorAssignment';
-import { supabaseQuery } from './supabaseQuery';
+import { apiClient } from './apiClient';
+import type { ApiSpeaker, CreateSpeakerRequest } from '../../shared/types/api.types';
 
-// ============================================
-// HELPER FUNCTIONS
-// ============================================
-
-async function getAnthologyIdForConversation(conversationDbId: string): Promise<string> {
-  const data = await supabaseQuery<{ anthology_id: string }>(
-    async () => {
-      const result = await supabase
-        .from('anthology_conversations')
-        .select('anthology_id')
-        .eq('id', conversationDbId)
-        .single();
-      return result;
-    },
-    {
-      operation: 'get anthology ID for conversation',
-      context: { conversationDbId }
-    }
-  );
-
-  if (!data.anthology_id) {
-    throw new Error('Conversation has no anthology_id (schema migration may be incomplete)');
-  }
-
-  return data.anthology_id;
+// Re-export DbSpeaker interface for compatibility with existing code
+export interface DbSpeaker {
+  id: string;
+  name: string;
+  conversation_id: string;
+  circle_color: string;
+  faded_circle_color: string;
+  quote_rectangle_color: string;
+  faded_quote_rectangle_color: string;
+  quote_text_color: string;
+  faded_quote_text_color: string;
+  created_at: string;
+  updated_at: string;
 }
 
-const pickSpeakerBaseColor = (index: number) => DEFAULT_PALETTE[index % DEFAULT_PALETTE.length];
-
-// ============================================
-// SPEAKER SERVICE
-// ============================================
+/**
+ * Transform API speaker to DbSpeaker format
+ */
+function toDbSpeaker(api: ApiSpeaker): DbSpeaker {
+  return {
+    id: api.id,
+    name: api.name,
+    conversation_id: api.conversationId,
+    circle_color: api.circleColor,
+    faded_circle_color: api.fadedCircleColor,
+    quote_rectangle_color: api.quoteRectangleColor,
+    faded_quote_rectangle_color: api.fadedQuoteRectangleColor,
+    quote_text_color: api.quoteTextColor,
+    faded_quote_text_color: api.fadedQuoteTextColor,
+    created_at: api.createdAt,
+    updated_at: api.createdAt, // API doesn't return updated_at, use created_at
+  };
+}
 
 export const SpeakerService = {
   /**
@@ -50,58 +50,45 @@ export const SpeakerService = {
     speakerName: string,
     opts?: { anthologyId?: string }
   ): Promise<DbSpeaker> {
-    const anthologyId = opts?.anthologyId || (await getAnthologyIdForConversation(conversationDbId));
+    // First try to get existing speaker
+    try {
+      const speakers = await apiClient.get<ApiSpeaker[]>(
+        `/conversations/${conversationDbId}/speakers`
+      );
 
-    // 1) Try to find existing
-    const { data: existing, error: existingErr } = await supabase
-      .from('anthology_speakers')
-      .select('*')
-      .eq('anthology_id', anthologyId)
-      .eq('conversation_id', conversationDbId)
-      .eq('name', speakerName)
-      .maybeSingle();
-
-    if (existingErr) {
-      throw existingErr;
+      const existing = speakers.find((s) => s.name === speakerName);
+      if (existing) {
+        return toDbSpeaker(existing);
+      }
+    } catch (error) {
+      // If error fetching speakers, continue to create
+      console.warn('Error fetching speakers, attempting to create:', error);
     }
 
-    if (existing) {
-      return existing as DbSpeaker;
-    }
+    // Create new speaker
+    const request: CreateSpeakerRequest = {
+      conversationId: conversationDbId,
+      name: speakerName,
+    };
 
-    // 2) Count existing speakers to choose a color
-    const { data: allSpeakers, error: listErr } = await supabase
-      .from('anthology_speakers')
-      .select('id')
-      .eq('anthology_id', anthologyId)
-      .eq('conversation_id', conversationDbId);
-
-    if (listErr) {
-      throw listErr;
-    }
-
-    const index = (allSpeakers?.length ?? 0);
-    const base = pickSpeakerBaseColor(index);
-    const colors = buildSpeakerColorScheme(base);
-
-    const { data: created, error: createErr } = await supabase
-      .from('anthology_speakers')
-      .insert({
-        anthology_id: anthologyId,
-        conversation_id: conversationDbId,
-        name: speakerName,
-        ...colors,
-      })
-      .select('*')
-      .single();
-
-    if (createErr) {
-      throw createErr;
-    }
-
-    return created as DbSpeaker;
+    const created = await apiClient.post<ApiSpeaker>('/speakers', request);
+    return toDbSpeaker(created);
   },
 };
 
-// Export helper for use by other services
-export { getAnthologyIdForConversation };
+/**
+ * Get anthology ID for a conversation
+ * This is a helper function used by other services
+ */
+export async function getAnthologyIdForConversation(conversationDbId: string): Promise<string> {
+  // Get conversation to find anthology_id
+  const response = await fetch(`/api/conversations/${conversationDbId}`);
+  if (!response.ok) {
+    throw new Error('Failed to fetch conversation');
+  }
+  const { data } = await response.json();
+  if (!data.anthologyId) {
+    throw new Error('Conversation has no anthology_id');
+  }
+  return data.anthologyId;
+}
