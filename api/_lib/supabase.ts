@@ -6,34 +6,69 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 // Support both naming conventions for flexibility
-const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
+const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
+const supabaseServiceKey =
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || '';
 
-if (!supabaseUrl) {
-  throw new Error('Missing required environment variable: SUPABASE_URL or VITE_SUPABASE_URL');
-}
+// Lazily-initialized client — never created at module load time so any
+// crash happens inside a handler's try/catch, not before it.
+let _supabase: SupabaseClient | null = null;
 
-if (!supabaseServiceKey) {
-  throw new Error('Missing required environment variable: SUPABASE_SERVICE_ROLE_KEY or SUPABASE_SERVICE_KEY');
+/**
+ * Returns the server-side Supabase client.
+ * Throws a clear error if credentials are missing so the handler can return JSON 500.
+ */
+export function getSupabase(): SupabaseClient {
+  if (!supabaseUrl || !supabaseServiceKey) {
+    throw new Error(
+      'Server misconfiguration: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set'
+    );
+  }
+  if (!_supabase) {
+    _supabase = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    });
+  }
+  return _supabase;
 }
 
 /**
- * Server-side Supabase client with service role key
- * This bypasses RLS and should only be used in API routes
+ * Server-side Supabase client.
+ * Backed by a Proxy so createClient() is never called at module load time —
+ * any crash from missing env vars happens inside the handler's try/catch.
  */
-export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false,
+export const supabase: SupabaseClient = new Proxy({} as SupabaseClient, {
+  get(_target, prop) {
+    const client = getSupabase();
+    const value = (client as any)[prop];
+    return typeof value === 'function' ? value.bind(client) : value;
   },
 });
 
 /**
+ * @deprecated Use getSupabase() instead.
+ */
+export function assertSupabaseConfigured(): void {
+  if (!supabaseUrl || !supabaseServiceKey) {
+    throw new Error(
+      'Server misconfiguration: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set'
+    );
+  }
+}
+
+/**
  * Create a new Supabase client instance
- * Use this when you need a fresh client (e.g., for concurrent requests)
  */
 export function createServerSupabase(): SupabaseClient {
-  return createClient(supabaseUrl!, supabaseServiceKey!, {
+  if (!supabaseUrl || !supabaseServiceKey) {
+    throw new Error(
+      'Server misconfiguration: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set'
+    );
+  }
+  return createClient(supabaseUrl, supabaseServiceKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,

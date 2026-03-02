@@ -5,12 +5,12 @@
 
 import type { ResponseNode, WordTimestamp } from '@/types/data.types';
 import { apiClient } from './apiClient';
-import type { ApiResponse, ApiWordTimestamp } from '../../shared/types/api.types';
+import type { ApiResponseNode, ApiWordTimestamp } from '../../shared/types/api.types';
 
 /**
  * Transform API response to legacy ResponseNode type
  */
-function toResponse(api: ApiResponse): ResponseNode & { _db_id: string } {
+function toResponse(api: ApiResponseNode): ResponseNode & { _db_id: string } {
   return {
     type: 'response' as const,
     id: api.legacyId || api.id,
@@ -51,7 +51,7 @@ export const ResponseService = {
    */
   async getByConversation(conversationId: string): Promise<ResponseNode[]> {
     try {
-      const responses = await apiClient.get<ApiResponse[]>(
+      const responses = await apiClient.get<ApiResponseNode[]>(
         `/conversations/${conversationId}/responses`
       );
       return responses.map(toResponse);

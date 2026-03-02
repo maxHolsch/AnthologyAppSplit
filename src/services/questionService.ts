@@ -5,7 +5,7 @@
 
 import type { QuestionNode, ResponseNode } from '@/types/data.types';
 import { apiClient } from './apiClient';
-import type { ApiQuestion, ApiResponse } from '../../shared/types/api.types';
+import type { ApiQuestion, ApiResponseNode } from '../../shared/types/api.types';
 
 /**
  * Transform API question to legacy QuestionNode type
@@ -26,7 +26,7 @@ function toQuestion(api: ApiQuestion): QuestionNode & { _db_id: string } {
 /**
  * Transform API response to legacy ResponseNode type
  */
-function toResponse(api: ApiResponse): ResponseNode {
+function toResponse(api: ApiResponseNode): ResponseNode {
   return {
     type: 'response' as const,
     id: api.legacyId || api.id,
@@ -68,7 +68,7 @@ export const QuestionService = {
    */
   async getResponses(questionId: string): Promise<ResponseNode[]> {
     try {
-      const responses = await apiClient.get<ApiResponse[]>(
+      const responses = await apiClient.get<ApiResponseNode[]>(
         `/questions/${questionId}/responses`
       );
       return responses.map(toResponse);

@@ -2,15 +2,16 @@
 
 ## Project Overview
 
-**Anthology** is an interactive visualization platform for exploring conversations through a graph-based interface. It allows users to view questions, responses, and speakers as interconnected nodes with audio playback capabilities. The platform supports multiple anthologies (collections of conversations) and enables users to record and contribute their own responses.
+**Anthology** is an interactive visualization platform for exploring conversations through a graph-based interface. It allows users to view questions, responses, narratives, and speakers as interconnected nodes with audio playback capabilities. The platform supports multiple anthologies (collections of conversations) and enables users to record and contribute their own responses.
 
 ### Key Features
 - Interactive D3.js force-directed graph visualization
 - Audio playback with word-level karaoke-style highlighting
 - Multi-anthology support for organizing different conversation sets
+- Narrative and question-based view modes
 - User-contributed responses via recording or file upload
 - AI-powered sensemaking pipeline for processing new conversation audio
-- Real-time updates via Supabase subscriptions
+- REST API architecture with standardized endpoints
 
 ---
 
@@ -25,13 +26,13 @@
 | D3.js | 7.9.0 | Graph visualization |
 | Zustand | 5.0.8 | State management |
 | React Router | 6.30.1 | Client-side routing |
-| Supabase JS | 2.87.1 | Database client |
 
 ### Backend
 | Technology | Purpose |
 |------------|---------|
-| Vercel Serverless Functions | API endpoints |
+| Vercel Serverless Functions | REST API endpoints |
 | Supabase PostgreSQL | Database and storage |
+| Zod | Request validation |
 | AssemblyAI | Speech-to-text transcription |
 | OpenAI | Question matching and speaker naming |
 | LangChain/LangGraph | AI orchestration (0.3.0/0.2.0) |
@@ -41,83 +42,733 @@
 ## Directory Structure
 
 ```
-Anthology/
-├── anthology-app/                 # Main React application
-│   ├── api/                       # Vercel serverless functions
-│   │   ├── _lib/                  # Shared backend libraries
-│   │   │   ├── sensemaking.ts     # AI pipeline orchestration
-│   │   │   ├── assemblyai.ts      # AssemblyAI API wrapper
-│   │   │   ├── openai.ts          # OpenAI API integration
-│   │   │   └── http.ts            # HTTP utilities
-│   │   ├── transcribe.ts          # POST /api/transcribe
-│   │   ├── judge-question.ts      # POST /api/judge-question
-│   │   ├── embeddings/            # Embedding generation
-│   │   │   └── generate.ts        # POST /api/embeddings/generate
-│   │   └── sensemaking/           # Sensemaking job endpoints
-│   │       ├── start.ts           # POST /api/sensemaking/start
-│   │       ├── tick.ts            # POST /api/sensemaking/tick
-│   │       └── status.ts          # GET /api/sensemaking/status
-│   ├── scripts/                   # Maintenance and utility scripts
-│   │   ├── check-anthologies.ts   # Verify anthology counts
-│   │   ├── check-db-schema.ts     # Validate table structures
-│   │   ├── inspect-anthology.ts   # Dump data for a specific slug
-│   │   └── migrate-hearst-anthology.ts # Legacy migration script
-│   ├── src/
-│   │   ├── components/            # React components
-│   │   │   ├── AddYourVoice/      # Recording/upload UI
-│   │   │   ├── Audio/             # Audio playback components
-│   │   │   ├── CreateAnthology/   # Anthology creation flow
-│   │   │   ├── Map/               # D3 visualization components
-│   │   │   ├── Rail/              # Right sidebar components
-│   │   │   └── UI/                # Generic UI components
-│   │   ├── hooks/                 # Custom React hooks
-│   │   ├── pages/                 # Page components
-│   │   │   ├── HomePage/          # Anthology list page
-│   │   │   └── ViewerPage/        # Anthology viewer page
-│   │   ├── services/              # API/data services
-│   │   │   ├── supabase.ts        # Canonical Supabase service layer
-│   │   │   ├── transcription.ts   # Transcription service
-│   │   │   └── questionPlacement.ts
-│   │   ├── stores/                # Zustand state stores
-│   │   │   ├── AnthologyStore.ts  # Main application state
-│   │   │   ├── InteractionStore.ts
-│   │   │   └── VisualizationStore.ts
-│   │   ├── styles/                # CSS styles
-│   │   ├── types/                 # TypeScript type definitions
-│   │   │   ├── data.types.ts      # Core data models
-│   │   │   ├── component.types.ts # Component props
-│   │   │   └── store.types.ts     # Store interfaces
-│   │   ├── utils/                 # Utility functions
-│   │   │   ├── audioUtils.ts      # Audio playback helpers
-│   │   │   ├── colorAssignment.ts # Speaker color system
-│   │   │   ├── dataProcessor.ts   # JSON to graph conversion
-│   │   │   ├── semanticLayout.ts  # UMAP and semantic positioning
-│   │   │   └── slugify.ts         # URL slug generation
-│   │   ├── App.tsx                # Main app component
-│   │   ├── Root.tsx               # Route definitions
-│   │   └── main.tsx               # Entry point
-│   ├── public/                    # Static assets
-│   ├── package.json               # Dependencies
-│   ├── vite.config.ts             # Vite configuration
-│   ├── vercel.json                # Vercel deployment config
-│   └── .env.example               # Environment template
-│
-├── database/                      # Database migrations
-│   ├── migrations/                # SQL migration files
-│   └── ...                        # Legacy migration scripts
-│
-├── cloud_schema.sql               # Canonical database schema dump
-├── Design.md                      # Design specifications
-└── Documentation.md               # This file
+anthology-app-split/
+├── api/                           # Vercel serverless functions (REST API)
+│   ├── _lib/                      # Shared backend utilities
+│   │   ├── auth.ts                # JWT authentication helpers
+│   │   ├── errors.ts              # Error codes and ApiException class
+│   │   ├── response.ts            # Response helpers (json, paginated, error)
+│   │   ├── validation.ts          # Zod validation schemas
+│   │   ├── supabase.ts            # Supabase client initialization
+│   │   ├── colorUtils.ts          # Speaker color scheme generation
+│   │   ├── sensemaking.ts         # AI pipeline orchestration
+│   │   ├── assemblyai.ts          # AssemblyAI API wrapper
+│   │   ├── openai.ts              # OpenAI API integration
+│   │   └── http.ts                # HTTP utilities
+│   ├── anthologies/               # Anthology endpoints
+│   │   ├── index.ts               # GET/POST /api/anthologies
+│   │   └── [slug].ts              # GET /api/anthologies/:slug
+│   ├── conversations/             # Conversation endpoints
+│   │   ├── index.ts               # GET /api/conversations
+│   │   ├── [id].ts                # GET /api/conversations/:id
+│   │   └── [id]/
+│   │       ├── speakers.ts        # GET /api/conversations/:id/speakers
+│   │       ├── questions.ts       # GET /api/conversations/:id/questions
+│   │       ├── responses.ts       # GET /api/conversations/:id/responses
+│   │       └── narratives.ts      # GET /api/conversations/:id/narratives
+│   ├── questions/                 # Question endpoints
+│   │   ├── index.ts               # GET /api/questions
+│   │   └── [id]/
+│   │       └── responses.ts       # GET /api/questions/:id/responses
+│   ├── responses/                 # Response endpoints
+│   │   ├── index.ts               # GET/POST /api/responses
+│   │   ├── [id].ts                # GET/DELETE /api/responses/:id
+│   │   └── [id]/
+│   │       └── word-timestamps.ts # GET /api/responses/:id/word-timestamps
+│   ├── narratives/                # Narrative endpoints
+│   │   ├── index.ts               # GET/POST /api/narratives
+│   │   └── [id]/
+│   │       └── responses.ts       # GET /api/narratives/:id/responses
+│   ├── speakers/                  # Speaker endpoints
+│   │   ├── index.ts               # GET /api/speakers
+│   │   └── [id].ts                # GET /api/speakers/:id
+│   ├── graph/
+│   │   └── load.ts                # GET /api/graph/load (complete data)
+│   ├── embeddings/
+│   │   └── generate.ts            # POST /api/embeddings/generate
+│   ├── sensemaking/               # AI pipeline endpoints
+│   │   ├── start.ts               # POST /api/sensemaking/start
+│   │   ├── tick.ts                # POST /api/sensemaking/tick
+│   │   └── status.ts              # GET /api/sensemaking/status
+│   ├── assign-narrative.ts        # POST /api/assign-narrative
+│   ├── transcribe.ts              # POST /api/transcribe
+│   ├── judge-question.ts          # POST /api/judge-question
+│   └── docs/
+│       └── index.ts               # GET /api/docs
+├── shared/                        # Shared types between frontend and backend
+│   └── types/
+│       └── api.types.ts           # Wire format types for API
+├── src/                           # Frontend React application
+│   ├── components/                # React components
+│   │   ├── AddYourVoice/          # Recording/upload UI
+│   │   │   ├── AddYourVoiceButton.tsx
+│   │   │   └── AddYourVoiceModal.tsx
+│   │   ├── Audio/                 # Audio playback components
+│   │   │   ├── AudioManager.tsx
+│   │   │   ├── AudioPlayer.tsx
+│   │   │   ├── HighlightedText.tsx
+│   │   │   └── MedleyPlayer.tsx
+│   │   ├── CreateAnthology/
+│   │   │   └── CreateAnthologyModal.tsx
+│   │   ├── Icons/
+│   │   │   └── NodeIcons.tsx
+│   │   ├── Map/                   # D3 visualization components
+│   │   │   ├── D3Visualization.tsx
+│   │   │   ├── EdgePath.tsx
+│   │   │   ├── MapCanvas.tsx
+│   │   │   ├── NarrativeLabelNode.tsx
+│   │   │   ├── PullQuoteNode.tsx
+│   │   │   ├── QuestionNode.tsx
+│   │   │   └── ResponseNode.tsx
+│   │   ├── Rail/                  # Right sidebar components
+│   │   │   ├── CommentRail.tsx
+│   │   │   ├── RailHeader.tsx
+│   │   │   ├── ResizeHandle.tsx
+│   │   │   ├── Components/
+│   │   │   │   ├── BackButton.tsx
+│   │   │   │   ├── MedleyPlayButton.tsx
+│   │   │   │   ├── NarrativeTile.tsx
+│   │   │   │   ├── QuestionContext.tsx
+│   │   │   │   ├── QuestionTile.tsx
+│   │   │   │   ├── RespondModal.tsx
+│   │   │   │   ├── ResponsePlayButton.tsx
+│   │   │   │   ├── ResponseTile.tsx
+│   │   │   │   ├── SpeakerHeader.tsx
+│   │   │   │   └── TabSwitcher.tsx
+│   │   │   └── Views/
+│   │   │       ├── ConversationsView.tsx
+│   │   │       ├── KaraokeDisplay.tsx
+│   │   │       ├── NarrativeView.tsx
+│   │   │       ├── NarrativesView.tsx
+│   │   │       ├── QuestionView.tsx
+│   │   │       └── SingleView.tsx
+│   │   └── UI/                    # Generic UI components
+│   │       ├── Legend.tsx
+│   │       ├── Notification.tsx
+│   │       ├── PhysicsControl.tsx
+│   │       ├── Tooltip.tsx
+│   │       └── ViewModeToggle.tsx
+│   ├── hooks/                     # Custom React hooks
+│   │   ├── index.ts
+│   │   ├── useD3.ts
+│   │   ├── useD3Zoom.ts
+│   │   ├── useD3Drag.ts
+│   │   ├── useAudioManager.ts
+│   │   ├── useAudioRecorder.ts
+│   │   ├── useWordHighlighting.ts
+│   │   └── useRecordAndTranscribe.ts
+│   ├── pages/                     # Page components
+│   │   ├── HomePage/
+│   │   └── ViewerPage/
+│   ├── services/                  # API and data services
+│   │   ├── index.ts               # Service exports
+│   │   ├── apiClient.ts           # Core HTTP client
+│   │   ├── anthologyService.ts    # Anthology operations
+│   │   ├── conversationService.ts # Conversation data
+│   │   ├── questionService.ts     # Question operations
+│   │   ├── responseService.ts     # Response CRUD
+│   │   ├── narrativeService.ts    # Narrative operations
+│   │   ├── speakerService.ts      # Speaker data
+│   │   ├── graphDataService.ts    # Complete graph data loading
+│   │   ├── supabaseClient.ts      # Legacy Supabase client
+│   │   ├── supabaseQuery.ts       # Legacy direct queries
+│   │   ├── recordingService.ts    # Audio file uploads
+│   │   ├── conversationUploadService.ts
+│   │   ├── adminService.ts        # Admin operations
+│   │   ├── transcription.ts       # Transcription service
+│   │   └── questionPlacement.ts
+│   ├── stores/                    # Zustand state stores
+│   │   ├── AnthologyStore.ts
+│   │   ├── InteractionStore.ts
+│   │   └── VisualizationStore.ts
+│   ├── styles/                    # CSS styles
+│   ├── types/                     # TypeScript type definitions
+│   │   ├── data.types.ts          # Core data models
+│   │   ├── component.types.ts     # Component props
+│   │   └── store.types.ts         # Store interfaces
+│   ├── utils/                     # Utility functions
+│   │   ├── audioUtils.ts
+│   │   ├── colorAssignment.ts
+│   │   ├── dataProcessor.ts
+│   │   ├── semanticLayout.ts
+│   │   └── slugify.ts
+│   ├── App.tsx                    # Main app component
+│   ├── Root.tsx                   # Route definitions
+│   └── main.tsx                   # Entry point
+├── scripts/                       # Maintenance and utility scripts
+│   ├── check-anthologies.ts
+│   ├── check-db-schema.ts
+│   ├── inspect-anthology.ts
+│   └── migrate-hearst-anthology.ts
+├── docs/                          # Additional documentation
+├── supabase/                      # Supabase configuration
+├── package.json                   # Dependencies
+├── vite.config.ts                 # Vite configuration
+├── vercel.json                    # Vercel deployment config
+└── .env.example                   # Environment template
 ```
 
 ---
 
-## Core Data Types
+## REST API Architecture
 
-### `data.types.ts` - Primary Data Models
+The API follows RESTful conventions with standardized request/response formats.
 
-#### Conversation
+### API Response Format
+
+All successful responses follow this structure:
+```typescript
+interface ApiResponse<T> {
+  data: T;
+  meta?: PaginationMeta;
+}
+
+interface PaginationMeta {
+  total: number;
+  limit: number;
+  offset: number;
+  hasMore: boolean;
+}
+```
+
+All error responses follow this structure:
+```typescript
+interface ApiErrorResponse {
+  error: {
+    code: string;      // e.g., "NOT_FOUND", "BAD_REQUEST"
+    message: string;
+    details?: Record<string, unknown>;
+  };
+}
+```
+
+### Error Codes
+
+| Code | HTTP Status | Description |
+|------|-------------|-------------|
+| `BAD_REQUEST` | 400 | Invalid request parameters |
+| `VALIDATION_ERROR` | 400 | Request body validation failed |
+| `UNAUTHORIZED` | 401 | Missing or invalid authentication |
+| `FORBIDDEN` | 403 | Insufficient permissions |
+| `NOT_FOUND` | 404 | Resource not found |
+| `METHOD_NOT_ALLOWED` | 405 | HTTP method not supported |
+| `CONFLICT` | 409 | Resource conflict |
+| `INTERNAL_ERROR` | 500 | Server error |
+| `DATABASE_ERROR` | 500 | Database operation failed |
+| `SERVICE_UNAVAILABLE` | 503 | External service unavailable |
+
+---
+
+## API Endpoints
+
+### Anthologies
+
+#### `GET /api/anthologies`
+List all anthologies (paginated).
+
+**Query Parameters:**
+- `limit` (optional, default: 50): Max items per page
+- `offset` (optional, default: 0): Pagination offset
+- `publicOnly` (optional, default: true): Filter to public anthologies
+
+**Response:**
+```json
+{
+  "data": [
+    {
+      "id": "uuid",
+      "slug": "my-anthology",
+      "title": "My Anthology",
+      "description": "Description text",
+      "isPublic": true,
+      "createdAt": "2025-01-30T12:00:00Z"
+    }
+  ],
+  "meta": { "total": 5, "limit": 50, "offset": 0, "hasMore": false }
+}
+```
+
+#### `GET /api/anthologies/[slug]`
+Get anthology by slug.
+
+**Response:**
+```json
+{
+  "data": {
+    "id": "uuid",
+    "slug": "my-anthology",
+    "title": "My Anthology",
+    "description": "Description text",
+    "isPublic": true,
+    "createdAt": "2025-01-30T12:00:00Z"
+  }
+}
+```
+
+---
+
+### Conversations
+
+#### `GET /api/conversations`
+List conversations (paginated).
+
+**Query Parameters:**
+- `anthologyId` (optional): Filter by anthology UUID
+- `limit`, `offset`: Pagination
+
+#### `GET /api/conversations/[id]`
+Get conversation by UUID.
+
+#### `GET /api/conversations/[id]/speakers`
+Get speakers for a conversation.
+
+#### `GET /api/conversations/[id]/questions`
+Get questions for a conversation.
+
+#### `GET /api/conversations/[id]/responses`
+Get responses for a conversation.
+
+#### `GET /api/conversations/[id]/narratives`
+Get narratives for a conversation.
+
+---
+
+### Questions
+
+#### `GET /api/questions`
+List questions (paginated).
+
+**Query Parameters:**
+- `conversationId` (optional): Filter by conversation
+- `anthologyId` (optional): Filter by anthology
+
+#### `GET /api/questions/[id]/responses`
+Get responses for a specific question.
+
+---
+
+### Responses
+
+#### `GET /api/responses`
+List responses (paginated).
+
+**Query Parameters:**
+- `conversationId`, `anthologyId`, `questionId`, `narrativeId`, `speakerId`: Filters
+
+#### `POST /api/responses`
+Create a new response.
+
+**Request Body:**
+```json
+{
+  "conversationId": "uuid",
+  "respondsToQuestionId": "uuid",
+  "speakerName": "John Doe",
+  "speakerText": "The transcript text...",
+  "pullQuote": "Optional featured excerpt",
+  "audioStartMs": 0,
+  "audioEndMs": 5000,
+  "medium": "audio",
+  "synchronicity": "asynchronous"
+}
+```
+
+#### `GET /api/responses/[id]`
+Get response by UUID.
+
+#### `DELETE /api/responses/[id]`
+Delete a response.
+
+#### `GET /api/responses/[id]/word-timestamps`
+Get word-level timestamps for karaoke display.
+
+**Response:**
+```json
+{
+  "data": [
+    { "text": "Hello", "start": 0, "end": 500, "confidence": 0.98 }
+  ]
+}
+```
+
+---
+
+### Narratives
+
+#### `GET /api/narratives`
+List narratives (paginated).
+
+**Query Parameters:**
+- `conversationId`, `anthologyId`: Filters
+
+#### `GET /api/narratives/[id]/responses`
+Get responses assigned to a narrative.
+
+---
+
+### Speakers
+
+#### `GET /api/speakers`
+List speakers (paginated).
+
+**Query Parameters:**
+- `conversationId`, `anthologyId`: Filters
+
+#### `GET /api/speakers/[id]`
+Get speaker by UUID.
+
+**Response:**
+```json
+{
+  "data": {
+    "id": "uuid",
+    "anthologyId": "uuid",
+    "conversationId": "uuid",
+    "name": "John Doe",
+    "circleColor": "#4A90E2",
+    "fadedCircleColor": "rgba(74, 144, 226, 0.3)",
+    "quoteRectangleColor": "#E8F1FC",
+    "fadedQuoteRectangleColor": "rgba(232, 241, 252, 0.5)",
+    "quoteTextColor": "#1A5DAB",
+    "fadedQuoteTextColor": "rgba(26, 93, 171, 0.5)",
+    "createdAt": "2025-01-30T12:00:00Z"
+  }
+}
+```
+
+---
+
+### Graph Data
+
+#### `GET /api/graph/load`
+Load complete graph data for visualization. This is the main entry point for the frontend.
+
+**Query Parameters:**
+- `anthologySlug` (optional): Filter by anthology slug
+- `anthologyId` (optional): Filter by anthology UUID
+
+**Response:**
+```json
+{
+  "data": {
+    "conversations": [...],
+    "questions": [...],
+    "narratives": [...],
+    "responses": [...]
+  }
+}
+```
+
+---
+
+### AI/Sensemaking Endpoints
+
+#### `POST /api/transcribe`
+Transcribe audio using AssemblyAI.
+
+**Request:**
+```json
+{ "audioUrl": "https://..." }
+```
+
+**Response:**
+```json
+{
+  "text": "Full transcript text",
+  "words": [
+    { "text": "Hello", "start": 0, "end": 500, "confidence": 0.98 }
+  ]
+}
+```
+
+#### `POST /api/judge-question`
+Match a response to the best template question.
+
+**Request:**
+```json
+{
+  "transcript": "The speaker's text...",
+  "questions": [
+    { "id": "q_001", "text": "What do you think about...?" }
+  ]
+}
+```
+
+**Response:**
+```json
+{
+  "bestQuestionId": "q_001",
+  "rankedQuestionIds": ["q_001", "q_002"],
+  "reason": "The response directly addresses..."
+}
+```
+
+#### `POST /api/sensemaking/start`
+Start a sensemaking job for processing conversation audio.
+
+#### `POST /api/sensemaking/tick`
+Process the next step of a sensemaking job.
+
+#### `GET /api/sensemaking/status?jobId=...`
+Get job progress and status.
+
+#### `POST /api/assign-narrative`
+Assign a response to a narrative.
+
+#### `POST /api/embeddings/generate`
+Generate OpenAI embeddings for text.
+
+---
+
+## API Library (`api/_lib/`)
+
+### `errors.ts` - Error Handling
+```typescript
+// Error codes
+ErrorCodes.BAD_REQUEST
+ErrorCodes.NOT_FOUND
+ErrorCodes.VALIDATION_ERROR
+// ... etc
+
+// ApiException class for throwing standardized errors
+throw new ApiException(ErrorCodes.NOT_FOUND, 'Resource not found');
+
+// Helper functions
+notFound('Conversation', id)
+badRequest('Invalid parameters')
+validationError('Validation failed', fieldErrors)
+databaseError('Query failed', originalError)
+```
+
+### `response.ts` - Response Helpers
+```typescript
+// Success responses
+jsonResponse(res, data)                    // 200 with { data }
+createdResponse(res, data)                 // 201 with { data }
+paginatedResponse(res, data, meta)         // 200 with { data, meta }
+noContent(res)                             // 204 No Content
+
+// Error responses
+errorResponse(res, code, message, details)
+exceptionResponse(res, apiException)
+handleError(res, error)                    // Catch-all error handler
+```
+
+### `validation.ts` - Zod Schemas
+```typescript
+// Common schemas
+uuidSchema                    // UUID validation
+nonEmptyString                // Non-empty string
+PaginationSchema              // { limit, offset }
+
+// Endpoint-specific schemas
+AnthologiesQuerySchema
+ConversationsQuerySchema
+ResponsesQuerySchema
+CreateResponseSchema
+UpdateResponseSchema
+GraphLoadQuerySchema
+// ... etc
+```
+
+### `auth.ts` - Authentication
+```typescript
+// Verify JWT token, returns null if no token
+verifyToken(req): Promise<AuthResult | null>
+
+// Require authentication (throws if not authenticated)
+requireAuth(req): Promise<AuthResult>
+
+// Require admin role
+requireAdmin(req): Promise<AuthResult>
+
+// Optional auth (returns null if not authenticated)
+optionalAuth(req): Promise<AuthResult | null>
+```
+
+### `supabase.ts` - Database Client
+```typescript
+// Get Supabase client with service role key (for API routes)
+getSupabase()
+```
+
+### `colorUtils.ts` - Color Generation
+```typescript
+// Generate color scheme for a speaker
+generateSpeakerColorScheme(baseColor: string): SpeakerColorScheme
+```
+
+---
+
+## Shared Types (`shared/types/api.types.ts`)
+
+Types shared between frontend and backend for API wire format:
+
+```typescript
+// Response wrappers
+interface ApiResponse<T> { data: T; meta?: PaginationMeta; }
+interface ApiErrorResponse { error: { code: string; message: string; details?: Record<string, unknown>; }; }
+interface PaginationMeta { total: number; limit: number; offset: number; hasMore: boolean; }
+
+// Entity types (wire format - camelCase)
+interface ApiAnthology { id, slug, title, description, isPublic, createdAt }
+interface ApiConversation { id, legacyId, anthologyId, audioFile, duration, color, metadata, createdAt }
+interface ApiQuestion { id, legacyId, conversationId, questionText, relatedResponses, ... }
+interface ApiResponse { id, legacyId, conversationId, respondsToQuestionId, speakerName, speakerText, pullQuote, audioStartMs, audioEndMs, turnNumber, chronologicalTurnNumber, medium, synchronicity, embedding, wordTimestamps, ... }
+interface ApiNarrative { id, legacyId, anthologyId, conversationId, narrativeText, relatedResponses, color, ... }
+interface ApiSpeaker { id, anthologyId, conversationId, name, circleColor, fadedCircleColor, quoteRectangleColor, ... }
+interface ApiWordTimestamp { text, start, end, speaker?, confidence? }
+
+// Request body types
+interface CreateResponseRequest { conversationId, respondsToQuestionId?, speakerName, speakerText, ... }
+interface UpdateResponseRequest { speakerText?, pullQuote?, respondsToNarrativeId?, ... }
+interface CreateSpeakerRequest { conversationId, name, circleColor?, ... }
+
+// Graph data (complete visualization data)
+interface ApiGraphData { conversations, questions, narratives, responses }
+```
+
+---
+
+## Frontend Services
+
+### API Client Services (Primary)
+
+#### `apiClient.ts` - Core HTTP Client
+```typescript
+// Core methods
+apiClient.get<T>(path, params?)           // GET request
+apiClient.getList<T>(path, params?)       // GET with pagination
+apiClient.post<T, B>(path, body)          // POST request
+apiClient.patch<T, B>(path, body)         // PATCH request
+apiClient.delete(path)                    // DELETE request
+
+// Error class
+class ApiError extends Error {
+  code: string;
+  statusCode: number;
+  details?: Record<string, unknown>;
+}
+```
+
+#### `graphDataService.ts` - Main Data Entry Point
+```typescript
+// Load complete visualization data
+GraphDataService.loadAll({ anthologySlug? }): Promise<{
+  conversations: Conversation[];
+  questions: QuestionNode[];
+  narratives: NarrativeNode[];
+  responses: ResponseNode[];
+}>
+```
+
+#### `anthologyService.ts`
+```typescript
+AnthologyService.list(params?): Promise<PaginatedResponse<ApiAnthology>>
+AnthologyService.getBySlug(slug): Promise<ApiAnthology>
+```
+
+#### `conversationService.ts`
+```typescript
+ConversationService.list(params?)
+ConversationService.getById(id)
+ConversationService.getSpeakers(id)
+ConversationService.getQuestions(id)
+ConversationService.getResponses(id)
+ConversationService.getNarratives(id)
+```
+
+#### `questionService.ts`
+```typescript
+QuestionService.list(params?)
+QuestionService.getResponses(questionId)
+```
+
+#### `responseService.ts`
+```typescript
+ResponseService.list(params?)
+ResponseService.create(data)
+ResponseService.getById(id)
+ResponseService.delete(id)
+ResponseService.getWordTimestamps(id)
+```
+
+#### `narrativeService.ts`
+```typescript
+NarrativeService.list(params?)
+NarrativeService.getResponses(narrativeId)
+```
+
+#### `speakerService.ts`
+```typescript
+SpeakerService.list(params?)
+SpeakerService.getById(id)
+```
+
+### Legacy Supabase Services
+
+These services are being deprecated in favor of the REST API but remain for specific use cases:
+
+#### `supabaseClient.ts`
+Direct Supabase client for real-time subscriptions.
+
+#### `recordingService.ts`
+Audio file uploads to Supabase Storage.
+
+#### `adminService.ts`
+Admin operations for adding responses.
+
+---
+
+## Custom Hooks
+
+### `useD3.ts`
+D3 graph initialization and lifecycle management.
+```typescript
+const { svgRef, simulation, nodes, edges } = useD3(graphData);
+```
+
+### `useD3Zoom.ts`
+Pan and zoom controls for the graph.
+```typescript
+const { zoomIn, zoomOut, resetZoom, centerOnNode } = useD3Zoom(svgRef, config);
+```
+
+### `useD3Drag.ts`
+Node dragging behavior.
+```typescript
+const { isDragging, startDrag, updateDrag, endDrag } = useD3Drag(simulation);
+```
+
+### `useAudioManager.ts`
+Audio playback lifecycle management.
+```typescript
+const { play, pause, seek, currentTime, duration, isPlaying } = useAudioManager();
+```
+
+### `useAudioRecorder.ts`
+MediaRecorder API wrapper for recording audio.
+```typescript
+const { startRecording, stopRecording, audioBlob, isRecording } = useAudioRecorder();
+```
+
+### `useWordHighlighting.ts`
+Karaoke-style word synchronization during playback.
+```typescript
+const { highlightedWordIndex, words } = useWordHighlighting(wordTimestamps, currentTime);
+```
+
+### `useRecordAndTranscribe.ts`
+Complete recording → upload → transcription flow.
+```typescript
+const { record, transcribe, isRecording, isTranscribing, result } = useRecordAndTranscribe(options);
+```
+
+---
+
+## Core Data Types (`src/types/data.types.ts`)
+
+### Conversation
 ```typescript
 interface Conversation {
   conversation_id: string;
@@ -135,10 +786,11 @@ interface ConversationMetadata {
   location?: string;
   facilitator?: string;
   topics?: string[];
+  source_transcript?: string;
 }
 ```
 
-#### Question Node
+### Question Node
 ```typescript
 interface QuestionNode {
   type: 'question';
@@ -151,41 +803,42 @@ interface QuestionNode {
 }
 ```
 
-#### Response Node
+### Response Node
 ```typescript
 interface ResponseNode {
   type: 'response';
   id: string;
   responds_to: string;            // Question, Response, or Narrative ID
-  responds_to_narrative_id?: string; // Explicit narrative link
+  responds_to_narrative_id?: string;
   speaker_name: string;
   speaker_text: string;
   pull_quote?: string;            // Featured excerpt for rectangle display
   audio_start: number;            // Timestamp in ms
   audio_end: number;              // Timestamp in ms
   conversation_id: string;
-  path_to_recording?: string;     // Optional standalone recording
+  path_to_recording?: string;
   turn_number?: number;
+  chronological_turn_number?: number; // Chronological order based on audio_start_ms
   word_timestamps?: WordTimestamp[];
-  medium?: 'audio' | 'text';      // Response medium type
-  synchronicity?: 'sync' | 'asynchronous'; // Response synchronicity
+  medium?: 'audio' | 'text';
+  synchronicity?: 'sync' | 'asynchronous';
   embedding?: number[];           // 1536-dim vector for semantic layout
 }
 ```
 
-#### Narrative Node
+### Narrative Node
 ```typescript
 interface NarrativeNode {
   type: 'narrative';
   id: string;
-  narrative_text: string;         // Prompt/story text
-  related_responses?: string[];   // Response node IDs
+  narrative_text: string;
+  related_responses?: string[];
   notes?: string;
   path_to_recording?: string;
 }
 ```
 
-#### Narrative Label Node (Visual)
+### Narrative Label Node (Visual)
 ```typescript
 interface NarrativeLabelNode {
   type: 'narrative_label';
@@ -198,7 +851,7 @@ interface NarrativeLabelNode {
 }
 ```
 
-#### Word Timestamp (Karaoke Highlighting)
+### Word Timestamp
 ```typescript
 interface WordTimestamp {
   text: string;
@@ -209,14 +862,18 @@ interface WordTimestamp {
 }
 ```
 
-#### Graph Types
+### Graph Types
 ```typescript
+type NodeType = 'question' | 'response' | 'prompt' | 'narrative' | 'narrative_label';
+
 interface GraphNode {
   id: string;
-  type: 'question' | 'response' | 'prompt';
+  type: NodeType;
   data: AnthologyNode;
   x?: number;       // D3 position
   y?: number;
+  fx?: number;      // Fixed position
+  fy?: number;
   color?: string;
 }
 
@@ -224,30 +881,19 @@ interface GraphEdge {
   source: string | GraphNode;
   target: string | GraphNode;
   color?: string;
+  edgeType?: 'question-response' | 'chronological' | 'response-response';
 }
 ```
 
----
-
-## Database Schema
-
-The Anthology platform uses a Supabase-hosted PostgreSQL database. 
-
-> [!IMPORTANT]
-> The canonical source of truth for the database schema is [cloud_schema.sql](file:///Users/alrightsettledownwethroughtoday/Desktop/Coding/Anthology/Anthology/anthology-app/cloud_schema.sql).
-
-### Core Tables
-- `anthology_anthologies`: Top-level dataset partitions.
-- `anthology_conversations`: Discussion sessions.
-- `anthology_questions`: Prompt nodes.
-- `anthology_narratives`: Storytelling prompts (supports embeddings).
-- `anthology_responses`: Speaker contribution nodes (supports embeddings).
-- `anthology_speakers`: Participant color assignments.
-- `anthology_recordings`: Audio file metadata.
-- `anthology_word_timestamps`: Fine-grained timing for karaoke display.
-- `anthology_sensemaking_jobs`: Async AI pipeline status.
-
-For detailed table relationships, foreign keys, and RLS policies, please refer directly to the [cloud_schema.sql](file:///Users/alrightsettledownwethroughtoday/Desktop/Coding/Anthology/Anthology/anthology-app/cloud_schema.sql) file.
+### Notification
+```typescript
+interface Notification {
+  id: string;
+  type: 'info' | 'warning' | 'error' | 'success';
+  message: string;
+  duration?: number; // ms
+}
+```
 
 ---
 
@@ -272,6 +918,8 @@ interface DataState {
   narrativeColorAssignments: Map<string, string>;
   isLoading: boolean;
   loadError: string | null;
+  notifications: Notification[];
+  missingEmbeddingsCount: number;
 }
 ```
 
@@ -280,18 +928,24 @@ interface DataState {
 interface SelectionState {
   selectedNodes: Set<string>;
   hoveredNode: string | null;
+  hoveredNodes: Set<string>;
   focusedNode: string | null;
-  selectionMode: 'single' | 'multi' | 'question';
+  selectionMode: 'single' | 'multi' | 'question' | 'narrative';
   selectionHistory: string[][];
 }
 ```
 
 #### View Slice
 ```typescript
+type RailViewMode = 'conversations' | 'question' | 'single' | 'narratives' | 'narrative';
+type MapViewMode = 'narrative' | 'question';
+
 interface ViewState {
   railExpanded: boolean;
   railWidth: number;
-  railMode: 'conversations' | 'question' | 'narrative' | 'single';
+  railMode: RailViewMode;
+  previousRailMode: RailViewMode | null;
+  mapViewMode: MapViewMode;               // Controls node/edge visibility
   activeQuestion: string | null;
   activeNarrative: string | null;
   activeResponse: string | null;
@@ -302,9 +956,12 @@ interface ViewState {
 
 #### Audio Slice
 ```typescript
+type PlaybackMode = 'single' | 'shuffle' | 'chronological' | 'idle';
+type PlaybackState = 'idle' | 'playing' | 'paused' | 'buffering';
+
 interface AudioState {
-  playbackState: 'idle' | 'playing' | 'paused' | 'loading';
-  playbackMode: 'single' | 'medley' | 'shuffle';
+  playbackState: PlaybackState;
+  playbackMode: PlaybackMode;
   currentTrack: string | null;
   currentTime: number;
   duration: number;
@@ -317,272 +974,22 @@ interface AudioState {
 }
 ```
 
-#### Key Actions
-- `loadData(data)`: Load anthology data and build graph structure
-- `selectNode(nodeId, mode)`: Select a node (single or multi-select)
-- `selectQuestion(questionId)`: Select a question and all its responses
-- `selectResponse(responseId)`: Select a single response
-- `play(nodeId)`: Start audio playback for a response
-- `setRailMode(mode)`: Switch between conversations/question/single view
-
 ### VisualizationStore (`stores/VisualizationStore.ts`)
 
-Manages D3 visualization state including:
-- Node positions
-- Zoom/pan transform
-- Force simulation parameters
+Manages D3 visualization state:
+- Node positions and simulation
+- Original UMAP positions
+- Zoom/pan utilities
+- Physics toggle
+- Render flags
 
 ### InteractionStore (`stores/InteractionStore.ts`)
 
 Manages UI interaction state:
-- Tooltip content and position
 - Drag state
-- Keyboard shortcuts
-
----
-
-## Services
-
-### Supabase Service (`services/supabase.ts`)
-
-#### AnthologyService
-```typescript
-AnthologyService.listPublic(): Promise<AnthologySummary[]>
-AnthologyService.getBySlug(slug): Promise<AnthologySummary | null>
-```
-
-#### GraphDataService
-```typescript
-// Main entry point for loading visualization data
-GraphDataService.loadAll({ anthologySlug? }): Promise<{
-  conversations: Conversation[];
-  questions: QuestionNode[];
-  responses: ResponseNode[];
-}>
-
-// Subscribe to real-time updates
-GraphDataService.subscribeToUpdates(callback): () => void
-```
-
-#### ConversationService
-```typescript
-ConversationService.getAll({ anthologyId? }): Promise<Conversation[]>
-ConversationService.getById(id): Promise<Conversation | null>
-ConversationService.getSpeakers(conversationId): Promise<Map<string, SpeakerColorScheme>>
-```
-
-#### ResponseService
-```typescript
-ResponseService.getByConversation(conversationId): Promise<ResponseNode[]>
-ResponseService.getWordTimestamps(responseId): Promise<WordTimestamp[]>
-```
-
-#### RecordingService
-```typescript
-RecordingService.getById(id): Promise<Recording | null>
-RecordingService.upload(file, durationMs?): Promise<Recording | null>
-```
-
-#### NarrativeService
-```typescript
-NarrativeService.getByConversation(conversationId): Promise<NarrativeNode[]>
-```
-
-#### AdminService
-```typescript
-AdminService.addResponse({ conversationId, questionId, speakerName, ... })
-AdminService.addResponseToResponse({ conversationId, parentResponseId, ... })
-AdminService.addResponseToQuestion({ conversationId, questionId, ... })
-AdminService.addResponseToNarrative({ conversationId, narrativeId, ... })
-```
-
----
-
-## API Endpoints
-
-### `POST /api/transcribe`
-Transcribes audio using AssemblyAI.
-
-**Request:**
-```json
-{ "audioUrl": "https://..." }
-```
-
-**Response:**
-```json
-{
-  "text": "Full transcript text",
-  "words": [
-    { "text": "Hello", "start": 0, "end": 500, "confidence": 0.98 }
-  ]
-}
-```
-
-### `POST /api/judge-question`
-Matches a response to the best template question using OpenAI.
-
-**Request:**
-```json
-{
-  "transcript": "The speaker's text...",
-  "questions": [
-    { "id": "q_001", "text": "What do you think about...?" }
-  ]
-}
-```
-
-**Response:**
-```json
-{
-  "bestQuestionId": "q_001",
-  "rankedQuestionIds": ["q_001", "q_002", "q_003"],
-  "reason": "The response directly addresses..."
-}
-```
-
-### `POST /api/sensemaking/start`
-Initiates a sensemaking job for processing conversation audio.
-
-**Request:**
-```json
-{
-  "anthologySlug": "my-anthology",
-  "anthologyTitle": "My Anthology",
-  "templateQuestions": ["Question 1?", "Question 2?"],
-  "uploadedFilePaths": ["upload_conversations/my-anthology/file.mp3"],
-  "includePreviousUploads": true
-}
-```
-
-**Response:**
-```json
-{
-  "jobId": "uuid",
-  "anthologySlug": "my-anthology",
-  "anthologyId": "uuid"
-}
-```
-
-### `POST /api/sensemaking/tick`
-Processes the next step of a sensemaking job (time-sliced for Vercel limits).
-
-**Request:**
-```json
-{
-  "jobId": "uuid",
-  "timeBudgetMs": 15000
-}
-```
-
-### `GET /api/sensemaking/status?jobId=...`
-Returns job progress and status.
-
-**Response:**
-```json
-{
-  "jobId": "uuid",
-  "status": "running",
-  "anthologySlug": "my-anthology",
-  "anthologyId": "uuid",
-  "progress": {
-    "overall": { "done": 1, "total": 3 },
-    "files": {
-      "path/to/file.mp3": {
-        "step": "turn_filtering",
-        "message": "Processing turns...",
-        "cursor": 15,
-        "total_turns": 50
-      }
-    }
-  }
-}
-```
-
-### Embeddings
-
-#### `POST /api/embeddings/generate`
-Generates OpenAI embeddings for a set of text strings.
-- **Request Body**: `{ "text": string | string[] }`
-- **Response**: `{ "embeddings": number[][] }`
-
----
-
-## Sensemaking Pipeline
-
-The sensemaking pipeline (`api/_lib/sensemaking.ts`) processes conversation audio through multiple stages:
-
-### Pipeline Stages
-1. **Transcription** (`transcription_queued` → `transcribing` → `transcript_ready`)
-   - Uses AssemblyAI for speech-to-text with speaker diarization
-   - Polls for completion every 15 seconds
-
-2. **Turn Cleaning** (`cleaning_short_turns`)
-   - Merges adjacent utterances from the same speaker
-   - Filters out turns shorter than 2 seconds
-
-3. **Speaker Naming** (`speaker_naming`)
-   - Uses OpenAI to infer speaker names from context
-   - Falls back to "Speaker A", "Speaker B" if uncertain
-
-4. **Question Assignment** (`question_assignment`)
-   - Routes each turn to the best matching template question
-   - Uses OpenAI with structured JSON output
-
-5. **Turn Filtering** (`turn_filtering`)
-   - Filters turns based on standalone quality and direct answer relevance
-   - Uses conservative thresholds (0.65 standalone, 0.7 direct answer)
-
-6. **Node Upload** (`uploading_nodes`)
-   - Creates conversation, speakers, questions in database
-   - Upserts responses with word timestamps
-
-### Time-Sliced Execution
-- Each `tick` call has a 15-second budget (default)
-- Progress is persisted to `anthology_sensemaking_jobs` table
-- Supports retries and resumption after timeouts
-
----
-
-## Semantic Layout & Embeddings
-
-Anthology uses a semantic layout engine to position response nodes based on the similarity of their content.
-
-### 1. Embedding Generation (Backend)
-- **Model**: OpenAI `text-embedding-3-small`
-- **Output**: 1536-dimensional vectors
-- **Content**: The `speaker_text` of each response is embedded.
-- **Storage**: Stored in the `embedding` column of the `anthology_responses` table as a vector string.
-- **Trigger**: Currently manual via `database/backfill_embeddings.ts` or during specific API flows.
-
-### 2. UMAP Projection (Frontend)
-- **Library**: `umap-js` (client-side execution)
-- **File**: `src/utils/semanticLayout.ts`
-- **Process**:
-  1. Frontend loads all response embeddings.
-  2. UMAP projects high-dimensional vectors (1536d) down to 2D coordinates (x, y).
-  3. Coordinates are scaled to fit a visual range (default ±500px).
-- **Result**: Responses with similar content appear physically closer together in the graph.
-
-### 3. D3 Integration
-- **Fixed Positions**: The calculated UMAP coordinates are assigned to `fx` (fixed x) and `fy` (fixed y) properties on the D3 nodes.
-- **Physics**: This overrides the default D3 force simulation physics for position, meaning nodes remain "pinned" to their semantic location while edges still exert some influence.
-
-> [!IMPORTANT]
-> **"All or Nothing" Fallback**
-> The semantic layout is strictly "All or Nothing".
-> - **Condition**: `responses.length === responsesWithEmbeddings.length`
-> - **Behavior**: If **even a single response** is missing an embedding (e.g., empty text, failed backfill), the system completely disables UMAP.
-> - **Fallback**: The layout reverts to a "Radial Orbit" mode, where responses are positioned in a circle around their parent question.
-
----
-
-## Visualization Details
-
-### Force Simulation "Reheating"
-The D3 force simulation includes a fix for over-cooling during pre-warming.
-- **Problem**: Pre-warming (175 ticks) could drop `alpha` below `alphaMin` (0.001) before rendering, making nodes appear static.
-- **Solution**: The simulation is "reheated" after pre-warming to ensure it animations correctly on screen.
-- **Implementation**: `simulation.alpha(1).restart()` is called in `VisualizationStore.ts` after initial ticks.
+- Keyboard state
+- Context menu
+- Tooltips
 
 ---
 
@@ -590,133 +997,86 @@ The D3 force simulation includes a fix for over-cooling during pre-warming.
 
 ### Map Components (`components/Map/`)
 
-#### MapCanvas.tsx
-Main D3 container component that:
-- Sets up SVG viewport with zoom behavior
-- Manages force simulation lifecycle
-- Handles node/edge rendering delegation
-
-#### D3Visualization.tsx
-Core D3 force simulation:
-- Configures forces (charge, link, collision, center)
-- Updates node positions on simulation tick
-- Handles zoom/pan transforms
-
-#### QuestionNode.tsx
-Renders question nodes as circles with text labels.
-
-#### ResponseNode.tsx
-Renders response nodes as either:
-- Circles (default)
-- Pull quote rectangles (when `pull_quote` is present)
-
-#### EdgePath.tsx
-Renders curved connection paths between nodes.
+| Component | Purpose |
+|-----------|---------|
+| `MapCanvas.tsx` | Main SVG container with zoom behavior |
+| `D3Visualization.tsx` | Force simulation and node positioning |
+| `QuestionNode.tsx` | Question node rendering (circles) |
+| `ResponseNode.tsx` | Response node rendering (circles or rectangles) |
+| `PullQuoteNode.tsx` | Pull quote rectangle rendering |
+| `NarrativeLabelNode.tsx` | Narrative cluster label rendering |
+| `EdgePath.tsx` | Connection path rendering |
 
 ### Rail Components (`components/Rail/`)
 
-#### CommentRail.tsx
-Main sidebar container with three view modes:
-- `conversations`: List of all conversations
-- `question`: Question with all related responses
-- `single`: Single response detail view
+| Component | Purpose |
+|-----------|---------|
+| `CommentRail.tsx` | Main sidebar container |
+| `RailHeader.tsx` | Header with navigation |
+| `ResizeHandle.tsx` | Width adjustment handle |
+| `TabSwitcher.tsx` | View mode tabs (Narratives/Questions) |
 
-#### Views/QuestionView.tsx
-Displays a question with all its responses.
+**Views:**
+| View | Purpose |
+|------|---------|
+| `ConversationsView.tsx` | List of all conversations |
+| `QuestionView.tsx` | Question with related responses |
+| `NarrativesView.tsx` | List of all narratives |
+| `NarrativeView.tsx` | Single narrative with responses |
+| `SingleView.tsx` | Single response detail |
+| `KaraokeDisplay.tsx` | Word-level highlighting |
 
-#### Views/SingleView.tsx
-Detailed view of a single response with:
-- Full transcript text
-- Play/pause controls
-- Karaoke-style word highlighting
-
-#### Views/KaraokeDisplay.tsx
-Word-level text highlighting during audio playback.
+**Components:**
+| Component | Purpose |
+|-----------|---------|
+| `QuestionTile.tsx` | Question list item |
+| `NarrativeTile.tsx` | Narrative list item |
+| `ResponseTile.tsx` | Response list item |
+| `ResponsePlayButton.tsx` | Single response play control |
+| `MedleyPlayButton.tsx` | Multi-response play control |
+| `QuestionContext.tsx` | Question context display |
+| `RespondModal.tsx` | Response recording modal |
+| `SpeakerHeader.tsx` | Speaker info display |
+| `BackButton.tsx` | Navigation back button |
 
 ### Audio Components (`components/Audio/`)
 
-#### AudioManager.tsx
-Global audio orchestration that:
-- Manages HTMLAudioElement lifecycle
-- Handles audio segment playback
-- Coordinates with store for playback state
+| Component | Purpose |
+|-----------|---------|
+| `AudioManager.tsx` | Global audio orchestration |
+| `AudioPlayer.tsx` | Playback controls UI |
+| `MedleyPlayer.tsx` | Multi-track playback |
+| `HighlightedText.tsx` | Synchronized word highlighting |
 
-#### AudioPlayer.tsx
-Playback controls UI with:
-- Play/pause button
-- Progress bar
-- Volume control
-- Playback speed selector
+### UI Components (`components/UI/`)
 
-#### MedleyPlayer.tsx
-Multi-track audio playback for playing multiple responses in sequence.
-
-#### HighlightedText.tsx
-Text display with synchronized word highlighting based on audio position.
-
-### Recording Components (`components/AddYourVoice/`)
-
-#### AddYourVoiceButton.tsx
-Floating action button to initiate recording.
-
-#### AddYourVoiceModal.tsx
-Modal for recording/uploading a response:
-- Audio recording via MediaRecorder API
-- File upload support
-- Speaker name input
-- Question selection
-- Transcription preview
+| Component | Purpose |
+|-----------|---------|
+| `Legend.tsx` | Color legend display |
+| `Notification.tsx` | Toast notifications |
+| `PhysicsControl.tsx` | Force simulation toggle |
+| `Tooltip.tsx` | Hover tooltips |
+| `ViewModeToggle.tsx` | Narrative/Question view toggle |
 
 ---
 
-## Data Flow
+## Semantic Layout & Embeddings
 
-### Loading an Anthology
-```
-1. User navigates to /anthologies/:slug
-2. ViewerPage calls AnthologyService.getBySlug(slug)
-3. App component calls GraphDataService.loadAll({ anthologySlug })
-4. Service queries Supabase for:
-   - Conversations with recordings
-   - Questions per conversation
-   - Responses with word timestamps
-   - Speaker color assignments
-5. Store's loadData() builds graph structure:
-   - Creates GraphNodes for questions and responses
-   - Creates GraphEdges for responds_to relationships
-   - Assigns colors based on speaker/conversation
-6. D3Visualization calculates node positions
-7. MapCanvas renders nodes and edges
-8. CommentRail shows conversation list
-```
+### 1. Embedding Generation (Backend)
+- **Model**: OpenAI `text-embedding-3-small`
+- **Output**: 1536-dimensional vectors
+- **Content**: The `speaker_text` of each response
+- **Storage**: `embedding` column in `anthology_responses`
 
-### Recording a New Response
-```
-1. User clicks "Add Your Voice" button
-2. AddYourVoiceModal opens
-3. User records audio or uploads file
-4. Audio uploaded to Supabase Storage
-5. POST /api/transcribe returns transcript
-6. User confirms speaker name and question
-7. AdminService.addResponseToQuestion() called
-8. New response inserted into anthology_responses
-9. Word timestamps stored in anthology_word_timestamps
-10. ViewerPage refetches data to show new node
-```
+### 2. UMAP Projection (Frontend)
+- **Library**: `umap-js`
+- **File**: `src/utils/semanticLayout.ts`
+- **Process**: Projects 1536d vectors to 2D coordinates
+- **Result**: Semantically similar responses cluster together
 
-### Creating a New Anthology (Sensemaking)
-```
-1. User clicks "Create Anthology" (password protected)
-2. CreateAnthologyModal opens
-3. User uploads conversation audio files
-4. Files uploaded to Conversations bucket
-5. POST /api/sensemaking/start creates job
-6. Client polls POST /api/sensemaking/tick
-7. Pipeline processes each file:
-   - Transcribe → Speaker naming → Question routing → Filtering → Upload
-8. When complete, anthology.is_public = true
-9. New anthology appears on homepage
-```
+### 3. All or Nothing Fallback
+- **Condition**: All responses must have embeddings
+- **Fallback**: If any response lacks embedding, uses radial orbit layout
 
 ---
 
@@ -732,50 +1092,13 @@ VITE_SUPABASE_CONVERSATIONS_BUCKET=Conversations
 
 ### Backend (Vercel)
 ```bash
+SUPABASE_URL=https://xxx.supabase.co
+SUPABASE_ANON_KEY=eyJ...
 SUPABASE_SERVICE_KEY=eyJ...
 ASSEMBLYAI_API_KEY=xxx
 OPENAI_API_KEY=sk-xxx
-OPENAI_SENSEMAKING_MODEL=gpt-4o-mini  # optional, defaults to gpt-4o-mini
+OPENAI_SENSEMAKING_MODEL=gpt-4o-mini
 ```
-
----
-
-## Color System
-
-### Conversation Colors
-Default palette for conversation identification:
-```javascript
-const DEFAULT_COLORS = [
-  '#4A90E2',  // Blue
-  '#FF5F1F',  // Orange
-  '#6CC686',  // Green
-  '#CC82E7',  // Purple
-  '#F7ACEA',  // Pink
-  '#6CB7FA',  // Light Blue
-  '#FFB84D',  // Gold
-  '#7B68EE',  // Medium Slate Blue
-  '#FF6B6B',  // Coral
-  '#4ECDC4',  // Turquoise
-];
-```
-
-### Speaker Color Scheme
-Each speaker has multiple color variants for different visual states:
-```typescript
-interface SpeakerColorScheme {
-  circle: string;              // Selected circle node
-  fadedCircle: string;         // Faded circle node
-  quoteRectangle: string;      // Selected pull quote background
-  fadedQuoteRectangle: string; // Faded pull quote background
-  quoteText: string;           // Selected pull quote text
-  fadedQuoteText: string;      // Faded pull quote text
-}
-```
-
-Color generation utilities in `utils/colorUtils.ts`:
-- `hexToRgba(hex, alpha)`: Convert hex to RGBA
-- `darkenColor(hex, percent)`: Darken a color
-- `lightenColor(hex, percent)`: Lighten a color
 
 ---
 
@@ -800,8 +1123,6 @@ Color generation utilities in `utils/colorUtils.ts`:
 
 ### Scripts
 ```bash
-cd anthology-app
-
 # Development server with API middleware
 npm run dev
 
@@ -816,67 +1137,14 @@ npm run preview
 ```
 
 ### Local API Development
-The Vite dev server includes middleware for local API testing (`vite.config.ts`):
-- `/api/transcribe` → `api/transcribe.ts`
-- `/api/judge-question` → `api/judge-question.ts`
-- `/api/sensemaking/*` → `api/sensemaking/*.ts`
-
-### Database Migrations
-```bash
-cd database
-
-# Run migrations against Supabase
-psql $DATABASE_URL -f migrations/2025-12-14_add_anthologies.sql
-psql $DATABASE_URL -f migrations/2025-12-15_add_sensemaking_jobs.sql
-
-# Import JSON data
-npx tsx migrate_json_to_sql_prefixed.ts
-
-# Backfill word timestamps
-npx tsx backfill_word_timestamps_prefixed.ts
-```
-
----
-
-## Deployment
-
-### Vercel Configuration (`vercel.json`)
-```json
-{
-  "buildCommand": "cd anthology-app && npm run build",
-  "outputDirectory": "anthology-app/dist",
-  "installCommand": "cd anthology-app && npm install"
-}
-```
-
-### Environment Setup
-1. Create Supabase project
-2. Run `database/schema_prefixed.sql`
-3. Configure storage buckets (Recordings, Conversations)
-4. Set environment variables in Vercel
-5. Deploy via `vercel deploy`
-
----
-
-## Recent Development
-
-### Current Branch: `multiple-anthologies`
-Work in progress on multi-anthology support.
-
-### Recent Commits
-- `9054109`: Important updates
-- `aea28da`: Updated DB to allow for multiple anthologies
-- `7f0190f`: Refactored database code
-- `e203b71`: Audio karaoke improvements and upload button
-- `f361a66`: Write your own answer feature
+The Vite dev server proxies `/api/*` to local Vercel functions.
 
 ### Maintenance Scripts
-Located in `anthology-app/scripts/`:
-
-- `check-anthologies.ts`: Verify count of data nodes per anthology.
-- `check-db-schema.ts`: Validate table columns and constraints.
-- `inspect-anthology.ts`: Dump data for a specific anthology slug.
-- `migrate-hearst-anthology.ts`: Historical migration utility.
+Located in `scripts/`:
+- `check-anthologies.ts`: Verify count of data nodes per anthology
+- `check-db-schema.ts`: Validate table columns and constraints
+- `inspect-anthology.ts`: Dump data for a specific anthology slug
+- `migrate-hearst-anthology.ts`: Historical migration utility
 
 Run using `npx tsx scripts/<filename>.ts`.
 
@@ -886,10 +1154,14 @@ Run using `npx tsx scripts/<filename>.ts`.
 
 | File | Purpose |
 |------|---------|
-| `anthology-app/src/App.tsx` | Main application component |
-| `anthology-app/src/services/supabase.ts` | Canonical data service layer |
-| `anthology-app/src/stores/AnthologyStore.ts` | Main state management |
-| `anthology-app/src/components/Map/D3Visualization.tsx` | Force simulation |
-| `anthology-app/src/components/Audio/AudioManager.tsx` | Audio orchestration |
-| `anthology-app/api/_lib/sensemaking.ts` | AI pipeline |
-| `cloud_schema.sql` | Canonical database schema |
+| `src/App.tsx` | Main application component |
+| `src/services/apiClient.ts` | Core HTTP client for API |
+| `src/services/graphDataService.ts` | Main data loading service |
+| `src/stores/AnthologyStore.ts` | Main state management |
+| `src/components/Map/D3Visualization.tsx` | Force simulation |
+| `src/components/Audio/AudioManager.tsx` | Audio orchestration |
+| `shared/types/api.types.ts` | Shared API types |
+| `api/_lib/errors.ts` | API error handling |
+| `api/_lib/response.ts` | API response helpers |
+| `api/_lib/validation.ts` | Request validation schemas |
+| `api/graph/load.ts` | Main data endpoint |

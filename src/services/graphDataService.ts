@@ -145,7 +145,7 @@ export const GraphDataService = {
    * Note: Real-time subscriptions still require direct Supabase connection
    * This is intentionally kept for now as it's a separate concern from the data layer
    */
-  subscribeToUpdates(callback: () => void) {
+  subscribeToUpdates(_callback: () => void) {
     // Real-time updates are not supported through the REST API
     // For now, return a no-op unsubscribe function
     // In the future, this could be implemented with WebSockets or SSE

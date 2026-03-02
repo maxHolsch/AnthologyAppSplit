@@ -146,7 +146,7 @@ export interface ApiWordTimestamp {
 /**
  * Response node data
  */
-export interface ApiResponse {
+export interface ApiResponseNode {
   id: string;
   legacyId: string | null;
   conversationId: string;
@@ -225,7 +225,7 @@ export interface ApiGraphData {
   conversations: ApiConversation[];
   questions: ApiQuestion[];
   narratives: ApiNarrative[];
-  responses: ApiResponse[];
+  responses: ApiResponseNode[];
 }
 
 // ================== Request Body Types ==================

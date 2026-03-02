@@ -314,3 +314,155 @@ export async function openaiJsonSchema<T>({
 
   throw lastErr instanceof Error ? lastErr : new Error('OpenAI request failed');
 }
+
+// ============================================
+// CLAUDE JSON SCHEMA (Anthropic Messages API)
+// ============================================
+
+const ANTHROPIC_API_BASE = 'https://api.anthropic.com/v1';
+const ANTHROPIC_VERSION = '2023-06-01';
+
+export async function claudeJsonSchema<T>({
+  apiKey,
+  model,
+  prompt,
+  schemaName,
+  schema,
+  timeoutMs = 30_000,
+  retries = 2,
+  debugLabel,
+  maxOutputTokens = 2000,
+}: {
+  apiKey: string;
+  model: string;
+  prompt: string;
+  schemaName: string;
+  schema: any;
+} & OpenAIJsonSchemaOptions): Promise<T> {
+  const debugEnabled =
+    process.env.SENSEMAKING_DEBUG === '1' ||
+    process.env.SENSEMAKING_DEBUG === 'true' ||
+    process.env.NODE_ENV !== 'production';
+  const logPrompts = process.env.SENSEMAKING_LOG_PROMPTS === '1' || process.env.SENSEMAKING_LOG_PROMPTS === 'true';
+  const logOutputs = process.env.SENSEMAKING_LOG_OUTPUTS === '1' || process.env.SENSEMAKING_LOG_OUTPUTS === 'true';
+  const label = debugLabel || schemaName;
+
+  const maxAttempts = Math.max(1, (Number.isFinite(retries) ? retries : 0) + 1);
+
+  let lastErr: unknown = null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), Math.max(1, timeoutMs));
+
+    const t0 = Date.now();
+    if (debugEnabled) {
+      console.log('[claude.json_schema.start]', {
+        label,
+        schemaName,
+        model,
+        attempt,
+        maxAttempts,
+        timeoutMs,
+        maxOutputTokens,
+        promptChars: typeof prompt === 'string' ? prompt.length : null,
+        promptPreview: logPrompts && typeof prompt === 'string' ? prompt.slice(0, 800) : undefined,
+      });
+    }
+
+    try {
+      const resp = await fetch(`${ANTHROPIC_API_BASE}/messages`, {
+        method: 'POST',
+        signal: controller.signal,
+        headers: {
+          'x-api-key': apiKey,
+          'anthropic-version': ANTHROPIC_VERSION,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model,
+          max_tokens: maxOutputTokens,
+          tools: [
+            {
+              name: schemaName,
+              description: 'Return structured output matching the provided schema.',
+              input_schema: schema,
+            },
+          ],
+          tool_choice: { type: 'tool', name: schemaName },
+          messages: [{ role: 'user', content: prompt }],
+        }),
+      });
+
+      if (!resp.ok) {
+        const msg = await resp.text().catch(() => '');
+        const err = new Error(msg || `Claude request failed (${resp.status})`);
+        (err as any).status = resp.status;
+
+        if (debugEnabled) {
+          console.log('[claude.json_schema.http_error]', {
+            label,
+            schemaName,
+            model,
+            attempt,
+            status: resp.status,
+            durationMs: Date.now() - t0,
+            bodyPreview: logOutputs ? msg.slice(0, 1200) : undefined,
+          });
+        }
+
+        if (attempt < maxAttempts && (resp.status === 429 || (resp.status >= 500 && resp.status <= 599))) {
+          lastErr = err;
+          continue;
+        }
+        throw err;
+      }
+
+      const json = await resp.json() as any;
+      const toolUse = (json.content as any[])?.find((c: any) => c.type === 'tool_use');
+
+      if (!toolUse?.input) {
+        const preview = JSON.stringify(json).slice(0, 500);
+        throw new Error(`Claude returned non-tool-use output${preview ? `: ${preview}` : ''}`);
+      }
+
+      if (debugEnabled) {
+        console.log('[claude.json_schema.success]', {
+          label,
+          schemaName,
+          model,
+          attempt,
+          durationMs: Date.now() - t0,
+          outputPreview: logOutputs ? JSON.stringify(toolUse.input).slice(0, 1200) : undefined,
+        });
+      }
+
+      return toolUse.input as T;
+    } catch (e) {
+      lastErr = e;
+
+      const isAbort = (e as any)?.name === 'AbortError';
+      if (attempt < maxAttempts && isAbort) {
+        if (debugEnabled) {
+          console.log('[claude.json_schema.retry_abort]', {
+            label,
+            schemaName,
+            model,
+            attempt,
+            durationMs: Date.now() - t0,
+          });
+        }
+        continue;
+      }
+
+      if (isAbort) {
+        throw new Error(`Claude request timed out after ${Math.max(1, timeoutMs)}ms`);
+      }
+
+      throw e;
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  throw lastErr instanceof Error ? lastErr : new Error('Claude request failed');
+}

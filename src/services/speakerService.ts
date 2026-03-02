@@ -5,21 +5,8 @@
 
 import { apiClient } from './apiClient';
 import type { ApiSpeaker, CreateSpeakerRequest } from '../../shared/types/api.types';
-
-// Re-export DbSpeaker interface for compatibility with existing code
-export interface DbSpeaker {
-  id: string;
-  name: string;
-  conversation_id: string;
-  circle_color: string;
-  faded_circle_color: string;
-  quote_rectangle_color: string;
-  faded_quote_rectangle_color: string;
-  quote_text_color: string;
-  faded_quote_text_color: string;
-  created_at: string;
-  updated_at: string;
-}
+import type { DbSpeaker } from './supabaseClient';
+export type { DbSpeaker };
 
 /**
  * Transform API speaker to DbSpeaker format
@@ -48,7 +35,7 @@ export const SpeakerService = {
   async ensureSpeaker(
     conversationDbId: string,
     speakerName: string,
-    opts?: { anthologyId?: string }
+    _opts?: { anthologyId?: string }
   ): Promise<DbSpeaker> {
     // First try to get existing speaker
     try {

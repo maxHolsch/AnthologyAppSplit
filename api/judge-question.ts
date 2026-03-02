@@ -4,45 +4,9 @@
 
 type Json = Record<string, unknown>;
 
-const OPENAI_API_BASE = 'https://api.openai.com/v1';
-const MODEL = 'gpt-5-mini-2025-08-07';
-
-function extractOutputText(openaiResponse: any): string {
-  if (typeof openaiResponse?.output_text === 'string') return openaiResponse.output_text;
-
-  const output = openaiResponse?.output;
-  if (!Array.isArray(output)) return '';
-
-  const texts: string[] = [];
-  for (const item of output) {
-    const content = item?.content;
-    if (!Array.isArray(content)) continue;
-    for (const c of content) {
-      const t = c?.text;
-      if (typeof t === 'string') texts.push(t);
-    }
-  }
-  return texts.join('\n').trim();
-}
-
-function safeJsonParse(text: string): any {
-  try {
-    return JSON.parse(text);
-  } catch {
-    // Try to extract the first JSON object
-    const start = text.indexOf('{');
-    const end = text.lastIndexOf('}');
-    if (start >= 0 && end > start) {
-      const candidate = text.slice(start, end + 1);
-      try {
-        return JSON.parse(candidate);
-      } catch {
-        return null;
-      }
-    }
-    return null;
-  }
-}
+const ANTHROPIC_API_BASE = 'https://api.anthropic.com/v1';
+const ANTHROPIC_VERSION = '2023-06-01';
+const MODEL = 'claude-haiku-4-5-20251001';
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') {
@@ -50,9 +14,9 @@ export default async function handler(req: any, res: any) {
     return;
   }
 
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
-    res.status(500).json({ error: 'Missing OPENAI_API_KEY env var' });
+    res.status(500).json({ error: 'Missing ANTHROPIC_API_KEY env var' });
     return;
   }
 
@@ -91,9 +55,6 @@ export default async function handler(req: any, res: any) {
       'You are a routing judge for a graph of question nodes.',
       'Given a user transcript, choose the SINGLE best matching question node to attach the response to.',
       '',
-      'Return JSON ONLY that matches this schema:',
-      '{"best_question_id":"string","ranked_question_ids":["string",...],"reason":"string"}',
-      '',
       'Rules:',
       '- best_question_id MUST be one of the provided question ids.',
       '- ranked_question_ids MUST include best_question_id first, then up to 4 additional ids (total max 5).',
@@ -105,23 +66,21 @@ export default async function handler(req: any, res: any) {
       ...normalizedQuestions.map((q: any) => `- ${q.id}: ${q.text}`),
     ].join('\n');
 
-    const openaiResp = await fetch(`${OPENAI_API_BASE}/responses`, {
+    const claudeResp = await fetch(`${ANTHROPIC_API_BASE}/messages`, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${apiKey}`,
+        'x-api-key': apiKey,
+        'anthropic-version': ANTHROPIC_VERSION,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         model: MODEL,
-        input: prompt,
-        // Encourage strict JSON output.
-        // NOTE: `response_format` moved to `text.format` in the Responses API.
-        text: {
-          format: {
-            type: 'json_schema',
+        max_tokens: 500,
+        tools: [
+          {
             name: 'question_match',
-            strict: true,
-            schema: {
+            description: 'Return the best matching question for the transcript.',
+            input_schema: {
               type: 'object',
               additionalProperties: false,
               properties: {
@@ -137,19 +96,21 @@ export default async function handler(req: any, res: any) {
               required: ['best_question_id', 'ranked_question_ids', 'reason'],
             },
           },
-        },
+        ],
+        tool_choice: { type: 'tool', name: 'question_match' },
+        messages: [{ role: 'user', content: prompt }],
       }),
     });
 
-    if (!openaiResp.ok) {
-      const msg = await openaiResp.text().catch(() => '');
-      res.status(502).json({ error: msg || 'OpenAI request failed' });
+    if (!claudeResp.ok) {
+      const msg = await claudeResp.text().catch(() => '');
+      res.status(502).json({ error: msg || 'Claude request failed' });
       return;
     }
 
-    const openaiJson = await openaiResp.json();
-    const outputText = extractOutputText(openaiJson);
-    const parsed = safeJsonParse(outputText);
+    const claudeJson = await claudeResp.json();
+    const toolUse = (claudeJson.content as any[])?.find((c: any) => c.type === 'tool_use');
+    const parsed = toolUse?.input ?? null;
 
     const validIds = new Set(normalizedQuestions.map((q: any) => q.id));
     const fallback = normalizedQuestions[0].id;

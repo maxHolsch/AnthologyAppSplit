@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import path from 'path';
 
-import { openaiJsonSchema, generateEmbeddings } from './openai.js';
+import { claudeJsonSchema, generateEmbeddings } from './openai.js';
 import {
   assemblyPollTranscript,
   assemblyStartTranscription,
@@ -299,7 +299,7 @@ async function guessSpeakerNames({
     sample,
   ].join('\n');
 
-  const parsed = await openaiJsonSchema<{ guesses: SpeakerNameGuess[] }>({
+  const parsed = await claudeJsonSchema<{ guesses: SpeakerNameGuess[] }>({
     apiKey,
     model,
     prompt,
@@ -375,7 +375,7 @@ async function assignQuestionsToTurnsBatch({
     ...turns.map((t, i) => `#${i} (global_turn=${offset + i}) [Speaker ${t.speaker_label}]: ${t.text}`),
   ].join('\n');
 
-  const parsed = await openaiJsonSchema<{
+  const parsed = await claudeJsonSchema<{
     results: Array<{ idx: number; best_index: number; reason: string }>;
   }>({
     apiKey,
@@ -460,7 +460,7 @@ async function filterTurnsForUpload({
     ),
   ].join('\n');
 
-  const parsed = await openaiJsonSchema<{
+  const parsed = await claudeJsonSchema<{
     results: Array<{
       idx: number;
       keep: boolean;
@@ -1287,8 +1287,9 @@ export async function tickSensemaking({ jobId, timeBudgetMs = 15000 }: { jobId: 
   }
 
   const assemblyKey = requireEnv('ASSEMBLYAI_API_KEY');
-  const openaiKey = requireEnv('OPENAI_API_KEY');
-  const openaiModel = process.env.OPENAI_SENSEMAKING_MODEL || 'gpt-5-mini-2025-08-07';
+  const anthropicKey = requireEnv('ANTHROPIC_API_KEY');
+  const openaiKey = requireEnv('OPENAI_API_KEY'); // used for embeddings only
+  const claudeModel = process.env.CLAUDE_SENSEMAKING_MODEL || 'claude-haiku-4-5-20251001';
 
   const filePaths: string[] = Array.isArray(job.file_paths) ? job.file_paths : [];
   const templateQuestions: string[] = Array.isArray(job.template_questions) ? job.template_questions : [];
@@ -1410,8 +1411,8 @@ export async function tickSensemaking({ jobId, timeBudgetMs = 15000 }: { jobId: 
         const mergedLite = toTurnLite(mergedTurnsFull);
 
         setFileStep(progress, fp, 'speaker_naming', 'Inferring speaker names');
-        log('speaker_naming.start', { file: fp, model: openaiModel });
-        const speakerMap = await guessSpeakerNames({ apiKey: openaiKey, model: openaiModel, mergedTurns: mergedTurnsFull });
+        log('speaker_naming.start', { file: fp, model: claudeModel });
+        const speakerMap = await guessSpeakerNames({ apiKey: anthropicKey, model: claudeModel, mergedTurns: mergedTurnsFull });
         log('speaker_naming.done', { file: fp, speakers: Object.keys(speakerMap || {}).length });
 
         // Speaker names list
@@ -1520,7 +1521,7 @@ export async function tickSensemaking({ jobId, timeBudgetMs = 15000 }: { jobId: 
         totalTurns,
         chunkIndex,
         totalChunks,
-        model: openaiModel,
+        model: claudeModel,
       });
 
       // Persist a heartbeat BEFORE calling OpenAI so that if the function times out,
@@ -1534,8 +1535,8 @@ export async function tickSensemaking({ jobId, timeBudgetMs = 15000 }: { jobId: 
 
       // Route turns to questions (batched)
       const questionIdxs = await assignQuestionsToTurnsBatch({
-        apiKey: openaiKey,
-        model: openaiModel,
+        apiKey: anthropicKey,
+        model: claudeModel,
         templateQuestions,
         turns: batch,
         offset: cursor,
@@ -1680,8 +1681,8 @@ export async function tickSensemaking({ jobId, timeBudgetMs = 15000 }: { jobId: 
 
       // Filter turns to only those that are standalone + direct answers
       const filtered = await filterTurnsForUpload({
-        apiKey: openaiKey,
-        model: openaiModel,
+        apiKey: anthropicKey,
+        model: claudeModel,
         templateQuestions,
         assignedTurns: assignedBatch,
       });
@@ -1748,8 +1749,8 @@ export async function tickSensemaking({ jobId, timeBudgetMs = 15000 }: { jobId: 
 
       log('turn_filtering.chunk.error', { file: fp, error: msg });
 
-      // Treat OpenAI issues that are often transient as retryable.
-      if (msg.startsWith('OpenAI request timed out') || msg.startsWith('OpenAI returned non-JSON output')) {
+      // Treat Claude issues that are often transient as retryable.
+      if (msg.startsWith('Claude request timed out') || msg.startsWith('Claude returned non-tool-use output')) {
         progress.files![fp] = {
           ...progress.files![fp],
           message: `Chunk processing failed; will retry next tick. (${msg})`,

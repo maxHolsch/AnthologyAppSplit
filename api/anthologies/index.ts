@@ -4,7 +4,7 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { supabase } from '../_lib/supabase';
+import { supabase, assertSupabaseConfigured } from '../_lib/supabase';
 import { paginatedResponse, handleError, errorResponse } from '../_lib/response';
 import { AnthologiesQuerySchema, safeParseQuery } from '../_lib/validation';
 import { ErrorCodes } from '../_lib/errors';
@@ -18,6 +18,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
+    assertSupabaseConfigured();
+
     const parsed = safeParseQuery(AnthologiesQuerySchema, req.query);
 
     if (!parsed.success) {
