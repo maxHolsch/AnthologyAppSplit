@@ -570,6 +570,7 @@ export default defineConfig(({ command, mode }) => {
 
                 try {
                   const result = await startSensemaking({
+                    anthologyId: (body as any).anthologyId ? String((body as any).anthologyId) : undefined,
                     anthologySlug: String((body as any).anthologySlug || ''),
                     anthologyTitle: String((body as any).anthologyTitle || ''),
                     templateQuestions: Array.isArray((body as any).templateQuestions)

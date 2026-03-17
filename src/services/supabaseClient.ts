@@ -33,8 +33,6 @@ const bucketPrefix = isDevelopment ? 'Development_' : '';
 export const RECORDINGS_BUCKET = import.meta.env.VITE_SUPABASE_RECORDINGS_BUCKET || `${bucketPrefix}Recordings`;
 export const CONVERSATIONS_BUCKET = import.meta.env.VITE_SUPABASE_CONVERSATIONS_BUCKET || `${bucketPrefix}Conversations`;
 
-console.log('[supabaseClient] schema=%s, buckets: recordings=%s, conversations=%s', supabaseDbSchema, RECORDINGS_BUCKET, CONVERSATIONS_BUCKET);
-
 // ============================================
 // DATABASE TYPES
 // ============================================

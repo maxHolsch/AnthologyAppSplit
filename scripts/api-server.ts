@@ -88,6 +88,10 @@ async function registerRoutes() {
   // Anthologies
   const anthologies = await import('../api/anthologies/index.js');
   app.get('/api/anthologies', createVercelAdapter(anthologies.default));
+  app.post('/api/anthologies', createVercelAdapter(anthologies.default));
+
+  const anthologyUpload = await import('../api/anthologies/[slug]/upload.js');
+  app.post('/api/anthologies/:slug/upload', express.raw({ type: '*/*', limit: '200mb' }), createVercelAdapter(anthologyUpload.default));
 
   const anthologyBySlug = await import('../api/anthologies/[slug].js');
   app.get('/api/anthologies/:slug', createVercelAdapter(anthologyBySlug.default));

@@ -123,6 +123,12 @@ tags:
       - List all public anthologies for a landing page
       - Retrieve a specific anthology by slug for deep linking
 
+  - name: Sensemaking
+    description: |
+      The sensemaking pipeline processes uploaded audio files through transcription,
+      speaker identification, question routing, narrative assignment, and response extraction.
+      Jobs are time-sliced for serverless execution — call `tick` repeatedly to drive progress.
+
   - name: Recordings
     description: |
       Recordings represent audio files associated with an anthology. Each recording
@@ -269,6 +275,59 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+    post:
+      summary: Create anthology
+      description: |
+        Create a new anthology. The anthology is created with `isPublic: false` by default
+        and becomes public only after sensemaking completes, or can be published manually.
+
+        If a `slug` is not provided, one is generated from the title. If the slug collides
+        with an existing anthology, a timestamp suffix is appended automatically.
+
+        **Typical workflow:**
+        1. Create anthology via this endpoint
+        2. Upload files via `POST /anthologies/{slug}/upload`
+        3. Start sensemaking via `POST /sensemaking/start` with the returned `id`
+      operationId: createAnthology
+      tags:
+        - Anthologies
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+              properties:
+                title:
+                  type: string
+                  description: Display name for the anthology
+                  example: "Community Voices 2024"
+                slug:
+                  type: string
+                  description: Optional URL-friendly slug. Auto-generated from title if omitted.
+                  example: "community-voices-2024"
+      responses:
+        '201':
+          description: Anthology created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnthologyResponse'
+              example:
+                data:
+                  id: "550e8400-e29b-41d4-a716-446655440000"
+                  slug: "community-voices-2024"
+                  title: "Community Voices 2024"
+                  description: null
+                  isPublic: false
+                  createdAt: "2024-01-15T10:30:00Z"
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
   /anthologies/{slug}:
     get:
       summary: Get anthology by slug
@@ -309,6 +368,229 @@ paths:
                   createdAt: "2024-01-15T10:30:00Z"
         '404':
           $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /anthologies/{slug}/upload:
+    post:
+      summary: Upload conversation file
+      description: |
+        Upload an audio file to the anthology's conversation storage folder.
+        The file is sent as the raw request body (not multipart form data).
+
+        Returns the storage path and a signed URL (valid for 1 hour) that can be
+        passed directly to `POST /transcribe` for transcription.
+
+        **Required headers:**
+        - `x-filename` — the original filename (e.g., `interview.mp3`)
+        - `Content-Type` — MIME type of the file (e.g., `audio/mpeg`)
+
+        **Storage bucket:** Automatically selected based on the active database schema:
+        - `public` schema → `Conversations` bucket
+        - `development` schema → `Development_Conversations` bucket
+      operationId: uploadConversationFile
+      tags:
+        - Anthologies
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          description: Anthology slug
+          schema:
+            type: string
+          example: "community-voices-2024"
+        - name: x-filename
+          in: header
+          required: true
+          description: Original filename of the uploaded file
+          schema:
+            type: string
+          example: "interview-01.mp3"
+      requestBody:
+        required: true
+        content:
+          audio/*:
+            schema:
+              type: string
+              format: binary
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '201':
+          description: File uploaded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadResponse'
+              example:
+                data:
+                  fileName: "interview-01.mp3"
+                  path: "upload_conversations/community-voices-2024/1710876543000_interview-01.mp3"
+                  bucket: "Conversations"
+                  signedUrl: "https://rnzpympizpkhtemhhmxi.supabase.co/storage/v1/..."
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /transcribe:
+    post:
+      summary: Transcribe an audio file
+      description: |
+        Submit an audio file URL for transcription via AssemblyAI. This is a blocking
+        call that polls until the transcript is ready (up to ~3 minutes).
+
+        Typically called after uploading a file via `POST /anthologies/{slug}/upload`,
+        passing the `signedUrl` from the upload response as `audioUrl`.
+
+        The endpoint returns the full transcript text and word-level timestamps.
+        Speaker diarization is enabled automatically.
+      operationId: transcribeAudio
+      tags:
+        - Sensemaking
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - audioUrl
+              properties:
+                audioUrl:
+                  type: string
+                  format: uri
+                  description: Public or signed URL of the audio file to transcribe
+      responses:
+        '200':
+          description: Transcription completed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  text:
+                    type: string
+                    description: Full transcript text
+                  words:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        text:
+                          type: string
+                          description: Individual word
+                        start:
+                          type: integer
+                          description: Start time in milliseconds
+                        end:
+                          type: integer
+                          description: End time in milliseconds
+                        confidence:
+                          type: number
+                          format: float
+                          description: Confidence score (0-1)
+        '400':
+          description: Invalid request (missing audioUrl)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '502':
+          description: AssemblyAI service error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '504':
+          description: Transcription timed out
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /sensemaking/start:
+    post:
+      summary: Start sensemaking job
+      description: |
+        Start a sensemaking pipeline job for an anthology. This processes uploaded conversation
+        audio files through transcription, speaker identification, question assignment,
+        narrative matching, and response extraction.
+
+        **Two modes:**
+        - **New anthology:** Omit `anthologyId` and provide `anthologySlug` + `anthologyTitle`.
+          A new anthology is created automatically.
+        - **Existing anthology:** Provide `anthologyId` to run sensemaking on a previously
+          created anthology (e.g., one created via `POST /anthologies`).
+
+        After starting, poll `POST /sensemaking/tick` to drive the pipeline forward
+        and `GET /sensemaking/status` to check progress.
+      operationId: startSensemaking
+      tags:
+        - Sensemaking
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - templateQuestions
+                - uploadedFilePaths
+              properties:
+                anthologyId:
+                  type: string
+                  format: uuid
+                  description: ID of an existing anthology. If provided, `anthologySlug` and `anthologyTitle` are optional.
+                anthologySlug:
+                  type: string
+                  description: URL-friendly slug for a new anthology (required if `anthologyId` is not set)
+                anthologyTitle:
+                  type: string
+                  description: Display title for a new anthology (required if `anthologyId` is not set)
+                templateQuestions:
+                  type: array
+                  items:
+                    type: string
+                  description: List of template questions for turn-to-question routing
+                templateNarratives:
+                  type: array
+                  items:
+                    type: string
+                  description: Optional list of narrative themes for grouping responses
+                uploadedFilePaths:
+                  type: array
+                  items:
+                    type: string
+                  description: Storage object paths of uploaded files (from the upload endpoint)
+                includePreviousUploads:
+                  type: boolean
+                  default: false
+                  description: Also include any previously uploaded files in the anthology folder
+      responses:
+        '200':
+          description: Sensemaking job created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jobId:
+                    type: string
+                    format: uuid
+                  anthologySlug:
+                    type: string
+                  anthologyId:
+                    type: string
+                    format: uuid
+        '400':
+          $ref: '#/components/responses/ValidationError'
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -1432,6 +1714,36 @@ components:
             $ref: '#/components/schemas/Anthology'
         meta:
           $ref: '#/components/schemas/PaginationMeta'
+
+    UploadResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: object
+          required:
+            - fileName
+            - path
+            - bucket
+          properties:
+            fileName:
+              type: string
+              description: Original filename as provided in the x-filename header
+              example: "interview-01.mp3"
+            path:
+              type: string
+              description: Full storage object path (pass to sensemaking/start as uploadedFilePaths)
+              example: "upload_conversations/community-voices-2024/1710876543000_interview-01.mp3"
+            bucket:
+              type: string
+              description: Storage bucket name used
+              example: "Conversations"
+            signedUrl:
+              type: string
+              nullable: true
+              description: Signed URL valid for 1 hour (pass to POST /transcribe as audioUrl)
+              example: "https://example.supabase.co/storage/v1/..."
 
     # Recording schemas
     Recording:

@@ -9,6 +9,7 @@ import {
   type AssemblyUtterance,
 } from './assemblyai.js';
 import { buildSpeakerColorScheme } from './colorUtils.js';
+import { getConversationsBucket } from './supabase.js';
 
 // LangGraph note: we orchestrate the pipeline with a time-sliced job runner in tickSensemaking()
 // (kept intentionally minimal for Vercel function timeouts).
@@ -16,13 +17,6 @@ import { buildSpeakerColorScheme } from './colorUtils.js';
 // --------------------------------------------
 // Env + Supabase
 // --------------------------------------------
-
-/** Resolve bucket name lazily — process.env may not be populated at import time (Vite static import). */
-function getConversationsBucket(): string {
-  const schema = process.env.SUPABASE_DB_SCHEMA || 'public';
-  const prefix = schema !== 'public' ? 'Development_' : '';
-  return `${prefix}Conversations`;
-}
 
 function requireEnv(name: string): string {
   const v = process.env[name];
@@ -95,6 +89,7 @@ export type JobProgress = {
 };
 
 export type StartRequest = {
+  anthologyId?: string;        // if provided, use existing anthology instead of creating one
   anthologySlug: string;
   anthologyTitle: string;
   templateQuestions: string[];
@@ -1147,25 +1142,38 @@ export async function startSensemaking(req: StartRequest): Promise<StartResponse
     uploadedFilePathsCount: req.uploadedFilePaths?.length || 0,
   });
 
-  // Create anthology (private until done)
-  const insertAnthology = async (slug: string) => {
-    return supabase
-      .from('anthology_anthologies')
-      .insert({
-        slug,
-        title: req.anthologyTitle,
-        is_public: false,
-        metadata: { source: 'sensemaking', created_at: nowIso() },
-      })
-      .select('id, slug')
-      .single();
-  };
-
-  // Ensure unique slug (if collision, suffix timestamp)
   let anthologySlug = req.anthologySlug;
   let anthologyId: string;
 
-  {
+  if (req.anthologyId) {
+    // Use an existing anthology instead of creating one
+    const { data: existing, error: lookupErr } = await supabase
+      .from('anthology_anthologies')
+      .select('id, slug')
+      .eq('id', req.anthologyId)
+      .maybeSingle();
+
+    if (lookupErr) throw lookupErr;
+    if (!existing) throw new Error(`Anthology not found: ${req.anthologyId}`);
+
+    anthologyId = existing.id;
+    anthologySlug = existing.slug;
+  } else {
+    // Create anthology (private until done)
+    const insertAnthology = async (slug: string) => {
+      return supabase
+        .from('anthology_anthologies')
+        .insert({
+          slug,
+          title: req.anthologyTitle,
+          is_public: false,
+          metadata: { source: 'sensemaking', created_at: nowIso() },
+        })
+        .select('id, slug')
+        .single();
+    };
+
+    // Ensure unique slug (if collision, suffix timestamp)
     const { data, error } = await insertAnthology(anthologySlug);
     if (!error && data?.id) {
       anthologyId = data.id;

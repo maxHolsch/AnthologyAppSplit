@@ -12,6 +12,7 @@ export default async function handler(req: any, res: any) {
 
   try {
     const body = await readJsonBody(req);
+    const anthologyId = body.anthologyId; // optional — use existing anthology
     const anthologySlug = body.anthologySlug;
     const anthologyTitle = body.anthologyTitle;
     const templateQuestions = body.templateQuestions;
@@ -19,13 +20,16 @@ export default async function handler(req: any, res: any) {
     const uploadedFilePaths = body.uploadedFilePaths;
     const includePreviousUploads = body.includePreviousUploads;
 
-    if (typeof anthologySlug !== 'string' || anthologySlug.length === 0) {
-      sendJson(res, 400, { error: 'anthologySlug is required' });
-      return;
-    }
-    if (typeof anthologyTitle !== 'string' || anthologyTitle.length === 0) {
-      sendJson(res, 400, { error: 'anthologyTitle is required' });
-      return;
+    // When using an existing anthology, slug and title are optional
+    if (!anthologyId) {
+      if (typeof anthologySlug !== 'string' || anthologySlug.length === 0) {
+        sendJson(res, 400, { error: 'anthologySlug is required (unless anthologyId is provided)' });
+        return;
+      }
+      if (typeof anthologyTitle !== 'string' || anthologyTitle.length === 0) {
+        sendJson(res, 400, { error: 'anthologyTitle is required (unless anthologyId is provided)' });
+        return;
+      }
     }
     if (!Array.isArray(templateQuestions) || templateQuestions.length === 0) {
       sendJson(res, 400, { error: 'templateQuestions must be a non-empty array' });
@@ -41,8 +45,9 @@ export default async function handler(req: any, res: any) {
     }
 
     const result = await startSensemaking({
-      anthologySlug,
-      anthologyTitle,
+      anthologyId: anthologyId ? String(anthologyId) : undefined,
+      anthologySlug: anthologySlug ? String(anthologySlug) : '',
+      anthologyTitle: anthologyTitle ? String(anthologyTitle) : '',
       templateQuestions: templateQuestions.filter((q: any) => typeof q === 'string' && q.trim().length > 0),
       templateNarratives: Array.isArray(templateNarratives)
         ? templateNarratives.filter((n: any) => typeof n === 'string' && n.trim().length > 0)

@@ -33,7 +33,11 @@ export type PaginationParams = z.infer<typeof PaginationSchema>;
  * GET /api/anthologies query parameters
  */
 export const AnthologiesQuerySchema = PaginationSchema.extend({
-  publicOnly: z.coerce.boolean().default(true),
+  publicOnly: z
+    .enum(['true', 'false', '1', '0', ''])
+    .optional()
+    .default('true')
+    .transform((v) => v === 'true' || v === '1'),
 });
 
 export type AnthologiesQuery = z.infer<typeof AnthologiesQuerySchema>;
@@ -44,6 +48,16 @@ export type AnthologiesQuery = z.infer<typeof AnthologiesQuerySchema>;
 export const AnthologyBySlugSchema = z.object({
   slug: nonEmptyString,
 });
+
+/**
+ * POST /api/anthologies body
+ */
+export const CreateAnthologySchema = z.object({
+  title: nonEmptyString,
+  slug: z.string().optional(),
+});
+
+export type CreateAnthologyBody = z.infer<typeof CreateAnthologySchema>;
 
 // ================== Recording Schemas ==================
 

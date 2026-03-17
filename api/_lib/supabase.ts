@@ -54,6 +54,15 @@ export const supabase: AnySchemaClient = new Proxy({} as AnySchemaClient, {
 });
 
 /**
+ * Returns the correct Conversations storage bucket name based on the active schema.
+ * "public" → "Conversations", any other schema → "Development_Conversations"
+ */
+export function getConversationsBucket(): string {
+  const prefix = supabaseDbSchema !== 'public' ? 'Development_' : '';
+  return `${prefix}Conversations`;
+}
+
+/**
  * @deprecated Use getSupabase() instead.
  */
 export function assertSupabaseConfigured(): void {

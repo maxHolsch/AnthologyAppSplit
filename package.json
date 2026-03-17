@@ -10,7 +10,10 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "api:validate": "npx @apidevtools/swagger-cli validate docs/api/openapi.yaml",
-    "api:types": "npx openapi-typescript docs/api/openapi.yaml -o shared/types/api-generated.types.ts"
+    "api:types": "npx openapi-typescript docs/api/openapi.yaml -o shared/types/api-generated.types.ts",
+    "test": "vitest run --exclude 'tests/integration/**'",
+    "test:watch": "vitest --exclude 'tests/integration/**'",
+    "test:integration": "vitest run --config vitest.integration.config.ts"
   },
   "dependencies": {
     "@langchain/core": "^0.3.0",
@@ -43,6 +46,7 @@
     "tsx": "^4.21.0",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.45.0",
-    "vite": "^7.1.7"
+    "vite": "^7.1.7",
+    "vitest": "^4.1.0"
   }
 }
