@@ -35,6 +35,11 @@ export function HomePage() {
   }, []);
 
   const onCreateClick = () => {
+    const isDev = import.meta.env.VITE_SUPABASE_DB_SCHEMA && import.meta.env.VITE_SUPABASE_DB_SCHEMA !== 'public';
+    if (isDev) {
+      setCreateOpen(true);
+      return;
+    }
     const pw = window.prompt('Password required to create an anthology');
     if (pw === 'jovial-shellfish') {
       setCreateOpen(true);

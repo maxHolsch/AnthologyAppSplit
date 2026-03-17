@@ -9,16 +9,20 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
 const supabaseServiceKey =
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || '';
+const supabaseDbSchema = process.env.SUPABASE_DB_SCHEMA || 'public';
+
+// Widen generic so the schema can be a runtime string, not just the literal "public"
+type AnySchemaClient = SupabaseClient<any, string>;
 
 // Lazily-initialized client — never created at module load time so any
 // crash happens inside a handler's try/catch, not before it.
-let _supabase: SupabaseClient | null = null;
+let _supabase: AnySchemaClient | null = null;
 
 /**
  * Returns the server-side Supabase client.
  * Throws a clear error if credentials are missing so the handler can return JSON 500.
  */
-export function getSupabase(): SupabaseClient {
+export function getSupabase(): AnySchemaClient {
   if (!supabaseUrl || !supabaseServiceKey) {
     throw new Error(
       'Server misconfiguration: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set'
@@ -26,6 +30,7 @@ export function getSupabase(): SupabaseClient {
   }
   if (!_supabase) {
     _supabase = createClient(supabaseUrl, supabaseServiceKey, {
+      db: { schema: supabaseDbSchema },
       auth: {
         autoRefreshToken: false,
         persistSession: false,
@@ -40,7 +45,7 @@ export function getSupabase(): SupabaseClient {
  * Backed by a Proxy so createClient() is never called at module load time —
  * any crash from missing env vars happens inside the handler's try/catch.
  */
-export const supabase: SupabaseClient = new Proxy({} as SupabaseClient, {
+export const supabase: AnySchemaClient = new Proxy({} as AnySchemaClient, {
   get(_target, prop) {
     const client = getSupabase();
     const value = (client as any)[prop];
@@ -62,13 +67,14 @@ export function assertSupabaseConfigured(): void {
 /**
  * Create a new Supabase client instance
  */
-export function createServerSupabase(): SupabaseClient {
+export function createServerSupabase(): AnySchemaClient {
   if (!supabaseUrl || !supabaseServiceKey) {
     throw new Error(
       'Server misconfiguration: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set'
     );
   }
   return createClient(supabaseUrl, supabaseServiceKey, {
+    db: { schema: supabaseDbSchema },
     auth: {
       autoRefreshToken: false,
       persistSession: false,

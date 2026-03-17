@@ -45,6 +45,17 @@ export const AnthologyBySlugSchema = z.object({
   slug: nonEmptyString,
 });
 
+// ================== Recording Schemas ==================
+
+/**
+ * GET /api/recordings query parameters
+ */
+export const RecordingsQuerySchema = PaginationSchema.extend({
+  anthologyId: uuidSchema.optional(),
+});
+
+export type RecordingsQuery = z.infer<typeof RecordingsQuerySchema>;
+
 // ================== Conversation Schemas ==================
 
 /**

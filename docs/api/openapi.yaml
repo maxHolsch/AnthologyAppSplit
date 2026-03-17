@@ -4,13 +4,15 @@ info:
   description: |
     ## Overview
 
-    The Anthology API provides programmatic access to oral history conversations and their visual representation data.
-    This API powers the Anthology visualization application, which displays interconnected conversations as an
-    interactive graph where responses, questions, narratives, and speakers form a web of relationships.
+    The Anthology API provides programmatic access to oral history conversations, audio recordings, and their
+    visual representation data. This API powers the Anthology visualization application, which displays
+    interconnected conversations as an interactive graph where responses, questions, narratives, and speakers
+    form a web of relationships.
 
     ### Key Concepts
 
     - **Anthology**: A collection of related conversations, typically from a specific project, community, or theme
+    - **Recording**: An audio file associated with an anthology, with metadata such as duration, format, and file size
     - **Conversation**: A recorded discussion containing multiple responses, questions, and narratives
     - **Response**: A segment of speech from a single speaker, the core content unit
     - **Question**: Facilitator prompts that elicit responses from participants
@@ -21,6 +23,7 @@ info:
 
     ```
     Anthology
+      ├── Recordings (1:many)
       └── Conversations (1:many)
             ├── Speakers (1:many)
             ├── Questions (1:many)
@@ -119,6 +122,11 @@ tags:
       **Common use cases:**
       - List all public anthologies for a landing page
       - Retrieve a specific anthology by slug for deep linking
+
+  - name: Recordings
+    description: |
+      Recordings represent audio files associated with an anthology. Each recording
+      contains metadata about the file including duration, mime type, and file size.
 
   - name: Conversations
     description: |
@@ -301,6 +309,44 @@ paths:
                   createdAt: "2024-01-15T10:30:00Z"
         '404':
           $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /recordings:
+    get:
+      summary: List recordings
+      description: |
+        Retrieve a paginated list of audio recordings. Optionally filter by anthology
+        to get all recordings within a specific collection.
+
+        **Filtering:**
+        - `anthologyId`: Get recordings from a specific anthology
+
+        **Use cases:**
+        - List all audio files associated with an anthology
+        - Browse recordings for playback or management
+      operationId: listRecordings
+      tags:
+        - Recordings
+      parameters:
+        - name: anthologyId
+          in: query
+          description: Filter recordings belonging to a specific anthology
+          schema:
+            type: string
+            format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+      responses:
+        '200':
+          description: Paginated list of recordings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecordingListResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -1384,6 +1430,82 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Anthology'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    # Recording schemas
+    Recording:
+      type: object
+      description: An audio file associated with an anthology.
+      required:
+        - id
+        - filePath
+        - fileName
+        - mimeType
+        - durationMs
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the recording
+          example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        anthologyId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Parent anthology this recording belongs to
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        filePath:
+          type: string
+          description: URL or path to the audio file
+          example: "https://example.supabase.co/storage/v1/object/public/Conversations/upload_conversations/my-project/recording.mp3"
+        fileName:
+          type: string
+          description: Original filename of the uploaded audio
+          example: "interview-2024-03-15.mp3"
+        fileSizeBytes:
+          type: integer
+          nullable: true
+          description: File size in bytes
+          example: 15728640
+        mimeType:
+          type: string
+          description: MIME type of the audio file
+          example: "audio/mpeg"
+        durationMs:
+          type: integer
+          description: Duration of the audio in milliseconds
+          example: 3600000
+        sampleRate:
+          type: integer
+          nullable: true
+          description: Audio sample rate in Hz
+          example: 44100
+        bitRate:
+          type: integer
+          nullable: true
+          description: Audio bit rate in bps
+          example: 128000
+        metadata:
+          type: object
+          description: Additional metadata (source, bucket, object path, etc.)
+        createdAt:
+          type: string
+          format: date-time
+          description: When the recording was created
+          example: "2024-03-15T14:20:00Z"
+
+    RecordingListResponse:
+      type: object
+      required:
+        - data
+        - meta
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Recording'
         meta:
           $ref: '#/components/schemas/PaginationMeta'
 

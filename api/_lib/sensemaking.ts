@@ -17,7 +17,12 @@ import { buildSpeakerColorScheme } from './colorUtils.js';
 // Env + Supabase
 // --------------------------------------------
 
-const CONVERSATIONS_BUCKET = process.env.VITE_SUPABASE_CONVERSATIONS_BUCKET || 'Conversations';
+/** Resolve bucket name lazily — process.env may not be populated at import time (Vite static import). */
+function getConversationsBucket(): string {
+  const schema = process.env.SUPABASE_DB_SCHEMA || 'public';
+  const prefix = schema !== 'public' ? 'Development_' : '';
+  return `${prefix}Conversations`;
+}
 
 function requireEnv(name: string): string {
   const v = process.env[name];
@@ -35,8 +40,10 @@ function getSupabaseServiceClient() {
     process.env.SUPABASE_SERVICE_ROLE_KEY ||
     process.env.SUPABASE_SERVICE_ROLE;
 
+  const dbSchema = process.env.SUPABASE_DB_SCHEMA || 'public';
+
   if (!serviceKey) throw new Error('Missing SUPABASE_SERVICE_KEY env var');
-  return createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
+  return createClient(url, serviceKey, { db: { schema: dbSchema }, auth: { persistSession: false, autoRefreshToken: false } });
 }
 
 function nowIso() {
@@ -154,7 +161,7 @@ async function listConversationFolderObjectPaths(supabase: any, anthologySlug: s
   const prefix = `upload_conversations/${anthologySlug}`;
   const out: string[] = [];
 
-  const { data, error } = await supabase.storage.from(CONVERSATIONS_BUCKET).list(prefix, {
+  const { data, error } = await supabase.storage.from(getConversationsBucket()).list(prefix, {
     limit: 1000,
     sortBy: { column: 'created_at', order: 'desc' },
   });
@@ -177,7 +184,7 @@ async function listConversationFolderObjectPaths(supabase: any, anthologySlug: s
 }
 
 function getConversationPublicUrl(supabase: any, objectPath: string): string {
-  const { data } = supabase.storage.from(CONVERSATIONS_BUCKET).getPublicUrl(objectPath);
+  const { data } = supabase.storage.from(getConversationsBucket()).getPublicUrl(objectPath);
   return data?.publicUrl || '';
 }
 
@@ -680,7 +687,7 @@ async function ensureConversationSkeleton({
       file_name: fileName,
       mime_type: 'audio/mpeg',
       duration_ms: durationMs,
-      metadata: { source: 'sensemaking', bucket: CONVERSATIONS_BUCKET, object_path: objectPath },
+      metadata: { source: 'sensemaking', bucket: getConversationsBucket(), object_path: objectPath },
     })
     .select('id')
     .single();

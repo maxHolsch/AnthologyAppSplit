@@ -49,6 +49,25 @@ export interface ApiAnthology {
   createdAt: string;
 }
 
+// ================== Recording Types ==================
+
+/**
+ * Recording data
+ */
+export interface ApiRecording {
+  id: string;
+  anthologyId: string | null;
+  filePath: string;
+  fileName: string;
+  fileSizeBytes: number | null;
+  mimeType: string;
+  durationMs: number;
+  sampleRate: number | null;
+  bitRate: number | null;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+}
+
 // ================== Conversation Types ==================
 
 /**

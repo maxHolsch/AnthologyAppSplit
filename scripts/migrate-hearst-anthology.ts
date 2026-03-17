@@ -27,7 +27,10 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
   process.exit(1);
 }
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+const SUPABASE_DB_SCHEMA = process.env.SUPABASE_DB_SCHEMA || 'public';
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
+  db: { schema: SUPABASE_DB_SCHEMA },
+});
 
 // Types
 interface Excerpt {

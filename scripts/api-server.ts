@@ -92,6 +92,10 @@ async function registerRoutes() {
   const anthologyBySlug = await import('../api/anthologies/[slug].js');
   app.get('/api/anthologies/:slug', createVercelAdapter(anthologyBySlug.default));
 
+  // Recordings
+  const recordings = await import('../api/recordings/index.js');
+  app.get('/api/recordings', createVercelAdapter(recordings.default));
+
   // Conversations
   const conversations = await import('../api/conversations/index.js');
   app.get('/api/conversations', createVercelAdapter(conversations.default));

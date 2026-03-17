@@ -325,6 +325,7 @@ function localAssignNarrativeApiPlugin(env: Record<string, string>) {
   const openaiKey = env.OPENAI_API_KEY;
   const supabaseUrl = env.VITE_SUPABASE_URL;
   const supabaseKey = env.SUPABASE_SERVICE_KEY;
+  const supabaseDbSchema = env.SUPABASE_DB_SCHEMA || 'public';
 
   return {
     name: 'local-assign-narrative-api',
@@ -379,7 +380,9 @@ function localAssignNarrativeApiPlugin(env: Record<string, string>) {
 
         try {
           const { createClient } = await import('@supabase/supabase-js');
-          const supabase = createClient(supabaseUrl, supabaseKey);
+          const supabase = createClient(supabaseUrl, supabaseKey, {
+            db: { schema: supabaseDbSchema },
+          });
 
           // Fetch all narratives for this anthology
           const { data: narratives, error: narrativesError } = await supabase
@@ -702,6 +705,10 @@ export default defineConfig(({ command, mode }) => {
         // /api/assign-narrative, /api/sensemaking/*
         // All other /api/* requests go to the Express API server
         '/api/anthologies': {
+          target: 'http://localhost:3001',
+          changeOrigin: true,
+        },
+        '/api/recordings': {
           target: 'http://localhost:3001',
           changeOrigin: true,
         },
