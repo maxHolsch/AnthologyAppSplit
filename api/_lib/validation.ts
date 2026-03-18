@@ -229,6 +229,35 @@ export const GraphLoadQuerySchema = z.object({
 
 export type GraphLoadQuery = z.infer<typeof GraphLoadQuerySchema>;
 
+// ================== Transcribe Schemas ==================
+
+/**
+ * POST /api/transcribe body
+ */
+export const TranscribeStartSchema = z.object({
+  recordingId: uuidSchema,
+});
+
+export type TranscribeStartBody = z.infer<typeof TranscribeStartSchema>;
+
+/**
+ * GET /api/transcribe/status query parameters
+ */
+export const TranscribeStatusQuerySchema = z.object({
+  recordingId: uuidSchema,
+});
+
+export type TranscribeStatusQuery = z.infer<typeof TranscribeStatusQuerySchema>;
+
+/**
+ * POST /api/transcribe/tick body
+ */
+export const TranscribeTickSchema = z.object({
+  recordingId: uuidSchema,
+});
+
+export type TranscribeTickBody = z.infer<typeof TranscribeTickSchema>;
+
 // ================== Helper Functions ==================
 
 /**

@@ -51,6 +51,20 @@ export interface ApiAnthology {
 
 // ================== Recording Types ==================
 
+export interface ApiRecordingMetadata {
+  bucket?: string;
+  source?: string;
+  assembly_id?: string;
+  object_path?: string;
+  transcript_path?: string;
+  audio_duration_ms?: number | null;
+  transcription_error?: string | null;
+  transcription_status?: string | null;
+  transcription_started_at?: string | null;
+  transcription_completed_at?: string | null;
+  [key: string]: unknown;
+}
+
 /**
  * Recording data
  */
@@ -58,13 +72,14 @@ export interface ApiRecording {
   id: string;
   anthologyId: string | null;
   filePath: string;
+  transcriptFilePath?: string | null;
   fileName: string;
   fileSizeBytes: number | null;
   mimeType: string;
   durationMs: number;
   sampleRate: number | null;
   bitRate: number | null;
-  metadata: Record<string, unknown>;
+  metadata: ApiRecordingMetadata;
   createdAt: string;
 }
 

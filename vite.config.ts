@@ -3,149 +3,274 @@ import react from '@vitejs/plugin-react'
 import path from 'path'
 
 import { startSensemaking, tickSensemaking, getSensemakingStatus } from './api/_lib/sensemaking';
+import { assemblyStartTranscription, assemblyPollTranscript, assemblyUploadAudio } from './api/_lib/assemblyai';
+import { getSupabase, getConversationsBucket } from './api/_lib/supabase';
 
 type Json = Record<string, unknown>;
 
-async function sleep(ms: number) {
-  await new Promise((r) => setTimeout(r, ms));
+/** Read the full JSON body from a raw Node IncomingMessage. */
+async function readJsonBody(req: any): Promise<Json | null> {
+  const chunks: Buffer[] = [];
+  await new Promise<void>((resolve) => {
+    req.on('data', (c: Buffer) => chunks.push(c));
+    req.on('end', () => resolve());
+  });
+  try {
+    return JSON.parse(Buffer.concat(chunks).toString('utf8')) as Json;
+  } catch {
+    return null;
+  }
+}
+
+/** Write a JSON response on a raw Node ServerResponse. */
+function sendJson(res: any, status: number, body: unknown) {
+  res.statusCode = status;
+  res.setHeader('Content-Type', 'application/json');
+  res.end(JSON.stringify(body));
 }
 
 /**
- * Local dev-only implementation of `/api/transcribe`.
+ * Local dev-only implementation of the async transcribe endpoints.
  *
- * In production (Vercel), `/api/transcribe` is served by [`api/transcribe.ts`](anthology-app/api/transcribe.ts:1).
- * In local dev (`vite dev`), Vite does not serve the `/api` folder, so we add
- * a middleware route here.
+ * Registers three middleware routes (specific paths first):
+ *   GET  /api/transcribe/status  — read-only status check
+ *   POST /api/transcribe/tick    — poll AssemblyAI and save transcript
+ *   POST /api/transcribe         — start transcription job
  */
-function localTranscribeApiPlugin(env: Record<string, string>) {
-  const apiKey = env.ASSEMBLYAI_API_KEY || env.ASSEMBLY_API_KEY;
-  const ASSEMBLY_API_BASE = 'https://api.assemblyai.com/v2';
-
+function localTranscribeAsyncApiPlugin() {
   return {
-    name: 'local-transcribe-api',
+    name: 'local-transcribe-async-api',
     configureServer(server: any) {
-      server.middlewares.use('/api/transcribe', async (req: any, res: any) => {
-        if (req.method !== 'POST') {
-          res.statusCode = 405;
-          res.setHeader('Content-Type', 'application/json');
-          res.end(JSON.stringify({ error: 'Method not allowed' }));
-          return;
-        }
+      // ── GET /api/transcribe/status ──
+      server.middlewares.use('/api/transcribe/status', async (req: any, res: any) => {
+        if (req.method !== 'GET') { sendJson(res, 405, { error: 'Method not allowed' }); return; }
 
-        if (!apiKey) {
-          res.statusCode = 500;
-          res.setHeader('Content-Type', 'application/json');
-          res.end(JSON.stringify({ error: 'Missing ASSEMBLYAI_API_KEY env var' }));
-          return;
-        }
-
-        // Read JSON body
-        const chunks: Buffer[] = [];
-        await new Promise<void>((resolve) => {
-          req.on('data', (c: Buffer) => chunks.push(c));
-          req.on('end', () => resolve());
-        });
-
-        let body: Json;
-        try {
-          body = JSON.parse(Buffer.concat(chunks).toString('utf8')) as Json;
-        } catch {
-          res.statusCode = 400;
-          res.setHeader('Content-Type', 'application/json');
-          res.end(JSON.stringify({ error: 'Invalid JSON body' }));
-          return;
-        }
-
-        const audioUrl = body.audioUrl;
-        if (typeof audioUrl !== 'string' || audioUrl.length === 0) {
-          res.statusCode = 400;
-          res.setHeader('Content-Type', 'application/json');
-          res.end(JSON.stringify({ error: 'audioUrl is required' }));
-          return;
-        }
+        const url = new URL(req.url, 'http://localhost');
+        const recordingId = url.searchParams.get('recordingId') || '';
+        if (!recordingId) { sendJson(res, 400, { error: 'recordingId query param is required' }); return; }
 
         try {
-          // 1) Start transcription
-          const createResp = await fetch(`${ASSEMBLY_API_BASE}/transcript`, {
-            method: 'POST',
-            headers: {
-              Authorization: apiKey,
-              'Content-Type': 'application/json',
+          const sb = getSupabase();
+          const { data: recording, error } = await sb
+            .from('anthology_recordings')
+            .select('id, metadata, duration_ms')
+            .eq('id', recordingId)
+            .single();
+
+          if (error || !recording) { sendJson(res, 404, { error: 'Recording not found' }); return; }
+
+          const md = (recording.metadata || {}) as Record<string, unknown>;
+          sendJson(res, 200, {
+            data: {
+              recordingId: recording.id,
+              status: md.transcription_status || null,
+              assemblyId: md.assembly_id || null,
+              transcriptPath: md.transcript_path || null,
+              audioDurationMs: md.audio_duration_ms || null,
+              error: md.transcription_error || null,
+              startedAt: md.transcription_started_at || null,
+              completedAt: md.transcription_completed_at || null,
             },
-            body: JSON.stringify({
-              audio_url: audioUrl,
-              punctuate: true,
-              format_text: true,
-            }),
+          });
+        } catch (e) {
+          sendJson(res, 500, { error: e instanceof Error ? e.message : 'Unknown error' });
+        }
+      });
+
+      // ── POST /api/transcribe/tick ──
+      server.middlewares.use('/api/transcribe/tick', async (req: any, res: any) => {
+        if (req.method !== 'POST') { sendJson(res, 405, { error: 'Method not allowed' }); return; }
+
+        const body = await readJsonBody(req);
+        if (!body) { sendJson(res, 400, { error: 'Invalid JSON body' }); return; }
+
+        const recordingId = (body as any).recordingId;
+        if (!recordingId) { sendJson(res, 400, { error: 'recordingId is required' }); return; }
+
+        const apiKey = process.env.ASSEMBLYAI_API_KEY || process.env.ASSEMBLY_API_KEY;
+        if (!apiKey) { sendJson(res, 500, { error: 'Missing ASSEMBLYAI_API_KEY' }); return; }
+
+        try {
+          const sb = getSupabase();
+          const { data: recording, error: recErr } = await sb
+            .from('anthology_recordings')
+            .select('id, metadata, duration_ms')
+            .eq('id', recordingId)
+            .single();
+
+          if (recErr || !recording) { sendJson(res, 404, { error: 'Recording not found' }); return; }
+
+          const md = (recording.metadata || {}) as Record<string, unknown>;
+          const currentStatus = md.transcription_status as string | undefined;
+
+          // Already done or errored — nothing to do
+          if (currentStatus === 'completed' || currentStatus === 'error') {
+            sendJson(res, 200, { data: { status: currentStatus, didWork: false } });
+            return;
+          }
+
+          const assemblyId = md.assembly_id as string | undefined;
+          if (!assemblyId) {
+            sendJson(res, 400, { error: 'No assembly_id in metadata — start transcription first' });
+            return;
+          }
+
+          const result = await assemblyPollTranscript({ apiKey, transcriptId: assemblyId });
+
+          if (result.status === 'completed') {
+            const transcriptJson = {
+              text: result.text || '',
+              words: result.words || [],
+              utterances: result.utterances || [],
+              audio_duration: result.audio_duration || 0,
+              assembly_id: assemblyId,
+              completed_at: new Date().toISOString(),
+            };
+
+            const transcriptPath = md.transcript_path as string;
+            const bucket = (md.bucket as string) || getConversationsBucket();
+
+            if (transcriptPath) {
+              await sb.storage.from(bucket).upload(
+                transcriptPath,
+                JSON.stringify(transcriptJson, null, 2),
+                { contentType: 'application/json', upsert: true },
+              );
+            }
+
+            const audioDurationMs = Math.round((result.audio_duration || 0) * 1000);
+            const now = new Date().toISOString();
+
+            await sb
+              .from('anthology_recordings')
+              .update({
+                duration_ms: audioDurationMs,
+                metadata: {
+                  ...md,
+                  transcription_status: 'completed',
+                  audio_duration_ms: audioDurationMs,
+                  transcription_completed_at: now,
+                  transcription_error: null,
+                },
+              })
+              .eq('id', recordingId);
+
+            sendJson(res, 200, {
+              data: { status: 'completed', didWork: true, audioDurationMs, transcriptPath },
+            });
+          } else if (result.status === 'error') {
+            await sb
+              .from('anthology_recordings')
+              .update({
+                metadata: {
+                  ...md,
+                  transcription_status: 'error',
+                  transcription_error: result.error || 'Unknown AssemblyAI error',
+                },
+              })
+              .eq('id', recordingId);
+
+            sendJson(res, 200, {
+              data: { status: 'error', didWork: true, error: result.error },
+            });
+          } else {
+            // Still queued / processing
+            sendJson(res, 200, {
+              data: { status: 'processing', didWork: false, assemblyStatus: result.status },
+            });
+          }
+        } catch (e) {
+          sendJson(res, 500, { error: e instanceof Error ? e.message : 'Unknown error' });
+        }
+      });
+
+      // ── POST /api/transcribe (start) ──
+      server.middlewares.use('/api/transcribe', async (req: any, res: any) => {
+        if (req.method !== 'POST') { sendJson(res, 405, { error: 'Method not allowed' }); return; }
+
+        const body = await readJsonBody(req);
+        if (!body) { sendJson(res, 400, { error: 'Invalid JSON body' }); return; }
+
+        const recordingId = (body as any).recordingId;
+        if (!recordingId) { sendJson(res, 400, { error: 'recordingId is required' }); return; }
+
+        const apiKey = process.env.ASSEMBLYAI_API_KEY || process.env.ASSEMBLY_API_KEY;
+        if (!apiKey) { sendJson(res, 500, { error: 'Missing ASSEMBLYAI_API_KEY' }); return; }
+
+        try {
+          const sb = getSupabase();
+          const { data: recording, error: recErr } = await sb
+            .from('anthology_recordings')
+            .select('id, metadata, mime_type')
+            .eq('id', recordingId)
+            .single();
+
+          if (recErr || !recording) { sendJson(res, 404, { error: 'Recording not found' }); return; }
+
+          const md = (recording.metadata || {}) as Record<string, unknown>;
+          const existing = md.transcription_status as string | undefined;
+
+          // Idempotent: already started or done
+          if (existing && ['processing', 'completed'].includes(existing)) {
+            sendJson(res, 200, {
+              data: {
+                recordingId: recording.id,
+                status: existing,
+                assemblyId: md.assembly_id || null,
+                transcriptPath: md.transcript_path || null,
+              },
+            });
+            return;
+          }
+
+          const objectPath = md.object_path as string;
+          const bucket = (md.bucket as string) || getConversationsBucket();
+          if (!objectPath) { sendJson(res, 400, { error: 'Recording metadata is missing object_path' }); return; }
+
+          const { data: fileData, error: downloadErr } = await sb.storage
+            .from(bucket)
+            .download(objectPath);
+
+          if (downloadErr || !fileData) {
+            sendJson(res, 400, { error: `Failed to download recording from storage: ${downloadErr?.message || 'unknown'}` });
+            return;
+          }
+
+          const audioBuffer = await fileData.arrayBuffer();
+          const { uploadUrl } = await assemblyUploadAudio({
+            apiKey,
+            audioData: audioBuffer,
+            contentType: recording.mime_type || 'application/octet-stream',
           });
 
-          if (!createResp.ok) {
-            const msg = await createResp.text().catch(() => '');
-            res.statusCode = 502;
-            res.setHeader('Content-Type', 'application/json');
-            res.end(JSON.stringify({ error: msg || 'Failed to create transcription job' }));
-            return;
-          }
+          const { id: assemblyId } = await assemblyStartTranscription({
+            apiKey,
+            audioUrl: uploadUrl,
+          });
+          const transcriptPath = `${objectPath}.transcript.json`;
+          const now = new Date().toISOString();
 
-          const created = (await createResp.json()) as { id?: string };
-          if (!created.id) {
-            res.statusCode = 502;
-            res.setHeader('Content-Type', 'application/json');
-            res.end(JSON.stringify({ error: 'AssemblyAI returned no transcript id' }));
-            return;
-          }
+          await sb
+            .from('anthology_recordings')
+            .update({
+              metadata: {
+                ...md,
+                transcription_status: 'processing',
+                assembly_id: assemblyId,
+                transcript_path: transcriptPath,
+                transcription_started_at: now,
+                transcription_error: null,
+                transcription_completed_at: null,
+                audio_duration_ms: null,
+              },
+            })
+            .eq('id', recordingId);
 
-          // 2) Poll until completion
-          for (let i = 0; i < 120; i++) {
-            const pollResp = await fetch(`${ASSEMBLY_API_BASE}/transcript/${created.id}`, {
-              headers: { Authorization: apiKey },
-            });
-
-            if (!pollResp.ok) {
-              const msg = await pollResp.text().catch(() => '');
-              res.statusCode = 502;
-              res.setHeader('Content-Type', 'application/json');
-              res.end(JSON.stringify({ error: msg || 'Failed to poll transcription job' }));
-              return;
-            }
-
-            const data = (await pollResp.json()) as any;
-            if (data.status === 'completed') {
-              res.statusCode = 200;
-              res.setHeader('Content-Type', 'application/json');
-              res.end(
-                JSON.stringify({
-                  text: data.text || '',
-                  words: Array.isArray(data.words)
-                    ? data.words.map((w: any) => ({
-                      text: w.text,
-                      start: w.start,
-                      end: w.end,
-                      confidence: w.confidence,
-                    }))
-                    : [],
-                })
-              );
-              return;
-            }
-
-            if (data.status === 'error') {
-              res.statusCode = 502;
-              res.setHeader('Content-Type', 'application/json');
-              res.end(JSON.stringify({ error: data.error || 'Transcription failed' }));
-              return;
-            }
-
-            await sleep(1500);
-          }
-
-          res.statusCode = 504;
-          res.setHeader('Content-Type', 'application/json');
-          res.end(JSON.stringify({ error: 'Transcription timed out' }));
+          sendJson(res, 202, {
+            data: { recordingId: recording.id, status: 'processing', assemblyId, transcriptPath },
+          });
         } catch (e) {
-          res.statusCode = 500;
-          res.setHeader('Content-Type', 'application/json');
-          res.end(JSON.stringify({ error: e instanceof Error ? e.message : 'Unknown error' }));
+          sendJson(res, 500, { error: e instanceof Error ? e.message : 'Unknown error' });
         }
       });
     },
@@ -536,7 +661,7 @@ export default defineConfig(({ command, mode }) => {
   return {
     plugins: [
       react(),
-      command === 'serve' ? localTranscribeApiPlugin(env) : undefined,
+      command === 'serve' ? localTranscribeAsyncApiPlugin() : undefined,
       command === 'serve' ? localJudgeQuestionApiPlugin(env) : undefined,
       command === 'serve' ? localAssignNarrativeApiPlugin(env) : undefined,
       command === 'serve'
@@ -702,7 +827,7 @@ export default defineConfig(({ command, mode }) => {
     server: {
       proxy: {
         // Proxy REST API requests to the local API server
-        // Middleware plugins above handle: /api/transcribe, /api/judge-question,
+        // Middleware plugins above handle: /api/transcribe(/status|/tick), /api/judge-question,
         // /api/assign-narrative, /api/sensemaking/*
         // All other /api/* requests go to the Express API server
         '/api/anthologies': {

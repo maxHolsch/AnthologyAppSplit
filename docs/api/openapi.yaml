@@ -378,8 +378,8 @@ paths:
         Upload an audio file to the anthology's conversation storage folder.
         The file is sent as the raw request body (not multipart form data).
 
-        Returns the storage path and a signed URL (valid for 1 hour) that can be
-        passed directly to `POST /transcribe` for transcription.
+        Returns the storage path, a `recordingId`, and a signed URL (valid for 1 hour).
+        Pass the `recordingId` to `POST /transcribe` to start transcription.
 
         **Required headers:**
         - `x-filename` — the original filename (e.g., `interview.mp3`)
@@ -439,19 +439,28 @@ paths:
 
   /transcribe:
     post:
-      summary: Transcribe an audio file
+      summary: Start audio transcription
       description: |
-        Submit an audio file URL for transcription via AssemblyAI. This is a blocking
-        call that polls until the transcript is ready (up to ~3 minutes).
+        Submit a recording for async transcription via AssemblyAI.
 
-        Typically called after uploading a file via `POST /anthologies/{slug}/upload`,
-        passing the `signedUrl` from the upload response as `audioUrl`.
+        The endpoint looks up the recording by ID, generates a signed URL for
+        the audio file stored in Supabase, and submits the job to AssemblyAI.
+        It returns immediately with status `processing` (HTTP 202).
 
-        The endpoint returns the full transcript text and word-level timestamps.
+        **Workflow:**
+        1. Upload a file via `POST /anthologies/{slug}/upload` to get a `recordingId`
+        2. Call `POST /transcribe` with `{ recordingId }` to start transcription
+        3. Poll `POST /transcribe/tick` with `{ recordingId }` to advance the job
+        4. Check `GET /transcribe/status?recordingId=...` for full status
+
+        The endpoint is idempotent — if transcription is already `processing` or
+        `completed`, the current state is returned without re-starting.
+
+        State is stored in the recording's `metadata` JSONB column.
         Speaker diarization is enabled automatically.
-      operationId: transcribeAudio
+      operationId: startTranscription
       tags:
-        - Sensemaking
+        - Transcription
       requestBody:
         required: true
         content:
@@ -459,61 +468,216 @@ paths:
             schema:
               type: object
               required:
-                - audioUrl
+                - recordingId
               properties:
-                audioUrl:
+                recordingId:
                   type: string
-                  format: uri
-                  description: Public or signed URL of the audio file to transcribe
+                  format: uuid
+                  description: ID of the recording to transcribe
       responses:
-        '200':
-          description: Transcription completed
+        '202':
+          description: Transcription job started
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  text:
-                    type: string
-                    description: Full transcript text
-                  words:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        text:
-                          type: string
-                          description: Individual word
-                        start:
-                          type: integer
-                          description: Start time in milliseconds
-                        end:
-                          type: integer
-                          description: End time in milliseconds
-                        confidence:
-                          type: number
-                          format: float
-                          description: Confidence score (0-1)
+                  data:
+                    type: object
+                    properties:
+                      recordingId:
+                        type: string
+                        format: uuid
+                      status:
+                        type: string
+                        enum: [processing]
+                      assemblyId:
+                        type: string
+                        description: AssemblyAI transcript ID
+                      transcriptPath:
+                        type: string
+                        description: Storage path where the transcript JSON will be saved
+        '200':
+          description: Transcription already in progress or completed (idempotent)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      recordingId:
+                        type: string
+                        format: uuid
+                      status:
+                        type: string
+                        enum: [processing, completed]
+                      assemblyId:
+                        type: string
+                        nullable: true
+                      transcriptPath:
+                        type: string
+                        nullable: true
         '400':
-          description: Invalid request (missing audioUrl)
+          description: Invalid request (missing recordingId or object_path)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Recording not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '500':
           $ref: '#/components/responses/InternalError'
-        '502':
-          description: AssemblyAI service error
+
+  /transcribe/status:
+    get:
+      summary: Get transcription status
+      description: |
+        Read-only status check for a transcription job. Returns the current
+        transcription state from the recording's metadata.
+      operationId: getTranscriptionStatus
+      tags:
+        - Transcription
+      parameters:
+        - name: recordingId
+          in: query
+          required: true
+          description: ID of the recording
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Current transcription status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      recordingId:
+                        type: string
+                        format: uuid
+                      status:
+                        type: string
+                        nullable: true
+                        enum: [processing, completed, error, null]
+                      assemblyId:
+                        type: string
+                        nullable: true
+                      transcriptPath:
+                        type: string
+                        nullable: true
+                      audioDurationMs:
+                        type: integer
+                        nullable: true
+                        description: Audio duration in milliseconds (set after completion)
+                      error:
+                        type: string
+                        nullable: true
+                        description: Error message if transcription failed
+                      startedAt:
+                        type: string
+                        format: date-time
+                        nullable: true
+                      completedAt:
+                        type: string
+                        format: date-time
+                        nullable: true
+        '400':
+          description: Missing recordingId
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-        '504':
-          description: Transcription timed out
+        '404':
+          description: Recording not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+
+  /transcribe/tick:
+    post:
+      summary: Advance transcription job
+      description: |
+        Poll AssemblyAI for the latest transcription status. When the job
+        completes, saves the transcript JSON to storage alongside the
+        recording file and updates the recording's metadata and `duration_ms`.
+
+        Returns `didWork: true` when a state transition occurred (completed or
+        error), `didWork: false` when the job is still processing or was
+        already finished.
+
+        **Transcript storage:** The transcript JSON is saved to the same bucket
+        and directory as the recording file, with `.transcript.json` appended
+        (e.g., `upload_conversations/slug/1234_file.mp3.transcript.json`).
+      operationId: tickTranscription
+      tags:
+        - Transcription
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - recordingId
+              properties:
+                recordingId:
+                  type: string
+                  format: uuid
+                  description: ID of the recording being transcribed
+      responses:
+        '200':
+          description: Tick result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      status:
+                        type: string
+                        enum: [processing, completed, error]
+                      didWork:
+                        type: boolean
+                        description: Whether a state transition occurred
+                      audioDurationMs:
+                        type: integer
+                        description: Audio duration in ms (present when completed)
+                      transcriptPath:
+                        type: string
+                        description: Storage path of transcript JSON (present when completed)
+                      assemblyStatus:
+                        type: string
+                        description: Raw AssemblyAI status (present when still processing)
+                      error:
+                        type: string
+                        description: Error message (present when status is error)
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Recording not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
 
   /sensemaking/start:
     post:
@@ -1742,7 +1906,7 @@ components:
             signedUrl:
               type: string
               nullable: true
-              description: Signed URL valid for 1 hour (pass to POST /transcribe as audioUrl)
+              description: Signed URL valid for 1 hour
               example: "https://example.supabase.co/storage/v1/..."
 
     # Recording schemas

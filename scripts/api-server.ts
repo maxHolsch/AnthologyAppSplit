@@ -158,6 +158,16 @@ async function registerRoutes() {
   const graphLoad = await import('../api/graph/load.js');
   app.get('/api/graph/load', createVercelAdapter(graphLoad.default));
 
+  // Transcribe
+  const transcribe = await import('../api/transcribe.js');
+  app.post('/api/transcribe', createVercelAdapter(transcribe.default));
+
+  const transcribeStatus = await import('../api/transcribe/status.js');
+  app.get('/api/transcribe/status', createVercelAdapter(transcribeStatus.default));
+
+  const transcribeTick = await import('../api/transcribe/tick.js');
+  app.post('/api/transcribe/tick', createVercelAdapter(transcribeTick.default));
+
   console.log('✅ All API routes registered');
 }
 

@@ -63,6 +63,37 @@ export async function assemblyStartTranscription({
   return { id: created.id };
 }
 
+export async function assemblyUploadAudio({
+  apiKey,
+  audioData,
+  contentType = 'application/octet-stream',
+}: {
+  apiKey: string;
+  audioData: ArrayBuffer | Uint8Array;
+  contentType?: string;
+}): Promise<{ uploadUrl: string }> {
+  const body = audioData instanceof Uint8Array ? audioData : new Uint8Array(audioData);
+
+  const uploadResp = await fetch(`${ASSEMBLY_API_BASE}/upload`, {
+    method: 'POST',
+    headers: {
+      Authorization: apiKey,
+      'Content-Type': contentType,
+    },
+    body,
+  });
+
+  if (!uploadResp.ok) {
+    const msg = await uploadResp.text().catch(() => '');
+    console.error('[assemblyai] Upload failed:', uploadResp.status, msg);
+    throw new Error(msg || 'Failed to upload audio to AssemblyAI');
+  }
+
+  const uploaded = (await uploadResp.json()) as { upload_url?: string };
+  if (!uploaded.upload_url) throw new Error('AssemblyAI returned no upload_url');
+  return { uploadUrl: uploaded.upload_url };
+}
+
 export async function assemblyPollTranscript({
   apiKey,
   transcriptId,
