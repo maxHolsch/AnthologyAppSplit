@@ -13,7 +13,8 @@
     "api:types": "npx openapi-typescript docs/api/openapi.yaml -o shared/types/api-generated.types.ts",
     "test": "vitest run --exclude 'tests/integration/**'",
     "test:watch": "vitest --exclude 'tests/integration/**'",
-    "test:integration": "vitest run --config vitest.integration.config.ts"
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:prepare-turns": "tsx scripts/test-prepare-turns.ts"
   },
   "dependencies": {
     "@langchain/core": "^0.3.0",

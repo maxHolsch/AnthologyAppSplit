@@ -168,6 +168,16 @@ async function registerRoutes() {
   const transcribeTick = await import('../api/transcribe/tick.js');
   app.post('/api/transcribe/tick', createVercelAdapter(transcribeTick.default));
 
+  // Sensemaking - Prepare Turns
+  const prepareTurns = await import('../api/sensemaking/prepare-turns.js');
+  app.post('/api/sensemaking/prepare-turns', createVercelAdapter(prepareTurns.default));
+
+  const prepareTurnsStatus = await import('../api/sensemaking/prepare-turns/status.js');
+  app.get('/api/sensemaking/prepare-turns/status', createVercelAdapter(prepareTurnsStatus.default));
+
+  const prepareTurnsTick = await import('../api/sensemaking/prepare-turns/tick.js');
+  app.post('/api/sensemaking/prepare-turns/tick', createVercelAdapter(prepareTurnsTick.default));
+
   console.log('✅ All API routes registered');
 }
 
