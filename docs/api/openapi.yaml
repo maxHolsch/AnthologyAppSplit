@@ -129,6 +129,23 @@ tags:
       speaker identification, question routing, narrative assignment, and response extraction.
       Jobs are time-sliced for serverless execution — call `tick` repeatedly to drive progress.
 
+  - name: Prepare Turns
+    description: |
+      The prepare-turns step cleans and merges raw AssemblyAI transcript utterances into
+      structured speaker turns. It filters out short utterances (<2 seconds), merges adjacent
+      same-speaker segments, and uses word-level timestamps as the authoritative source of
+      truth for turn boundaries.
+
+      This is the first post-transcription step in the sensemaking pipeline.
+
+      **Workflow:**
+      1. Call `POST /sensemaking/prepare-turns` with a `recordingId` whose transcription is complete
+      2. Call `POST /sensemaking/prepare-turns/tick` to execute the work
+      3. Poll `GET /sensemaking/prepare-turns/status` to confirm completion
+
+      Merged turns are stored as JSON in the same storage bucket as the transcript, at
+      `<transcript_path>.merged.json`. Status is tracked in the recording's `metadata` column.
+
   - name: Recordings
     description: |
       Recordings represent audio files associated with an anthology. Each recording
@@ -666,6 +683,254 @@ paths:
                         description: Error message (present when status is error)
         '400':
           description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Recording not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /sensemaking/prepare-turns:
+    post:
+      summary: Start prepare-turns job
+      description: |
+        Start the prepare-turns step for a recording whose transcription is complete.
+
+        Loads the transcript from storage, validates the utterances array is present,
+        sets `prepare_turns_status: processing` in the recording metadata, and returns
+        immediately. The actual processing happens when `POST /sensemaking/prepare-turns/tick`
+        is called.
+
+        The endpoint is idempotent — if prepare-turns has already completed, the current
+        state is returned without re-processing.
+
+        **Prerequisite:** The recording must have `transcription_status: completed`
+        (i.e., `POST /transcribe/tick` must have returned `status: completed`).
+      operationId: startPrepareTurns
+      tags:
+        - Prepare Turns
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - recordingId
+              properties:
+                recordingId:
+                  type: string
+                  format: uuid
+                  description: ID of the recording to process
+      responses:
+        '202':
+          description: Prepare-turns job started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      recordingId:
+                        type: string
+                        format: uuid
+                      status:
+                        type: string
+                        enum: [processing]
+                      mergedTurnsPath:
+                        type: string
+                        description: Storage path where merged turns JSON will be saved
+                      utteranceCount:
+                        type: integer
+                        description: Number of raw utterances in the transcript
+        '200':
+          description: Prepare-turns already completed (idempotent)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      recordingId:
+                        type: string
+                        format: uuid
+                      status:
+                        type: string
+                        enum: [completed]
+                      mergedTurnsPath:
+                        type: string
+                        nullable: true
+                      turnCount:
+                        type: integer
+                        nullable: true
+        '400':
+          description: Invalid request or transcript not yet available
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Recording not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /sensemaking/prepare-turns/status:
+    get:
+      summary: Get prepare-turns status
+      description: |
+        Read-only status check for a prepare-turns job. Returns the current
+        state from the recording's metadata without advancing the job.
+      operationId: getPrepareTurnsStatus
+      tags:
+        - Prepare Turns
+      parameters:
+        - name: recordingId
+          in: query
+          required: true
+          description: ID of the recording
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Current prepare-turns status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      recordingId:
+                        type: string
+                        format: uuid
+                      status:
+                        type: string
+                        nullable: true
+                        enum: [processing, completed, error, null]
+                      mergedTurnsPath:
+                        type: string
+                        nullable: true
+                        description: Storage path of the merged turns JSON file
+                      turnCount:
+                        type: integer
+                        nullable: true
+                        description: Number of merged turns produced (set after completion)
+                      error:
+                        type: string
+                        nullable: true
+                        description: Error message if the job failed
+                      startedAt:
+                        type: string
+                        format: date-time
+                        nullable: true
+                      completedAt:
+                        type: string
+                        format: date-time
+                        nullable: true
+        '400':
+          description: Missing recordingId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Recording not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /sensemaking/prepare-turns/tick:
+    post:
+      summary: Advance prepare-turns job
+      description: |
+        Execute the prepare-turns work for a recording. Loads the transcript from
+        storage, runs `cleanAndMergeTurns`, and saves the result as a JSON file
+        alongside the transcript.
+
+        **Processing steps:**
+        1. Download transcript JSON from storage
+        2. Filter utterances shorter than 2 seconds
+        3. Merge adjacent same-speaker utterances into single turns
+        4. Reanchor turn boundaries using word-level timestamps
+        5. Save merged turns JSON to `<transcript_path>.merged.json`
+        6. Update recording metadata with `prepare_turns_status: completed`
+
+        Returns `didWork: true` when processing occurred, `didWork: false` when
+        the job was already completed or errored.
+
+        **Merged turns storage path:** `<transcript_path>.merged.json`
+        (e.g., `upload_conversations/slug/1234_file.mp3.transcript.json.merged.json`)
+      operationId: tickPrepareTurns
+      tags:
+        - Prepare Turns
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - recordingId
+              properties:
+                recordingId:
+                  type: string
+                  format: uuid
+                  description: ID of the recording to process
+      responses:
+        '200':
+          description: Tick result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      recordingId:
+                        type: string
+                        format: uuid
+                      status:
+                        type: string
+                        enum: [completed, error]
+                      didWork:
+                        type: boolean
+                        description: Whether processing occurred in this tick
+                      mergedTurnsPath:
+                        type: string
+                        nullable: true
+                        description: Storage path of the saved merged turns JSON
+                      turnCount:
+                        type: integer
+                        nullable: true
+                        description: Number of merged turns produced
+                      originalUtteranceCount:
+                        type: integer
+                        nullable: true
+                        description: Number of raw utterances before merging
+                      error:
+                        type: string
+                        nullable: true
+                        description: Error message if the job failed
+        '400':
+          description: Invalid request or job not in processing state
           content:
             application/json:
               schema:

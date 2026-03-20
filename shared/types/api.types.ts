@@ -73,6 +73,7 @@ export interface ApiRecording {
   anthologyId: string | null;
   filePath: string;
   transcriptFilePath?: string | null;
+  mergedTurnsFilePath?: string | null;
   fileName: string;
   fileSizeBytes: number | null;
   mimeType: string;
