@@ -162,6 +162,20 @@ export const ResponseByIdSchema = z.object({
   id: uuidSchema,
 });
 
+/**
+ * POST /api/questions body
+ */
+export const CreateQuestionSchema = z.object({
+  conversationId: uuidSchema,
+  questionText: nonEmptyString,
+  facilitator: z.string().optional(),
+  notes: z.string().optional(),
+  audioStartMs: z.number().int().min(0).optional(),
+  audioEndMs: z.number().int().min(0).optional(),
+});
+
+export type CreateQuestionBody = z.infer<typeof CreateQuestionSchema>;
+
 // ================== Narrative Schemas ==================
 
 /**
@@ -171,6 +185,17 @@ export const NarrativesQuerySchema = PaginationSchema.extend({
   conversationId: uuidSchema.optional(),
   anthologyId: uuidSchema.optional(),
 });
+
+/**
+ * POST /api/narratives body
+ */
+export const CreateNarrativeSchema = z.object({
+  conversationId: uuidSchema,
+  narrativeText: nonEmptyString,
+  notes: z.string().optional(),
+});
+
+export type CreateNarrativeBody = z.infer<typeof CreateNarrativeSchema>;
 
 export type NarrativesQuery = z.infer<typeof NarrativesQuerySchema>;
 

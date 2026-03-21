@@ -122,6 +122,7 @@ async function registerRoutes() {
   // Questions
   const questions = await import('../api/questions/index.js');
   app.get('/api/questions', createVercelAdapter(questions.default));
+  app.post('/api/questions', createVercelAdapter(questions.default));
 
   const questionResponses = await import('../api/questions/[id]/responses.js');
   app.get('/api/questions/:id/responses', createVercelAdapter(questionResponses.default));
@@ -142,6 +143,7 @@ async function registerRoutes() {
   // Narratives
   const narratives = await import('../api/narratives/index.js');
   app.get('/api/narratives', createVercelAdapter(narratives.default));
+  app.post('/api/narratives', createVercelAdapter(narratives.default));
 
   const narrativeResponses = await import('../api/narratives/[id]/responses.js');
   app.get('/api/narratives/:id/responses', createVercelAdapter(narrativeResponses.default));
@@ -177,6 +179,20 @@ async function registerRoutes() {
 
   const prepareTurnsTick = await import('../api/sensemaking/prepare-turns/tick.js');
   app.post('/api/sensemaking/prepare-turns/tick', createVercelAdapter(prepareTurnsTick.default));
+
+  // Sensemaking - Create Conversation
+  const createConversation = await import('../api/sensemaking/create-conversation.js');
+  app.post('/api/sensemaking/create-conversation', createVercelAdapter(createConversation.default));
+
+  // Sensemaking - Identify Speakers
+  const identifySpeakers = await import('../api/sensemaking/identify-speakers.js');
+  app.post('/api/sensemaking/identify-speakers', createVercelAdapter(identifySpeakers.default));
+
+  const identifySpeakersStatus = await import('../api/sensemaking/identify-speakers/status.js');
+  app.get('/api/sensemaking/identify-speakers/status', createVercelAdapter(identifySpeakersStatus.default));
+
+  const identifySpeakersTick = await import('../api/sensemaking/identify-speakers/tick.js');
+  app.post('/api/sensemaking/identify-speakers/tick', createVercelAdapter(identifySpeakersTick.default));
 
   console.log('✅ All API routes registered');
 }

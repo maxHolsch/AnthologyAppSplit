@@ -146,6 +146,25 @@ tags:
       Merged turns are stored as JSON in the same storage bucket as the transcript, at
       `<transcript_path>.merged.json`. Status is tracked in the recording's `metadata` column.
 
+  - name: Identify Speakers
+    description: |
+      The identify-speakers step uses Claude to infer human names for diarized speaker labels
+      in the merged turns. It samples the first 30 turns from the transcript and asks Claude to
+      identify speakers from context clues (self-introduction, being addressed by name, etc.).
+
+      This is the second post-transcription step in the sensemaking pipeline, and must run
+      after `prepare-turns` is complete.
+
+      **Workflow:**
+      1. Call `POST /sensemaking/identify-speakers` with a `recordingId` whose prepare-turns is complete
+      2. Call `POST /sensemaking/identify-speakers/tick` to execute the Claude call
+      3. Poll `GET /sensemaking/identify-speakers/status` to confirm completion
+
+      The speaker map is stored as JSON at `<merged_turns_path>.speakers.json`. Status is
+      tracked in the recording's `metadata` column.
+
+      **Confidence threshold:** Inferred names with confidence < 0.7 fall back to `"Speaker {label}"`.
+
   - name: Recordings
     description: |
       Recordings represent audio files associated with an anthology. Each recording
@@ -944,6 +963,352 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+  /sensemaking/identify-speakers:
+    post:
+      summary: Start identify-speakers job
+      description: |
+        Start the identify-speakers step for a recording whose prepare-turns is complete.
+
+        Sets `identify_speakers_status: processing` in the recording metadata and returns
+        immediately. The actual Claude call happens when
+        `POST /sensemaking/identify-speakers/tick` is called.
+
+        The endpoint is idempotent — if identify-speakers has already completed or is
+        processing, the current state is returned without re-processing.
+
+        **Prerequisite:** The recording must have `prepare_turns_status: completed`.
+      operationId: startIdentifySpeakers
+      tags:
+        - Identify Speakers
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - recordingId
+              properties:
+                recordingId:
+                  type: string
+                  format: uuid
+                  description: ID of the recording to process
+      responses:
+        '202':
+          description: Job started (or already in progress/completed)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      recordingId:
+                        type: string
+                        format: uuid
+                      status:
+                        type: string
+                        enum: [processing, completed]
+                      speakerMapPath:
+                        type: string
+                        nullable: true
+                        description: Storage path where the speaker map JSON will be saved
+                      mergedTurnsPath:
+                        type: string
+                        nullable: true
+                        description: Storage path of the merged turns input file
+        '400':
+          description: Invalid request or prerequisite not met
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Recording not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /sensemaking/identify-speakers/status:
+    get:
+      summary: Get identify-speakers status
+      description: |
+        Read-only status check for an identify-speakers job. Returns the current
+        state from the recording's metadata without advancing the job.
+      operationId: getIdentifySpeakersStatus
+      tags:
+        - Identify Speakers
+      parameters:
+        - name: recordingId
+          in: query
+          required: true
+          description: ID of the recording
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Current identify-speakers status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      recordingId:
+                        type: string
+                        format: uuid
+                      status:
+                        type: string
+                        nullable: true
+                        enum: [processing, completed, error]
+                      speakerMapPath:
+                        type: string
+                        nullable: true
+                        description: Storage path of the saved speaker map JSON
+                      speakerCount:
+                        type: integer
+                        nullable: true
+                        description: Number of distinct speakers identified
+                      error:
+                        type: string
+                        nullable: true
+                      startedAt:
+                        type: string
+                        format: date-time
+                        nullable: true
+                      completedAt:
+                        type: string
+                        format: date-time
+                        nullable: true
+        '400':
+          description: Missing recordingId parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Recording not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /sensemaking/identify-speakers/tick:
+    post:
+      summary: Advance identify-speakers job
+      description: |
+        Execute the identify-speakers work for a recording. Loads the merged turns from
+        storage, calls Claude to infer speaker names, and saves the resulting speaker map
+        as a JSON file alongside the merged turns.
+
+        **Processing steps:**
+        1. Download merged turns JSON from storage
+        2. Sample the first 30 turns as context for Claude
+        3. Call Claude (`claude-haiku-4-5-20251001` by default, or `CLAUDE_SENSEMAKING_MODEL`)
+        4. Resolve names: use inferred name if confidence >= 0.7, otherwise fall back to `"Speaker {label}"`
+        5. Save speaker map JSON to `<merged_turns_path>.speakers.json`
+        6. Update recording metadata with `identify_speakers_status: completed`
+
+        Returns `didWork: true` when processing occurred, `didWork: false` when the job was
+        already completed or errored.
+
+        **Speaker map storage path:** `<merged_turns_path>.speakers.json`
+        (e.g., `upload_conversations/slug/1234_file.mp3.transcript.json.merged.json.speakers.json`)
+      operationId: tickIdentifySpeakers
+      tags:
+        - Identify Speakers
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - recordingId
+              properties:
+                recordingId:
+                  type: string
+                  format: uuid
+                  description: ID of the recording to process
+      responses:
+        '200':
+          description: Tick result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      recordingId:
+                        type: string
+                        format: uuid
+                      status:
+                        type: string
+                        enum: [completed, error]
+                      didWork:
+                        type: boolean
+                        description: Whether processing occurred in this tick
+                      speakerMapPath:
+                        type: string
+                        nullable: true
+                        description: Storage path of the saved speaker map JSON
+                      speakerCount:
+                        type: integer
+                        nullable: true
+                        description: Number of distinct speakers identified
+                      speakers:
+                        type: object
+                        nullable: true
+                        description: Speaker map keyed by label (e.g. "A", "B")
+                        additionalProperties:
+                          type: object
+                          properties:
+                            name:
+                              type: string
+                              description: Resolved speaker name or "Speaker {label}" fallback
+                            confidence:
+                              type: number
+                              minimum: 0
+                              maximum: 1
+                              description: Claude's confidence in the inferred name
+                      error:
+                        type: string
+                        nullable: true
+                        description: Error message if the job failed
+        '400':
+          description: Invalid request or job not in processing state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Recording not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /sensemaking/create-conversation:
+    post:
+      summary: Create conversation skeleton
+      description: |
+        Create a conversation skeleton from a recording that has completed
+        transcription, prepare-turns, and identify-speakers.
+
+        Reads the speaker map produced by `identify-speakers/tick` and creates:
+        - A **conversation** row linked to the recording
+        - **Speaker** rows (one per identified speaker)
+        - **Question** rows (from the provided list)
+        - **Narrative** rows (from the provided list, plus an automatic "Misc" catch-all)
+        - **Narrative embeddings** (best-effort via OpenAI, requires `OPENAI_API_KEY`)
+
+        **Idempotent:** if `conversation_id` is already set in the recording metadata,
+        the existing conversation ID is returned without re-creating anything.
+
+        After this step the recording metadata gains:
+        - `conversation_id`: UUID of the created conversation
+        - `create_conversation_status: completed`
+        - `create_conversation_completed_at`: ISO timestamp
+      operationId: createConversationSkeleton
+      tags:
+        - Sensemaking
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - recordingId
+              properties:
+                recordingId:
+                  type: string
+                  format: uuid
+                  description: ID of the recording (identify-speakers must be completed)
+                questions:
+                  type: array
+                  items:
+                    type: string
+                  description: Facilitator question texts to create (optional)
+                  default: []
+                narratives:
+                  type: array
+                  items:
+                    type: string
+                  description: Narrative theme texts to create (optional, a "Misc" narrative is always added)
+                  default: []
+      responses:
+        '201':
+          description: Conversation skeleton created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      recordingId:
+                        type: string
+                        format: uuid
+                      status:
+                        type: string
+                        enum: [completed]
+                      didWork:
+                        type: boolean
+                        description: False if conversation already existed (idempotent)
+                      conversationId:
+                        type: string
+                        format: uuid
+                      speakerCount:
+                        type: integer
+                      questionCount:
+                        type: integer
+                      narrativeCount:
+                        type: integer
+                        description: Includes the auto-created "Misc" narrative
+                      speakerDbIds:
+                        type: object
+                        additionalProperties:
+                          type: string
+                          format: uuid
+                        description: Map of speaker_label → speaker UUID
+                      questionDbIds:
+                        type: array
+                        items:
+                          type: string
+                          format: uuid
+                      narrativeDbIds:
+                        type: array
+                        items:
+                          type: string
+                          format: uuid
+        '400':
+          description: Invalid request or prerequisite step not completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Recording not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
   /sensemaking/start:
     post:
       summary: Start sensemaking job
@@ -1323,6 +1688,68 @@ paths:
           $ref: '#/components/responses/ValidationError'
         '500':
           $ref: '#/components/responses/InternalError'
+    post:
+      summary: Create a question
+      description: |
+        Create a new facilitator question for a conversation. No authentication required.
+
+        **Required fields:**
+        - `conversationId`: The conversation this question belongs to
+        - `questionText`: The question prompt text
+
+        **Optional fields:**
+        - `facilitator`: Name of the facilitator who asked the question
+        - `notes`: Internal notes about the question
+        - `audioStartMs` / `audioEndMs`: Timing offsets for audio playback sync
+      operationId: createQuestion
+      tags:
+        - Questions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - conversationId
+                - questionText
+              properties:
+                conversationId:
+                  type: string
+                  format: uuid
+                  description: The conversation this question belongs to
+                questionText:
+                  type: string
+                  minLength: 1
+                  description: The question prompt text
+                facilitator:
+                  type: string
+                  description: Name of the facilitator
+                notes:
+                  type: string
+                  description: Internal notes
+                audioStartMs:
+                  type: integer
+                  minimum: 0
+                  description: Audio start offset in milliseconds
+                audioEndMs:
+                  type: integer
+                  minimum: 0
+                  description: Audio end offset in milliseconds
+      responses:
+        '201':
+          description: Question created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Question'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
 
   /questions/{id}/responses:
     get:
@@ -1691,6 +2118,57 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/NarrativePaginatedResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      summary: Create a narrative
+      description: |
+        Create a new thematic narrative for a conversation. No authentication required.
+
+        The `anthologyId` is resolved automatically from the conversation.
+
+        **Required fields:**
+        - `conversationId`: The conversation this narrative belongs to
+        - `narrativeText`: The narrative theme text
+
+        **Optional fields:**
+        - `notes`: Internal notes about the narrative
+      operationId: createNarrative
+      tags:
+        - Narratives
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - conversationId
+                - narrativeText
+              properties:
+                conversationId:
+                  type: string
+                  format: uuid
+                  description: The conversation this narrative belongs to
+                narrativeText:
+                  type: string
+                  minLength: 1
+                  description: The narrative theme text
+                notes:
+                  type: string
+                  description: Internal notes
+      responses:
+        '201':
+          description: Narrative created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Narrative'
         '400':
           $ref: '#/components/responses/ValidationError'
         '500':

@@ -62,6 +62,18 @@ export interface ApiRecordingMetadata {
   transcription_status?: string | null;
   transcription_started_at?: string | null;
   transcription_completed_at?: string | null;
+  merged_turns_path?: string | null;
+  merged_turns_count?: number | null;
+  prepare_turns_error?: string | null;
+  prepare_turns_status?: string | null;
+  prepare_turns_started_at?: string | null;
+  prepare_turns_completed_at?: string | null;
+  identify_speakers_status?: string | null;
+  identify_speakers_error?: string | null;
+  identify_speakers_started_at?: string | null;
+  identify_speakers_completed_at?: string | null;
+  speaker_map_path?: string | null;
+  speaker_count?: number | null;
   [key: string]: unknown;
 }
 
@@ -74,6 +86,7 @@ export interface ApiRecording {
   filePath: string;
   transcriptFilePath?: string | null;
   mergedTurnsFilePath?: string | null;
+  speakerMapFilePath?: string | null;
   fileName: string;
   fileSizeBytes: number | null;
   mimeType: string;
