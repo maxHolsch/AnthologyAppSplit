@@ -4,11 +4,28 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { supabase } from '../_lib/supabase';
+import { supabase, getConversationsBucket } from '../_lib/supabase';
 import { jsonResponse, handleError, errorResponse } from '../_lib/response';
 import { ConversationByIdSchema, safeParseQuery } from '../_lib/validation';
 import { ErrorCodes, notFound } from '../_lib/errors';
 import type { ApiConversation } from '../../shared/types/api.types';
+
+const SIGNED_URL_TTL_SECONDS = 60 * 60;
+
+async function createSignedStorageUrl(bucket: string, objectPath: string | null | undefined) {
+  if (!objectPath) return null;
+
+  const { data, error } = await supabase.storage
+    .from(bucket)
+    .createSignedUrl(objectPath, SIGNED_URL_TTL_SECONDS);
+
+  if (error) {
+    console.warn('[GET /api/conversations/:id] Failed to create signed URL:', { bucket, objectPath, error: error.message });
+    return null;
+  }
+
+  return data?.signedUrl ?? null;
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') {
@@ -71,6 +88,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       (cr: any) => cr.is_primary
     );
     const primaryRecording = primaryRecordingLink?.anthology_recordings;
+    const metadata = (data.metadata || {}) as Record<string, unknown>;
+    const bucket = typeof metadata.bucket === 'string' ? metadata.bucket : getConversationsBucket();
+    const assignedQuestionsPath = typeof metadata.assigned_questions_path === 'string' ? metadata.assigned_questions_path : null;
+
+    const assignedQuestionsFilePath = await createSignedStorageUrl(bucket, assignedQuestionsPath);
 
     const conversation: ApiConversation = {
       id: data.id,
@@ -90,6 +112,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         sourceTranscript: data.source_transcript,
         ...data.metadata,
       },
+      assignedQuestionsFilePath,
       createdAt: data.created_at,
     };
 

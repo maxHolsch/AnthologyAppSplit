@@ -137,6 +137,7 @@ export interface ApiConversation {
   duration: number;
   color: string;
   metadata: ApiConversationMetadata;
+  assignedQuestionsFilePath?: string | null;
   createdAt: string;
 }
 
