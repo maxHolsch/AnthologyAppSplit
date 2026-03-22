@@ -165,6 +165,85 @@ tags:
 
       **Confidence threshold:** Inferred names with confidence < 0.7 fall back to `"Speaker {label}"`.
 
+  - name: Assign Questions
+    description: |
+      The assign-questions step uses Claude to route each merged turn to its best-matching
+      facilitator question. Turns are processed in batches of 30 to stay within prompt limits.
+
+      This step runs after `create-conversation` has created the conversation skeleton with
+      questions in the database.
+
+      **Workflow:**
+      1. Call `POST /sensemaking/assign-questions` with a `conversationId` (create-conversation must be completed)
+      2. Call `POST /sensemaking/assign-questions/tick` to execute the Claude routing calls
+      3. Poll `GET /sensemaking/assign-questions/status` to confirm completion
+
+      The assigned turns (with `speaker_name` and `question_index` per turn) are saved as JSON at
+      `<merged_turns_path>.assigned-questions.json`. Status is tracked in the recording's `metadata` column.
+
+  - name: Assign Narratives
+    description: |
+      The assign-narratives step assigns each turn to its closest narrative theme using
+      OpenAI embedding cosine similarity. Narrative embeddings are generated (or reused from
+      `create-conversation`) and compared against embeddings for each turn's text.
+
+      Turns with a best similarity below 0.25 are assigned to the "Misc" narrative (always the
+      last narrative in the conversation). If `OPENAI_API_KEY` is not set, all turns are
+      assigned to "Misc" as a fallback.
+
+      **Workflow:**
+      1. Call `POST /sensemaking/assign-narratives` with a `conversationId` (assign-questions must be completed)
+      2. Call `POST /sensemaking/assign-narratives/tick` to execute the embedding similarity pass
+      3. Poll `GET /sensemaking/assign-narratives/status` to confirm completion
+
+      The assigned turns (with `narrative_index` added) are saved as JSON at
+      `<merged_turns_path>.assigned-narratives.json`.
+
+  - name: Filter Turns
+    description: |
+      The filter-turns step uses Claude to score each turn on two dimensions:
+      - **Standalone score** (0–1): how coherent the turn is on its own
+      - **Direct answer score** (0–1): how directly the turn responds to its assigned question
+
+      All turns are currently kept regardless of scores (thresholds are disabled), but scores
+      are recorded in the output for transparency and future use.
+
+      **Workflow:**
+      1. Call `POST /sensemaking/filter-turns` with a `conversationId` (assign-narratives must be completed)
+      2. Call `POST /sensemaking/filter-turns/tick` to execute the Claude scoring call
+      3. Poll `GET /sensemaking/filter-turns/status` to confirm completion
+
+      The filtered turns (with `standalone_score`, `direct_answer_score`, `keep_reason` per turn)
+      are saved as JSON at `<merged_turns_path>.filtered-turns.json`.
+
+  - name: Create Responses
+    description: |
+      The create-responses step reads the filtered turns from storage and upserts one
+      `anthology_responses` row per turn, linking each to its assigned speaker, question,
+      and narrative. Embeddings are generated for response texts (requires `OPENAI_API_KEY`).
+
+      Upserts use a deterministic `legacy_id` (`sensemaking:<conversationId>:<turnNumber>`) so
+      retries are idempotent — re-running the tick never creates duplicate rows.
+
+      **Workflow:**
+      1. Call `POST /sensemaking/create-responses` with a `conversationId` (filter-turns must be completed)
+      2. Call `POST /sensemaking/create-responses/tick` to execute the DB upsert and embedding generation
+      3. Poll `GET /sensemaking/create-responses/status` to confirm completion
+
+  - name: Set Chronological Order
+    description: |
+      The set-chronological-order step assigns a `chronological_turn_number` to each
+      sensemaking response in the conversation, reflecting their temporal order in the audio
+      (sorted by `audio_start_ms`). This enables the UI to render responses in the order
+      they were spoken regardless of question or narrative grouping.
+
+      This is the final step of the new-style sensemaking pipeline.
+
+      **Workflow:**
+      1. Call `POST /sensemaking/set-chronological-order` with a `conversationId` (create-responses must be completed)
+      2. Call `POST /sensemaking/set-chronological-order/tick` to execute the DB updates
+      3. Poll `GET /sensemaking/set-chronological-order/status` to confirm completion
+
   - name: Recordings
     description: |
       Recordings represent audio files associated with an anthology. Each recording
@@ -1302,6 +1381,1048 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: Recording not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /sensemaking/assign-questions:
+    post:
+      summary: Start assign-questions job
+      description: |
+        Start the assign-questions step for a conversation whose `create-conversation` has completed.
+
+        Sets `assign_questions_status: processing` in the conversation metadata and returns
+        immediately. The actual Claude calls happen when
+        `POST /sensemaking/assign-questions/tick` is called.
+
+        The endpoint is idempotent — if assign-questions has already completed or is
+        processing, the current state is returned without re-processing.
+
+        **Prerequisite:** `create-conversation` must be completed for the conversation.
+      operationId: startAssignQuestions
+      tags:
+        - Assign Questions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - conversationId
+              properties:
+                conversationId:
+                  type: string
+                  format: uuid
+                  description: ID of the conversation to process
+      responses:
+        '202':
+          description: Job started (or already in progress/completed)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      conversationId:
+                        type: string
+                        format: uuid
+                      status:
+                        type: string
+                        enum: [processing, completed]
+                      assignedQuestionsPath:
+                        type: string
+                        nullable: true
+                        description: Storage path where the assigned-questions JSON will be saved
+                      mergedTurnsPath:
+                        type: string
+                        nullable: true
+                      speakerMapPath:
+                        type: string
+                        nullable: true
+        '400':
+          description: Invalid request or prerequisite not met
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Conversation not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /sensemaking/assign-questions/status:
+    get:
+      summary: Get assign-questions status
+      description: |
+        Read-only status check for an assign-questions job. Returns the current
+        state from the conversation's metadata without advancing the job.
+      operationId: getAssignQuestionsStatus
+      tags:
+        - Assign Questions
+      parameters:
+        - name: conversationId
+          in: query
+          required: true
+          description: ID of the conversation
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Current assign-questions status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      conversationId:
+                        type: string
+                        format: uuid
+                      status:
+                        type: string
+                        nullable: true
+                        enum: [processing, completed, error]
+                      assignedQuestionsPath:
+                        type: string
+                        nullable: true
+                        description: Storage path of the saved assigned-questions JSON
+                      turnCount:
+                        type: integer
+                        nullable: true
+                        description: Number of turns that were assigned
+                      error:
+                        type: string
+                        nullable: true
+                      startedAt:
+                        type: string
+                        format: date-time
+                        nullable: true
+                      completedAt:
+                        type: string
+                        format: date-time
+                        nullable: true
+        '400':
+          description: Missing conversationId parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Conversation not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /sensemaking/assign-questions/tick:
+    post:
+      summary: Advance assign-questions job
+      description: |
+        Execute the assign-questions work for a conversation. Loads the merged turns and speaker
+        map from storage, fetches the conversation's questions from the database, and calls
+        Claude in batches of 30 turns to assign each turn a `question_index`.
+
+        **Processing steps:**
+        1. Download merged turns JSON from storage
+        2. Download speaker map JSON from storage
+        3. Fetch questions for the conversation from the database
+        4. Add `speaker_name` to each turn (resolved from the speaker map)
+        5. Call Claude in batches of 30 turns (`claude-haiku-4-5-20251001` by default)
+        6. Save assigned-questions JSON to `<merged_turns_path>.assigned-questions.json`
+        7. Update conversation metadata with `assign_questions_status: completed`
+
+        Returns `didWork: true` when processing occurred, `didWork: false` when the job was
+        already completed or errored.
+      operationId: tickAssignQuestions
+      tags:
+        - Assign Questions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - conversationId
+              properties:
+                conversationId:
+                  type: string
+                  format: uuid
+                  description: ID of the conversation to process
+      responses:
+        '200':
+          description: Tick result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      conversationId:
+                        type: string
+                        format: uuid
+                      status:
+                        type: string
+                        enum: [completed, error]
+                      didWork:
+                        type: boolean
+                        description: Whether processing occurred in this tick
+                      assignedQuestionsPath:
+                        type: string
+                        nullable: true
+                      turnCount:
+                        type: integer
+                        nullable: true
+                        description: Number of turns assigned
+                      questionCount:
+                        type: integer
+                        nullable: true
+                        description: Number of questions available for routing
+                      error:
+                        type: string
+                        nullable: true
+        '400':
+          description: Invalid request or job not in processing state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Conversation not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /sensemaking/assign-narratives:
+    post:
+      summary: Start assign-narratives job
+      description: |
+        Start the assign-narratives step for a conversation whose `assign-questions` has completed.
+
+        Sets `assign_narratives_status: processing` in the conversation metadata and returns
+        immediately. The actual embedding computation happens when
+        `POST /sensemaking/assign-narratives/tick` is called.
+
+        The endpoint is idempotent — if assign-narratives has already completed or is
+        processing, the current state is returned without re-processing.
+
+        **Prerequisite:** `assign_questions_status` must be `completed`.
+      operationId: startAssignNarratives
+      tags:
+        - Assign Narratives
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - conversationId
+              properties:
+                conversationId:
+                  type: string
+                  format: uuid
+      responses:
+        '202':
+          description: Job started (or already in progress/completed)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      conversationId:
+                        type: string
+                        format: uuid
+                      status:
+                        type: string
+                        enum: [processing, completed]
+                      assignedNarrativesPath:
+                        type: string
+                        nullable: true
+                      assignedQuestionsPath:
+                        type: string
+                        nullable: true
+        '400':
+          description: Invalid request or prerequisite not met
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Conversation not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /sensemaking/assign-narratives/status:
+    get:
+      summary: Get assign-narratives status
+      description: |
+        Read-only status check for an assign-narratives job.
+      operationId: getAssignNarrativesStatus
+      tags:
+        - Assign Narratives
+      parameters:
+        - name: conversationId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Current assign-narratives status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      conversationId:
+                        type: string
+                        format: uuid
+                      status:
+                        type: string
+                        nullable: true
+                        enum: [processing, completed, error]
+                      assignedNarrativesPath:
+                        type: string
+                        nullable: true
+                      turnCount:
+                        type: integer
+                        nullable: true
+                      error:
+                        type: string
+                        nullable: true
+                      startedAt:
+                        type: string
+                        format: date-time
+                        nullable: true
+                      completedAt:
+                        type: string
+                        format: date-time
+                        nullable: true
+        '400':
+          description: Missing conversationId parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Conversation not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /sensemaking/assign-narratives/tick:
+    post:
+      summary: Advance assign-narratives job
+      description: |
+        Execute the assign-narratives work for a conversation. Loads the assigned-questions turns,
+        fetches narrative rows from the database, generates embeddings as needed, and assigns
+        each turn a `narrative_index` via cosine similarity.
+
+        **Processing steps:**
+        1. Download assigned-questions JSON from storage
+        2. Fetch narratives (with embeddings) for the conversation from the database
+        3. Generate any missing narrative embeddings via OpenAI (best-effort)
+        4. Generate embeddings for all turn texts via OpenAI
+        5. For each turn, find the narrative with highest cosine similarity
+        6. Turns with best similarity < 0.25 are assigned to "Misc" (last narrative)
+        7. Save assigned-narratives JSON to `<merged_turns_path>.assigned-narratives.json`
+
+        **Fallback:** If `OPENAI_API_KEY` is not set, all turns are assigned to "Misc".
+      operationId: tickAssignNarratives
+      tags:
+        - Assign Narratives
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - conversationId
+              properties:
+                conversationId:
+                  type: string
+                  format: uuid
+      responses:
+        '200':
+          description: Tick result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      conversationId:
+                        type: string
+                        format: uuid
+                      status:
+                        type: string
+                        enum: [completed, error]
+                      didWork:
+                        type: boolean
+                      assignedNarrativesPath:
+                        type: string
+                        nullable: true
+                      turnCount:
+                        type: integer
+                        nullable: true
+                      narrativeCount:
+                        type: integer
+                        nullable: true
+                      usedEmbeddings:
+                        type: boolean
+                        description: Whether OpenAI embeddings were used (false if OPENAI_API_KEY not set)
+                      error:
+                        type: string
+                        nullable: true
+        '400':
+          description: Invalid request or job not in processing state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Conversation not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /sensemaking/filter-turns:
+    post:
+      summary: Start filter-turns job
+      description: |
+        Start the filter-turns step for a conversation whose `assign-narratives` has completed.
+
+        Sets `filter_turns_status: processing` in the conversation metadata and returns
+        immediately. The actual Claude scoring happens when
+        `POST /sensemaking/filter-turns/tick` is called.
+
+        The endpoint is idempotent — if filter-turns has already completed or is processing,
+        the current state is returned without re-processing.
+
+        **Prerequisite:** `assign_narratives_status` must be `completed`.
+      operationId: startFilterTurns
+      tags:
+        - Filter Turns
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - conversationId
+              properties:
+                conversationId:
+                  type: string
+                  format: uuid
+      responses:
+        '202':
+          description: Job started (or already in progress/completed)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      conversationId:
+                        type: string
+                        format: uuid
+                      status:
+                        type: string
+                        enum: [processing, completed]
+                      filteredTurnsPath:
+                        type: string
+                        nullable: true
+                      assignedNarrativesPath:
+                        type: string
+                        nullable: true
+        '400':
+          description: Invalid request or prerequisite not met
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Conversation not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /sensemaking/filter-turns/status:
+    get:
+      summary: Get filter-turns status
+      description: |
+        Read-only status check for a filter-turns job.
+      operationId: getFilterTurnsStatus
+      tags:
+        - Filter Turns
+      parameters:
+        - name: conversationId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Current filter-turns status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      conversationId:
+                        type: string
+                        format: uuid
+                      status:
+                        type: string
+                        nullable: true
+                        enum: [processing, completed, error]
+                      filteredTurnsPath:
+                        type: string
+                        nullable: true
+                      filteredTurnsCount:
+                        type: integer
+                        nullable: true
+                        description: Number of turns kept after filtering
+                      error:
+                        type: string
+                        nullable: true
+                      startedAt:
+                        type: string
+                        format: date-time
+                        nullable: true
+                      completedAt:
+                        type: string
+                        format: date-time
+                        nullable: true
+        '400':
+          description: Missing conversationId parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Conversation not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /sensemaking/filter-turns/tick:
+    post:
+      summary: Advance filter-turns job
+      description: |
+        Execute the filter-turns work for a conversation. Loads the assigned-narratives turns
+        and the conversation's questions, then calls Claude to score each turn for standalone
+        coherence and direct relevance to its assigned question.
+
+        **Processing steps:**
+        1. Download assigned-narratives JSON from storage
+        2. Fetch questions for the conversation from the database
+        3. Call Claude to score all turns (standalone_score + direct_answer_score + reason)
+        4. All turns are currently kept regardless of scores (thresholds disabled)
+        5. Save filtered-turns JSON to `<merged_turns_path>.filtered-turns.json`
+
+        Returns `didWork: true` when processing occurred.
+      operationId: tickFilterTurns
+      tags:
+        - Filter Turns
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - conversationId
+              properties:
+                conversationId:
+                  type: string
+                  format: uuid
+      responses:
+        '200':
+          description: Tick result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      conversationId:
+                        type: string
+                        format: uuid
+                      status:
+                        type: string
+                        enum: [completed, error]
+                      didWork:
+                        type: boolean
+                      filteredTurnsPath:
+                        type: string
+                        nullable: true
+                      totalTurns:
+                        type: integer
+                        nullable: true
+                        description: Total turns before filtering
+                      keptTurns:
+                        type: integer
+                        nullable: true
+                        description: Turns kept after filtering (currently equals totalTurns)
+                      error:
+                        type: string
+                        nullable: true
+        '400':
+          description: Invalid request or job not in processing state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Conversation not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /sensemaking/create-responses:
+    post:
+      summary: Start create-responses job
+      description: |
+        Start the create-responses step for a conversation whose `filter-turns` has completed.
+
+        Sets `create_responses_status: processing` in the conversation metadata and returns
+        immediately. The actual DB upsert happens when
+        `POST /sensemaking/create-responses/tick` is called.
+
+        The endpoint is idempotent — if create-responses has already completed or is
+        processing, the current state is returned without re-processing.
+
+        **Prerequisite:** `filter_turns_status` must be `completed`.
+      operationId: startCreateResponses
+      tags:
+        - Create Responses
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - conversationId
+              properties:
+                conversationId:
+                  type: string
+                  format: uuid
+      responses:
+        '202':
+          description: Job started (or already in progress/completed)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      conversationId:
+                        type: string
+                        format: uuid
+                      status:
+                        type: string
+                        enum: [processing, completed]
+                      filteredTurnsPath:
+                        type: string
+                        nullable: true
+        '400':
+          description: Invalid request or prerequisite not met
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Conversation not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /sensemaking/create-responses/status:
+    get:
+      summary: Get create-responses status
+      description: |
+        Read-only status check for a create-responses job.
+      operationId: getCreateResponsesStatus
+      tags:
+        - Create Responses
+      parameters:
+        - name: conversationId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Current create-responses status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      conversationId:
+                        type: string
+                        format: uuid
+                      status:
+                        type: string
+                        nullable: true
+                        enum: [processing, completed, error]
+                      responseCount:
+                        type: integer
+                        nullable: true
+                        description: Number of response rows created
+                      error:
+                        type: string
+                        nullable: true
+                      startedAt:
+                        type: string
+                        format: date-time
+                        nullable: true
+                      completedAt:
+                        type: string
+                        format: date-time
+                        nullable: true
+        '400':
+          description: Missing conversationId parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Conversation not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /sensemaking/create-responses/tick:
+    post:
+      summary: Advance create-responses job
+      description: |
+        Execute the create-responses work for a conversation. Loads filtered turns from storage,
+        resolves speaker/question/narrative DB IDs, and upserts one `anthology_responses` row
+        per turn. Generates text embeddings for all responses if `OPENAI_API_KEY` is set.
+
+        **Processing steps:**
+        1. Download filtered-turns JSON from storage
+        2. Fetch speakers, questions, and narratives for the conversation from the database
+        3. Build response rows with resolved IDs and a deterministic `legacy_id`
+        4. Upsert rows into `anthology_responses` (conflict target: `anthology_id, legacy_id`)
+        5. Generate and store response text embeddings via OpenAI (best-effort)
+        6. Update conversation metadata with `create_responses_status: completed`
+
+        **Idempotency:** Each row uses `legacy_id = sensemaking:<conversationId>:<turnNumber>`,
+        so re-running the tick never creates duplicate rows.
+      operationId: tickCreateResponses
+      tags:
+        - Create Responses
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - conversationId
+              properties:
+                conversationId:
+                  type: string
+                  format: uuid
+      responses:
+        '200':
+          description: Tick result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      conversationId:
+                        type: string
+                        format: uuid
+                      status:
+                        type: string
+                        enum: [completed, error]
+                      didWork:
+                        type: boolean
+                      responseCount:
+                        type: integer
+                        nullable: true
+                        description: Number of response rows upserted
+                      embeddingsGenerated:
+                        type: boolean
+                        description: Whether OpenAI embeddings were generated
+                      error:
+                        type: string
+                        nullable: true
+        '400':
+          description: Invalid request or job not in processing state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Conversation not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /sensemaking/set-chronological-order:
+    post:
+      summary: Start set-chronological-order job
+      description: |
+        Start the set-chronological-order step for a conversation whose `create-responses` has
+        completed.
+
+        Sets `set_chronological_order_status: processing` in the conversation metadata and returns
+        immediately. The actual DB updates happen when
+        `POST /sensemaking/set-chronological-order/tick` is called.
+
+        The endpoint is idempotent — if set-chronological-order has already completed or is
+        processing, the current state is returned without re-processing.
+
+        **Prerequisite:** `create_responses_status` must be `completed`.
+      operationId: startSetChronologicalOrder
+      tags:
+        - Set Chronological Order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - conversationId
+              properties:
+                conversationId:
+                  type: string
+                  format: uuid
+      responses:
+        '202':
+          description: Job started (or already in progress/completed)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      conversationId:
+                        type: string
+                        format: uuid
+                      status:
+                        type: string
+                        enum: [processing, completed]
+        '400':
+          description: Invalid request or prerequisite not met
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Conversation not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /sensemaking/set-chronological-order/status:
+    get:
+      summary: Get set-chronological-order status
+      description: |
+        Read-only status check for a set-chronological-order job.
+      operationId: getSetChronologicalOrderStatus
+      tags:
+        - Set Chronological Order
+      parameters:
+        - name: conversationId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Current set-chronological-order status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      conversationId:
+                        type: string
+                        format: uuid
+                      status:
+                        type: string
+                        nullable: true
+                        enum: [processing, completed, error]
+                      chronologicalResponseCount:
+                        type: integer
+                        nullable: true
+                        description: Number of responses whose chronological_turn_number was set
+                      error:
+                        type: string
+                        nullable: true
+                      startedAt:
+                        type: string
+                        format: date-time
+                        nullable: true
+                      completedAt:
+                        type: string
+                        format: date-time
+                        nullable: true
+        '400':
+          description: Missing conversationId parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Conversation not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /sensemaking/set-chronological-order/tick:
+    post:
+      summary: Advance set-chronological-order job
+      description: |
+        Execute the set-chronological-order work for a conversation. Fetches all sensemaking
+        responses for the conversation ordered by `audio_start_ms`, then sets
+        `chronological_turn_number` (1-based) on each. This is a pure database operation
+        with no external API calls.
+
+        **Processing steps:**
+        1. Fetch all `anthology_responses` for the conversation ordered by `audio_start_ms`
+        2. Filter to only rows with `metadata.source = 'sensemaking'`
+        3. Set `chronological_turn_number = index + 1` on each (1-based temporal order)
+        4. Update conversation metadata with `set_chronological_order_status: completed`
+
+        This is the final step of the new-style sensemaking pipeline.
+      operationId: tickSetChronologicalOrder
+      tags:
+        - Set Chronological Order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - conversationId
+              properties:
+                conversationId:
+                  type: string
+                  format: uuid
+      responses:
+        '200':
+          description: Tick result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      conversationId:
+                        type: string
+                        format: uuid
+                      status:
+                        type: string
+                        enum: [completed, error]
+                      didWork:
+                        type: boolean
+                      chronologicalResponseCount:
+                        type: integer
+                        nullable: true
+                        description: Number of responses updated
+                      error:
+                        type: string
+                        nullable: true
+        '400':
+          description: Invalid request or job not in processing state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Conversation not found
           content:
             application/json:
               schema:

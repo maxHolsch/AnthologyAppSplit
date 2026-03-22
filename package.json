@@ -18,7 +18,12 @@
     "test:identify-speakers": "tsx scripts/test-identify-speakers.ts",
     "test:create-conversation": "tsx scripts/test-create-conversation.ts",
     "test:create-questions": "tsx scripts/test-create-questions.ts",
-    "test:create-narratives": "tsx scripts/test-create-narratives.ts"
+    "test:create-narratives": "tsx scripts/test-create-narratives.ts",
+    "test:assign-questions": "tsx scripts/test-assign-questions.ts",
+    "test:assign-narratives": "tsx scripts/test-assign-narratives.ts",
+    "test:filter-turns": "tsx scripts/test-filter-turns.ts",
+    "test:create-responses": "tsx scripts/test-create-responses.ts",
+    "test:set-chronological-order": "tsx scripts/test-set-chronological-order.ts"
   },
   "dependencies": {
     "@langchain/core": "^0.3.0",

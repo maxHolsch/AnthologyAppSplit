@@ -194,6 +194,56 @@ async function registerRoutes() {
   const identifySpeakersTick = await import('../api/sensemaking/identify-speakers/tick.js');
   app.post('/api/sensemaking/identify-speakers/tick', createVercelAdapter(identifySpeakersTick.default));
 
+  // Sensemaking - Assign Questions
+  const assignQuestions = await import('../api/sensemaking/assign-questions.js');
+  app.post('/api/sensemaking/assign-questions', createVercelAdapter(assignQuestions.default));
+
+  const assignQuestionsStatus = await import('../api/sensemaking/assign-questions/status.js');
+  app.get('/api/sensemaking/assign-questions/status', createVercelAdapter(assignQuestionsStatus.default));
+
+  const assignQuestionsTick = await import('../api/sensemaking/assign-questions/tick.js');
+  app.post('/api/sensemaking/assign-questions/tick', createVercelAdapter(assignQuestionsTick.default));
+
+  // Sensemaking - Assign Narratives
+  const assignNarratives = await import('../api/sensemaking/assign-narratives.js');
+  app.post('/api/sensemaking/assign-narratives', createVercelAdapter(assignNarratives.default));
+
+  const assignNarrativesStatus = await import('../api/sensemaking/assign-narratives/status.js');
+  app.get('/api/sensemaking/assign-narratives/status', createVercelAdapter(assignNarrativesStatus.default));
+
+  const assignNarrativesTick = await import('../api/sensemaking/assign-narratives/tick.js');
+  app.post('/api/sensemaking/assign-narratives/tick', createVercelAdapter(assignNarrativesTick.default));
+
+  // Sensemaking - Filter Turns
+  const filterTurns = await import('../api/sensemaking/filter-turns.js');
+  app.post('/api/sensemaking/filter-turns', createVercelAdapter(filterTurns.default));
+
+  const filterTurnsStatus = await import('../api/sensemaking/filter-turns/status.js');
+  app.get('/api/sensemaking/filter-turns/status', createVercelAdapter(filterTurnsStatus.default));
+
+  const filterTurnsTick = await import('../api/sensemaking/filter-turns/tick.js');
+  app.post('/api/sensemaking/filter-turns/tick', createVercelAdapter(filterTurnsTick.default));
+
+  // Sensemaking - Create Responses
+  const createResponses = await import('../api/sensemaking/create-responses.js');
+  app.post('/api/sensemaking/create-responses', createVercelAdapter(createResponses.default));
+
+  const createResponsesStatus = await import('../api/sensemaking/create-responses/status.js');
+  app.get('/api/sensemaking/create-responses/status', createVercelAdapter(createResponsesStatus.default));
+
+  const createResponsesTick = await import('../api/sensemaking/create-responses/tick.js');
+  app.post('/api/sensemaking/create-responses/tick', createVercelAdapter(createResponsesTick.default));
+
+  // Sensemaking - Set Chronological Order
+  const setChronologicalOrder = await import('../api/sensemaking/set-chronological-order.js');
+  app.post('/api/sensemaking/set-chronological-order', createVercelAdapter(setChronologicalOrder.default));
+
+  const setChronologicalOrderStatus = await import('../api/sensemaking/set-chronological-order/status.js');
+  app.get('/api/sensemaking/set-chronological-order/status', createVercelAdapter(setChronologicalOrderStatus.default));
+
+  const setChronologicalOrderTick = await import('../api/sensemaking/set-chronological-order/tick.js');
+  app.post('/api/sensemaking/set-chronological-order/tick', createVercelAdapter(setChronologicalOrderTick.default));
+
   console.log('✅ All API routes registered');
 }
 
