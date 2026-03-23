@@ -31,7 +31,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const { data: conversation, error: convErr } = await supabase
       .from('anthology_conversations')
-      .select('id, metadata')
+      .select('id, anthology_id, metadata')
       .eq('id', conversationId)
       .single();
 
@@ -84,6 +84,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           },
         })
         .eq('id', conversationId);
+
+      const anthologyId = (conversation as any).anthology_id as string | undefined;
+      if (anthologyId) {
+        const { error: pubErr } = await supabase
+          .from('anthology_anthologies')
+          .update({ is_public: true })
+          .eq('id', anthologyId);
+        if (pubErr) {
+          console.error('[POST /api/sensemaking/set-chronological-order/tick] Failed to set anthology is_public:', pubErr);
+        }
+      }
 
       return jsonResponse(res, {
         conversationId: conversation.id,
@@ -141,6 +152,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (metaErr) {
       console.error('[POST /api/sensemaking/set-chronological-order/tick] DB update error:', metaErr);
+    }
+
+    const anthologyId = (conversation as any).anthology_id as string | undefined;
+    if (anthologyId) {
+      const { error: pubErr } = await supabase
+        .from('anthology_anthologies')
+        .update({ is_public: true })
+        .eq('id', anthologyId);
+      if (pubErr) {
+        console.error('[POST /api/sensemaking/set-chronological-order/tick] Failed to set anthology is_public:', pubErr);
+      }
     }
 
     return jsonResponse(res, {

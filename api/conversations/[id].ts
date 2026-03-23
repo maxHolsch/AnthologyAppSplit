@@ -91,8 +91,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const metadata = (data.metadata || {}) as Record<string, unknown>;
     const bucket = typeof metadata.bucket === 'string' ? metadata.bucket : getConversationsBucket();
     const assignedQuestionsPath = typeof metadata.assigned_questions_path === 'string' ? metadata.assigned_questions_path : null;
+    const assignedNarrativesPath = typeof metadata.assigned_narratives_path === 'string' ? metadata.assigned_narratives_path : null;
+    const filteredTurnsPath = typeof metadata.filtered_turns_path === 'string' ? metadata.filtered_turns_path : null;
+    const createdResponsesPath = typeof metadata.create_responses_path === 'string' ? metadata.create_responses_path : null;
+    const chronologicalOrderPath = typeof metadata.set_chronological_order_path === 'string' ? metadata.set_chronological_order_path : null;
 
-    const assignedQuestionsFilePath = await createSignedStorageUrl(bucket, assignedQuestionsPath);
+    const [
+      assignedQuestionsFilePath,
+      assignedNarrativesFilePath,
+      filteredTurnsFilePath,
+      createdResponsesFilePath,
+      chronologicalOrderFilePath,
+    ] = await Promise.all([
+      createSignedStorageUrl(bucket, assignedQuestionsPath),
+      createSignedStorageUrl(bucket, assignedNarrativesPath),
+      createSignedStorageUrl(bucket, filteredTurnsPath),
+      createSignedStorageUrl(bucket, createdResponsesPath),
+      createSignedStorageUrl(bucket, chronologicalOrderPath),
+    ]);
 
     const conversation: ApiConversation = {
       id: data.id,
@@ -113,6 +129,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ...data.metadata,
       },
       assignedQuestionsFilePath,
+      assignedNarrativesFilePath,
+      filteredTurnsFilePath,
+      createdResponsesFilePath,
+      chronologicalOrderFilePath,
       createdAt: data.created_at,
     };
 

@@ -14,6 +14,8 @@
     "test": "vitest run --exclude 'tests/integration/**'",
     "test:watch": "vitest --exclude 'tests/integration/**'",
     "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:create-anthology": "tsx scripts/test-create-anthology.ts",
+    "test:transcribe": "tsx scripts/test-transcribe.ts",
     "test:prepare-turns": "tsx scripts/test-prepare-turns.ts",
     "test:identify-speakers": "tsx scripts/test-identify-speakers.ts",
     "test:create-conversation": "tsx scripts/test-create-conversation.ts",

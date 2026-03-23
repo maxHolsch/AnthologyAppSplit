@@ -138,6 +138,10 @@ export interface ApiConversation {
   color: string;
   metadata: ApiConversationMetadata;
   assignedQuestionsFilePath?: string | null;
+  assignedNarrativesFilePath?: string | null;
+  filteredTurnsFilePath?: string | null;
+  createdResponsesFilePath?: string | null;
+  chronologicalOrderFilePath?: string | null;
   createdAt: string;
 }
 

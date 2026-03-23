@@ -1,20 +1,24 @@
 #!/usr/bin/env tsx
 /**
- * Test script for /api/sensemaking/prepare-turns API
+ * Test script for /api/transcribe API
  *
  * Usage:
- *   npm run test:prepare-turns <recordingId>           # run the test
- *   npm run test:prepare-turns <recordingId> -- --reset  # clear prepare-turns data and exit
+ *   npm run test:transcribe <recordingId>             # run the test
+ *   npm run test:transcribe <recordingId> -- --reset  # clear transcription data and exit
  *
  * Or with tsx directly:
- *   tsx scripts/test-prepare-turns.ts <recordingId>
- *   tsx scripts/test-prepare-turns.ts <recordingId> --reset
+ *   tsx scripts/test-transcribe.ts <recordingId>
+ *   tsx scripts/test-transcribe.ts <recordingId> --reset
+ *
+ * Note: transcription is async — the script polls /tick until completed or error.
  */
 
 import 'dotenv/config';
 import { createClient } from '@supabase/supabase-js';
 
 const API_BASE = process.env.API_BASE || 'http://localhost:3001';
+const POLL_INTERVAL_MS = 5000;
+const POLL_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
 
 function getSupabaseClient() {
   const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
@@ -29,18 +33,18 @@ function getConversationsBucket(): string {
   return schema !== 'public' ? 'Development_Conversations' : 'Conversations';
 }
 
-const PREPARE_TURNS_METADATA_KEYS = [
-  'prepare_turns_status',
-  'prepare_turns_error',
-  'prepare_turns_started_at',
-  'prepare_turns_completed_at',
-  'merged_turns_path',
-  'original_utterance_count',
-  'merged_turn_count',
+const TRANSCRIPTION_METADATA_KEYS = [
+  'transcription_status',
+  'transcription_error',
+  'transcription_started_at',
+  'transcription_completed_at',
+  'assembly_id',
+  'transcript_path',
+  'audio_duration_ms',
 ] as const;
 
 async function reset(recordingId: string) {
-  console.log('🗑️  Resetting prepare-turns data for recording:', recordingId);
+  console.log('🗑️  Resetting transcription data for recording:', recordingId);
 
   const supabase = getSupabaseClient();
 
@@ -61,15 +65,15 @@ async function reset(recordingId: string) {
   }
 
   const metadata = (recording.metadata || {}) as Record<string, unknown>;
-  const mergedTurnsPath = metadata.merged_turns_path as string | undefined;
+  const transcriptPath = metadata.transcript_path as string | undefined;
   const bucket = (metadata.bucket as string) || getConversationsBucket();
 
-  // 2. Delete storage file if it exists
-  if (mergedTurnsPath) {
-    console.log('   Deleting storage file:', mergedTurnsPath);
+  // 2. Delete transcript file from storage if it exists
+  if (transcriptPath) {
+    console.log('   Deleting storage file:', transcriptPath);
     const { error: deleteErr } = await supabase.storage
       .from(bucket)
-      .remove([mergedTurnsPath]);
+      .remove([transcriptPath]);
 
     if (deleteErr) {
       console.warn('   ⚠️  Storage delete failed:', deleteErr.message);
@@ -77,12 +81,12 @@ async function reset(recordingId: string) {
       console.log('   ✅ Storage file deleted');
     }
   } else {
-    console.log('   ℹ️  No merged_turns_path in metadata — skipping storage delete');
+    console.log('   ℹ️  No transcript_path in metadata — skipping storage delete');
   }
 
-  // 3. Clear prepare-turns metadata fields
+  // 3. Clear transcription metadata fields
   const updatedMetadata = { ...metadata };
-  for (const key of PREPARE_TURNS_METADATA_KEYS) {
+  for (const key of TRANSCRIPTION_METADATA_KEYS) {
     delete updatedMetadata[key];
   }
 
@@ -99,37 +103,39 @@ async function reset(recordingId: string) {
   console.log('   ✅ Metadata fields cleared');
   console.log('');
   console.log('✅ Reset complete. You can now re-run:');
-  console.log(`   npm run test:prepare-turns ${recordingId}`);
+  console.log(`   npm run test:transcribe ${recordingId}`);
 }
 
 interface StartResponse {
   recordingId: string;
   status: string;
-  mergedTurnsPath: string;
-  utteranceCount: number;
+  assemblyId: string;
+  transcriptPath: string;
 }
 
 interface TickResponse {
   recordingId: string;
   status: string;
   didWork: boolean;
-  mergedTurnsPath?: string;
-  turnCount?: number;
-  originalUtteranceCount?: number;
+  assemblyId?: string;
+  assemblyStatus?: string;
+  audioDurationMs?: number | null;
+  transcriptPath?: string;
   error?: string;
 }
 
 interface StatusResponse {
   recordingId: string;
   status: string | null;
-  mergedTurnsPath: string | null;
-  turnCount: number | null;
+  assemblyId: string | null;
+  transcriptPath: string | null;
+  audioDurationMs: number | null;
   error: string | null;
   startedAt: string | null;
   completedAt: string | null;
 }
 
-async function postJson(url: string, body: any) {
+async function postJson(url: string, body: unknown) {
   const response = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -161,16 +167,20 @@ async function getJson(url: string) {
   return data;
 }
 
+async function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function main() {
   const recordingId = process.argv[2];
   const isReset = process.argv.includes('--reset');
 
   if (!recordingId) {
-    console.error('Usage: npm run test:prepare-turns <recordingId>');
-    console.error('       npm run test:prepare-turns <recordingId> -- --reset');
+    console.error('Usage: npm run test:transcribe <recordingId>');
+    console.error('       npm run test:transcribe <recordingId> -- --reset');
     console.error('');
     console.error('Example:');
-    console.error('  npm run test:prepare-turns 123e4567-e89b-12d3-a456-426614174000');
+    console.error('  npm run test:transcribe 123e4567-e89b-12d3-a456-426614174000');
     process.exit(1);
   }
 
@@ -179,57 +189,75 @@ async function main() {
     return;
   }
 
-  console.log('🧪 Testing /api/sensemaking/prepare-turns');
+  console.log('🧪 Testing /api/transcribe');
   console.log('📝 Recording ID:', recordingId);
   console.log('🌐 API Base:', API_BASE);
   console.log('');
 
   try {
     // Step 1: Start the job
-    console.log('⏩ Step 1: Starting prepare-turns job...');
-    const startUrl = `${API_BASE}/api/sensemaking/prepare-turns`;
+    console.log('⏩ Step 1: Starting transcription job...');
+    const startUrl = `${API_BASE}/api/transcribe`;
     const startResponse = await postJson(startUrl, { recordingId });
     const startResult = startResponse.data as StartResponse;
 
     console.log('✅ Job started:');
     console.log('   Status:', startResult.status);
-    console.log('   Merged turns path:', startResult.mergedTurnsPath);
-    console.log('   Utterance count:', startResult.utteranceCount);
+    console.log('   AssemblyAI ID:', startResult.assemblyId);
+    console.log('   Transcript path:', startResult.transcriptPath);
     console.log('');
 
-    // Step 2: Execute the work (tick)
-    console.log('⚙️  Step 2: Executing prepare-turns work...');
-    const tickUrl = `${API_BASE}/api/sensemaking/prepare-turns/tick`;
-    const tickResponse = await postJson(tickUrl, { recordingId });
-    const tickResult = tickResponse.data as TickResponse;
+    // Step 2: Poll tick until completed or error
+    console.log('⚙️  Step 2: Polling transcription progress...');
+    const tickUrl = `${API_BASE}/api/transcribe/tick`;
+    const deadline = Date.now() + POLL_TIMEOUT_MS;
+    let tickResult: TickResponse;
+    let pollCount = 0;
 
-    console.log('✅ Tick completed:');
-    console.log('   Status:', tickResult.status);
-    console.log('   Did work:', tickResult.didWork);
-
-    if (tickResult.status === 'completed') {
-      console.log('   Turn count:', tickResult.turnCount);
-      console.log('   Original utterances:', tickResult.originalUtteranceCount);
-      if (tickResult.turnCount && tickResult.originalUtteranceCount) {
-        console.log('   Reduction:',
-          `${tickResult.originalUtteranceCount} → ${tickResult.turnCount}`,
-          `(${Math.round((1 - (tickResult.turnCount / tickResult.originalUtteranceCount)) * 100)}% reduction)`
-        );
+    while (true) {
+      if (Date.now() > deadline) {
+        throw new Error(`Transcription timed out after ${POLL_TIMEOUT_MS / 1000}s`);
       }
-    } else if (tickResult.status === 'error') {
-      console.log('   ❌ Error:', tickResult.error);
+
+      const tickResponse = await postJson(tickUrl, { recordingId });
+      tickResult = tickResponse.data as TickResponse;
+      pollCount++;
+
+      console.log(`   Poll #${pollCount} — status: ${tickResult.status}${tickResult.assemblyStatus ? ` (AssemblyAI: ${tickResult.assemblyStatus})` : ''}`);
+
+      if (tickResult.status === 'completed' || tickResult.status === 'error') {
+        break;
+      }
+
+      console.log(`   ⏳ Still processing — waiting ${POLL_INTERVAL_MS / 1000}s...`);
+      await sleep(POLL_INTERVAL_MS);
+    }
+
+    console.log('');
+    console.log('✅ Tick finished:');
+    console.log('   Status:', tickResult!.status);
+    console.log('   Did work:', tickResult!.didWork);
+
+    if (tickResult!.status === 'completed') {
+      console.log('   AssemblyAI ID:', tickResult!.assemblyId);
+      console.log('   Transcript path:', tickResult!.transcriptPath);
+      console.log('   Audio duration (ms):', tickResult!.audioDurationMs);
+    } else if (tickResult!.status === 'error') {
+      console.log('   ❌ Error:', tickResult!.error);
     }
     console.log('');
 
     // Step 3: Check final status
     console.log('📊 Step 3: Checking final status...');
-    const statusUrl = `${API_BASE}/api/sensemaking/prepare-turns/status?recordingId=${recordingId}`;
+    const statusUrl = `${API_BASE}/api/transcribe/status?recordingId=${recordingId}`;
     const statusResponse = await getJson(statusUrl);
     const statusResult = statusResponse.data as StatusResponse;
 
     console.log('✅ Final status:');
     console.log('   Status:', statusResult.status);
-    console.log('   Turn count:', statusResult.turnCount);
+    console.log('   AssemblyAI ID:', statusResult.assemblyId);
+    console.log('   Transcript path:', statusResult.transcriptPath);
+    console.log('   Audio duration (ms):', statusResult.audioDurationMs);
     console.log('   Started at:', statusResult.startedAt);
     console.log('   Completed at:', statusResult.completedAt);
 
@@ -240,14 +268,11 @@ async function main() {
 
     // Success summary
     if (statusResult.status === 'completed') {
-      console.log('🎉 SUCCESS! Turns prepared successfully.');
+      console.log('🎉 SUCCESS! Transcription completed successfully.');
       console.log('');
       console.log('Next steps:');
-      console.log('  1. Run speaker identification on these turns');
-      console.log('  2. Assign questions to each turn');
-      console.log('  3. Assign narratives to each turn');
-      console.log('  4. Filter turns for quality');
-      console.log('  5. Create responses in database');
+      console.log('  1. Run prepare-turns on this recording');
+      console.log(`     npm run test:prepare-turns ${recordingId}`);
     } else {
       console.log('⚠️  Job did not complete successfully');
       process.exit(1);
