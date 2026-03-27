@@ -12,6 +12,7 @@
  *
  * --reset deletes (in order):
  *   - All storage files referenced by recordings (audio, transcript, turns, speaker map)
+ *   - All files in upload_conversations/<slug>/ folder in the bucket
  *   - anthology_word_timestamps
  *   - anthology_responses
  *   - anthology_questions
@@ -77,39 +78,26 @@ async function reset(slug: string) {
   const conversationIds = (conversations || []).map((c: any) => c.id as string);
   console.log(`   Conversations: ${conversationIds.length}`);
 
-  // 3. Load recordings linked to these conversations (via junction table)
+  // 3. Load all recordings for this anthology directly (not just via junction table)
+  const defaultBucket = getConversationsBucket();
   let recordingIds: string[] = [];
   let storagePaths: { bucket: string; path: string }[] = [];
 
-  if (conversationIds.length > 0) {
-    const { data: links } = await supabase
-      .from('anthology_conversation_recordings')
-      .select('recording_id')
-      .in('conversation_id', conversationIds);
+  const { data: recordings } = await supabase
+    .from('anthology_recordings')
+    .select('id, metadata')
+    .eq('anthology_id', anthologyId);
 
-    recordingIds = [...new Set((links || []).map((l: any) => l.recording_id as string))];
-    console.log(`   Recordings: ${recordingIds.length}`);
+  recordingIds = (recordings || []).map((r: any) => r.id as string);
+  console.log(`   Recordings: ${recordingIds.length}`);
 
-    // Gather all known storage paths from recording metadata
-    if (recordingIds.length > 0) {
-      const { data: recordings } = await supabase
-        .from('anthology_recordings')
-        .select('id, metadata')
-        .in('id', recordingIds);
+  for (const rec of recordings || []) {
+    const meta = (rec.metadata || {}) as Record<string, unknown>;
+    const bucket = (meta.bucket as string) || defaultBucket;
 
-      const defaultBucket = getConversationsBucket();
-
-      for (const rec of recordings || []) {
-        const meta = (rec.metadata || {}) as Record<string, unknown>;
-        const bucket = (meta.bucket as string) || defaultBucket;
-
-        for (const key of ['object_path', 'transcript_path', 'merged_turns_path', 'speaker_map_path'] as const) {
-          const path = meta[key] as string | undefined;
-          if (path) {
-            storagePaths.push({ bucket, path });
-          }
-        }
-      }
+    for (const key of ['object_path', 'transcript_path', 'merged_turns_path', 'speaker_map_path'] as const) {
+      const p = meta[key] as string | undefined;
+      if (p) storagePaths.push({ bucket, path: p });
     }
   }
 
@@ -140,7 +128,29 @@ async function reset(slug: string) {
     console.log('');
   }
 
-  // 5. Delete child DB rows (deepest first)
+  // 5. Delete the upload_conversations/<slug>/ folder in storage (catches any files not in metadata)
+  console.log(`📦 Clearing upload_conversations/${slug}/ folder in "${defaultBucket}"...`);
+  const { data: folderFiles, error: listErr } = await supabase.storage
+    .from(defaultBucket)
+    .list(`upload_conversations/${slug}`, { limit: 1000 });
+
+  if (listErr) {
+    console.warn(`   ⚠️  Could not list folder: ${listErr.message}`);
+  } else if (folderFiles && folderFiles.length > 0) {
+    const folderPaths = folderFiles.map((f: any) => `upload_conversations/${slug}/${f.name}`);
+    console.log(`   Deleting ${folderPaths.length} file(s) from folder`);
+    const { error: folderDeleteErr } = await supabase.storage.from(defaultBucket).remove(folderPaths);
+    if (folderDeleteErr) {
+      console.warn(`   ⚠️  Folder delete error: ${folderDeleteErr.message}`);
+    } else {
+      console.log(`   ✅ Folder cleared`);
+    }
+  } else {
+    console.log(`   (folder empty or not found)`);
+  }
+  console.log('');
+
+  // 6. Delete child DB rows (deepest first)
 
   if (conversationIds.length > 0) {
     // word_timestamps → via response IDs

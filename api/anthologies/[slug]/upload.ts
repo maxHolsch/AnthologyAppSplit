@@ -13,6 +13,8 @@
 
 import path from 'path';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { request: undiciRequest } = require('undici') as typeof import('undici');
 import { supabase, getConversationsBucket } from '../../_lib/supabase';
 import { createdResponse, handleError, errorResponse } from '../../_lib/response';
 import { ErrorCodes, notFound, badRequest } from '../../_lib/errors';
@@ -72,32 +74,64 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       throw badRequest('Missing x-filename header');
     }
 
-    // Get file body as Buffer
-    const body: Buffer = Buffer.isBuffer(req.body)
-      ? req.body
-      : typeof req.body === 'string'
-        ? Buffer.from(req.body)
-        : Buffer.from(JSON.stringify(req.body));
+    // Get file body as Buffer.
+    // Vercel may have already parsed the body for small/JSON payloads, but binary
+    // uploads often arrive as a raw stream with req.body === undefined.
+    let body: Buffer;
+    if (Buffer.isBuffer(req.body)) {
+      body = req.body;
+    } else if (typeof req.body === 'string') {
+      body = Buffer.from(req.body);
+    } else {
+      // Read the raw request stream (handles binary file uploads)
+      body = await new Promise<Buffer>((resolve, reject) => {
+        const chunks: Buffer[] = [];
+        req.on('data', (chunk: unknown) =>
+          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as string))
+        );
+        req.on('end', () => resolve(Buffer.concat(chunks)));
+        req.on('error', reject);
+      });
+    }
 
     if (!body.length) {
       throw badRequest('Empty file body');
     }
 
+    const fileSizeMb = (body.length / 1024 / 1024).toFixed(2);
     const contentType = mimeFromFileName(fileName);
     const bucket = getConversationsBucket();
     const objectPath = `upload_conversations/${slug}/${Date.now()}_${fileName}`;
 
-    const { error: uploadErr } = await supabase.storage
-      .from(bucket)
-      .upload(objectPath, body, {
-        contentType,
-        upsert: false,
-      });
+    console.log(`[POST /api/anthologies/:slug/upload] Uploading ${fileName} (${fileSizeMb} MB) → ${bucket}/${objectPath}`);
 
-    if (uploadErr) {
-      console.error('[POST /api/anthologies/:slug/upload] Storage error:', uploadErr);
-      return errorResponse(res, ErrorCodes.DATABASE_ERROR, `Storage upload failed: ${uploadErr.message}`);
+    // Use undici's request() instead of the Supabase SDK fetch() for the storage upload.
+    // The built-in fetch (undici) throws UND_ERR_SOCKET and swallows the real HTTP error
+    // when the server closes the connection before the full body is sent. undici's
+    // lower-level request() API reads the response correctly in that case.
+    const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || '';
+    const encodedPath = objectPath.split('/').map(encodeURIComponent).join('/');
+    const storageUrl = `${supabaseUrl}/storage/v1/object/${bucket}/${encodedPath}`;
+
+    const { statusCode, body: responseBody } = await undiciRequest(storageUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${supabaseKey}`,
+        'Content-Type': contentType,
+        'x-upsert': 'false',
+      },
+      body,
+    });
+
+    if (statusCode !== 200) {
+      const responseText = await responseBody.text();
+      console.error(`[POST /api/anthologies/:slug/upload] Storage rejected (${statusCode}, ${fileSizeMb} MB):`, responseText);
+      return errorResponse(res, ErrorCodes.DATABASE_ERROR, `Storage upload failed (HTTP ${statusCode}): ${responseText}`);
     }
+
+    // Consume response body to free the connection
+    await responseBody.dump();
 
     // Create a recording row so GET /api/recordings?anthologyId=... can find it
     const { data: recording, error: recErr } = await supabase

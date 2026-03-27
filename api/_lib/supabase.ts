@@ -88,5 +88,6 @@ export function createServerSupabase(): AnySchemaClient {
       autoRefreshToken: false,
       persistSession: false,
     },
+    global: { fetch: nodeFetch },
   });
 }
