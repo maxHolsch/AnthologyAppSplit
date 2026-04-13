@@ -1,7 +1,11 @@
 {
   "permissions": {
+    "allow": [
+      "Read(//Users/wernerkoepf/Documents/GitHub/**)"
+    ],
     "additionalDirectories": [
-      "/Users/wernerkoepf/Documents/GitHub/AnthologyPlatform"
+      "/Users/wernerkoepf/Documents/GitHub/AnthologyPlatform",
+      "/Users/wernerkoepf/Documents/GitHub/AnthologyFramework"
     ]
   }
 }
