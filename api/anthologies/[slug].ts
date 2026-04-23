@@ -30,7 +30,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const { data, error } = await supabase
       .from('anthology_anthologies')
-      .select('id, slug, title, description, is_public, created_at')
+      .select('id, slug, title, description, is_public, created_at, metadata')
       .eq('slug', slug)
       .maybeSingle();
 
@@ -50,6 +50,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       description: data.description,
       isPublic: data.is_public,
       createdAt: data.created_at,
+      metadata: (data.metadata as ApiAnthology['metadata']) ?? {},
     };
 
     return jsonResponse(res, anthology);

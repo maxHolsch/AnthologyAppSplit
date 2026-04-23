@@ -47,6 +47,7 @@ export interface ApiAnthology {
   description: string | null;
   isPublic: boolean;
   createdAt: string;
+  metadata: { source?: string; [key: string]: unknown };
 }
 
 // ================== Recording Types ==================

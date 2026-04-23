@@ -42,7 +42,7 @@ async function handleGet(req: VercelRequest, res: VercelResponse) {
 
   let query = supabase
     .from('anthology_anthologies')
-    .select('id, slug, title, description, is_public, created_at', { count: 'exact' })
+    .select('id, slug, title, description, is_public, created_at, metadata', { count: 'exact' })
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1);
 
@@ -64,6 +64,7 @@ async function handleGet(req: VercelRequest, res: VercelResponse) {
     description: row.description,
     isPublic: row.is_public,
     createdAt: row.created_at,
+    metadata: (row.metadata as ApiAnthology['metadata']) ?? {},
   }));
 
   return paginatedResponse(res, anthologies, {
@@ -118,6 +119,7 @@ async function handlePost(req: VercelRequest, res: VercelResponse) {
     description: null,
     isPublic: data.is_public,
     createdAt: data.created_at,
+    metadata: { source: 'api' },
   };
 
   return createdResponse(res, anthology);

@@ -5,6 +5,7 @@ import { claudeJsonSchema, generateEmbeddings } from './openai.js';
 import {
   assemblyPollTranscript,
   assemblyStartTranscription,
+  assemblyUploadAudio,
   type AssemblyTranscript,
   type AssemblyUtterance,
 } from './assemblyai.js';
@@ -1336,7 +1337,7 @@ export async function tickSensemaking({ jobId, timeBudgetMs = 15000 }: { jobId: 
 
     for (const fp of toStart) {
       log('transcription.start', { file: fp });
-      const audioUrl = getConversationPublicUrl(supabase, fp);
+      let audioUrl = getConversationPublicUrl(supabase, fp);
       if (!audioUrl) {
         setFileStep(progress, fp, 'error', 'Missing public URL for storage object');
         continue;
@@ -1345,6 +1346,15 @@ export async function tickSensemaking({ jobId, timeBudgetMs = 15000 }: { jobId: 
       didWork = true;
 
       try {
+        // Local Supabase URLs (127.0.0.1) aren't reachable by AssemblyAI — upload the file directly
+        if (audioUrl.includes('127.0.0.1') || audioUrl.includes('localhost')) {
+          const fileResp = await fetch(audioUrl);
+          if (!fileResp.ok) throw new Error(`Failed to fetch local file: ${fileResp.status}`);
+          const audioData = await fileResp.arrayBuffer();
+          const contentType = fileResp.headers.get('content-type') || 'application/octet-stream';
+          const { uploadUrl } = await assemblyUploadAudio({ apiKey: assemblyKey, audioData, contentType });
+          audioUrl = uploadUrl;
+        }
         const { id } = await assemblyStartTranscription({ apiKey: assemblyKey, audioUrl });
         log('transcription.started', { file: fp, assemblyId: id });
         progress.files![fp] = {
