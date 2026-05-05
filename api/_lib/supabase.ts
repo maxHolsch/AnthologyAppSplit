@@ -9,7 +9,6 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
 const supabaseServiceKey =
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || '';
-const supabaseDbSchema = process.env.SUPABASE_DB_SCHEMA || 'public';
 
 // Widen generic so the schema can be a runtime string, not just the literal "public"
 type AnySchemaClient = SupabaseClient<any, string>;
@@ -30,7 +29,7 @@ export function getSupabase(): AnySchemaClient {
   }
   if (!_supabase) {
     _supabase = createClient(supabaseUrl, supabaseServiceKey, {
-      db: { schema: supabaseDbSchema },
+      db: { schema: 'public' },
       auth: {
         autoRefreshToken: false,
         persistSession: false,
@@ -54,12 +53,10 @@ export const supabase: AnySchemaClient = new Proxy({} as AnySchemaClient, {
 });
 
 /**
- * Returns the correct Conversations storage bucket name based on the active schema.
- * "public" → "Conversations", any other schema → "Development_Conversations"
+ * Returns the Conversations storage bucket name.
  */
 export function getConversationsBucket(): string {
-  const prefix = supabaseDbSchema !== 'public' ? 'Development_' : '';
-  return `${prefix}Conversations`;
+  return 'Conversations';
 }
 
 /**
@@ -83,7 +80,7 @@ export function createServerSupabase(): AnySchemaClient {
     );
   }
   return createClient(supabaseUrl, supabaseServiceKey, {
-    db: { schema: supabaseDbSchema },
+    db: { schema: 'public' },
     auth: {
       autoRefreshToken: false,
       persistSession: false,

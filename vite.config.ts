@@ -450,7 +450,6 @@ function localAssignNarrativeApiPlugin(env: Record<string, string>) {
   const openaiKey = env.OPENAI_API_KEY;
   const supabaseUrl = env.VITE_SUPABASE_URL;
   const supabaseKey = env.SUPABASE_SERVICE_KEY;
-  const supabaseDbSchema = env.SUPABASE_DB_SCHEMA || 'public';
 
   return {
     name: 'local-assign-narrative-api',
@@ -506,7 +505,7 @@ function localAssignNarrativeApiPlugin(env: Record<string, string>) {
         try {
           const { createClient } = await import('@supabase/supabase-js');
           const supabase = createClient(supabaseUrl, supabaseKey, {
-            db: { schema: supabaseDbSchema },
+            db: { schema: 'public' },
           });
 
           // Fetch all narratives for this anthology

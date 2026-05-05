@@ -6,7 +6,7 @@ config();
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_KEY!,
-  { db: { schema: process.env.SUPABASE_DB_SCHEMA || 'public' } }
+  { db: { schema: 'public' } }
 );
 
 async function checkAnthologies() {

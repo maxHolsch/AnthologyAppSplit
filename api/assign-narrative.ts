@@ -8,7 +8,6 @@ import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const supabaseDbSchema = process.env.SUPABASE_DB_SCHEMA || 'public';
 const openaiKey = process.env.OPENAI_API_KEY;
 
 if (!supabaseUrl || !supabaseServiceKey) {
@@ -16,7 +15,7 @@ if (!supabaseUrl || !supabaseServiceKey) {
 }
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-  db: { schema: supabaseDbSchema },
+  db: { schema: 'public' },
 });
 
 interface AssignNarrativeRequest {

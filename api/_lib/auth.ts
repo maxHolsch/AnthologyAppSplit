@@ -9,7 +9,6 @@ import { ApiException, ErrorCodes } from './errors';
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
-const supabaseDbSchema = process.env.SUPABASE_DB_SCHEMA || 'public';
 
 /**
  * Authentication result
@@ -53,7 +52,7 @@ export async function verifyToken(req: VercelRequest): Promise<AuthResult | null
 
   // Create a client with the user's JWT
   const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-    db: { schema: supabaseDbSchema },
+    db: { schema: 'public' },
     global: {
       headers: {
         Authorization: `Bearer ${token}`,

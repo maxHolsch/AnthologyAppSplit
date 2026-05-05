@@ -35,10 +35,8 @@ function getSupabaseServiceClient() {
     process.env.SUPABASE_SERVICE_ROLE_KEY ||
     process.env.SUPABASE_SERVICE_ROLE;
 
-  const dbSchema = process.env.SUPABASE_DB_SCHEMA || 'public';
-
   if (!serviceKey) throw new Error('Missing SUPABASE_SERVICE_KEY env var');
-  return createClient(url, serviceKey, { db: { schema: dbSchema }, auth: { persistSession: false, autoRefreshToken: false } });
+  return createClient(url, serviceKey, { db: { schema: 'public' }, auth: { persistSession: false, autoRefreshToken: false } });
 }
 
 function nowIso() {

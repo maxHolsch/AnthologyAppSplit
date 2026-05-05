@@ -2,7 +2,7 @@
  * Integration tests for POST /api/anthologies
  *
  * These tests hit the REAL Supabase instance configured in .env.
- * They create actual rows in whatever schema SUPABASE_DB_SCHEMA points to
+ * They create actual rows in the public schema.
  * and clean up after themselves.
  *
  * Run with:  npm run test:integration
@@ -28,7 +28,7 @@ beforeAll(() => {
     );
   }
   console.log(
-    `[integration] schema=${process.env.SUPABASE_DB_SCHEMA || 'public'}, url=${url.slice(0, 30)}…`
+    `[integration] schema=public, url=${url.slice(0, 30)}…`
   );
 });
 

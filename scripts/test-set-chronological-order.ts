@@ -23,9 +23,8 @@ const API_BASE = process.env.API_BASE || 'http://localhost:3001';
 function getSupabaseClient() {
   const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || '';
-  const schema = process.env.SUPABASE_DB_SCHEMA || 'public';
   if (!url || !key) throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in .env');
-  return createClient(url, key, { db: { schema }, auth: { autoRefreshToken: false, persistSession: false } });
+  return createClient(url, key, { db: { schema: 'public' }, auth: { autoRefreshToken: false, persistSession: false } });
 }
 
 const SET_CHRONOLOGICAL_ORDER_METADATA_KEYS = [

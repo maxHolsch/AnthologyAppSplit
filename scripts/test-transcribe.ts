@@ -23,14 +23,12 @@ const POLL_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
 function getSupabaseClient() {
   const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || '';
-  const schema = process.env.SUPABASE_DB_SCHEMA || 'public';
   if (!url || !key) throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in .env');
-  return createClient(url, key, { db: { schema }, auth: { autoRefreshToken: false, persistSession: false } });
+  return createClient(url, key, { db: { schema: 'public' }, auth: { autoRefreshToken: false, persistSession: false } });
 }
 
 function getConversationsBucket(): string {
-  const schema = process.env.SUPABASE_DB_SCHEMA || 'public';
-  return schema !== 'public' ? 'Development_Conversations' : 'Conversations';
+  return 'Conversations';
 }
 
 const TRANSCRIPTION_METADATA_KEYS = [

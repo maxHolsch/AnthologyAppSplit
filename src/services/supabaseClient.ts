@@ -11,27 +11,21 @@ import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-const supabaseDbSchema = import.meta.env.VITE_SUPABASE_DB_SCHEMA || 'public';
 
 if (!supabaseUrl || !supabaseAnonKey) {
   console.warn('⚠️  Supabase credentials not found. Check anthology-app/.env');
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  db: { schema: supabaseDbSchema },
+  db: { schema: 'public' },
 });
 
 // ============================================
 // STORAGE BUCKET NAMES
 // ============================================
 
-// NOTE: Supabase bucket names are case-sensitive. When using a non-public schema
-// (e.g. "development"), buckets are prefixed: Development_Recordings, Development_Conversations.
-const isDevelopment = supabaseDbSchema !== 'public';
-const bucketPrefix = isDevelopment ? 'Development_' : '';
-
-export const RECORDINGS_BUCKET = import.meta.env.VITE_SUPABASE_RECORDINGS_BUCKET || `${bucketPrefix}Recordings`;
-export const CONVERSATIONS_BUCKET = import.meta.env.VITE_SUPABASE_CONVERSATIONS_BUCKET || `${bucketPrefix}Conversations`;
+export const RECORDINGS_BUCKET = import.meta.env.VITE_SUPABASE_RECORDINGS_BUCKET || 'Recordings';
+export const CONVERSATIONS_BUCKET = import.meta.env.VITE_SUPABASE_CONVERSATIONS_BUCKET || 'Conversations';
 
 // ============================================
 // DATABASE TYPES

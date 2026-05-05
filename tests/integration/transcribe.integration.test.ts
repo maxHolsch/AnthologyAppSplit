@@ -45,7 +45,7 @@ beforeAll(async () => {
 
   const bucket = getConversationsBucket();
   console.log(
-    `[integration:transcribe] schema=${process.env.SUPABASE_DB_SCHEMA || 'public'}, bucket=${bucket}, assemblyKey=${hasAssemblyKey ? 'yes' : 'MISSING (flow tests will be skipped)'}`
+    `[integration:transcribe] schema=public, bucket=${bucket}, assemblyKey=${hasAssemblyKey ? 'yes' : 'MISSING (flow tests will be skipped)'}`
   );
 
   // 1. Create a test anthology

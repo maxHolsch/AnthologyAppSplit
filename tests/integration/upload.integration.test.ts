@@ -35,7 +35,7 @@ beforeAll(async () => {
 
   const bucket = getConversationsBucket();
   console.log(
-    `[integration:upload] schema=${process.env.SUPABASE_DB_SCHEMA || 'public'}, bucket=${bucket}`
+    `[integration:upload] schema=public, bucket=${bucket}`
   );
 
   // Create a test anthology to upload files into
