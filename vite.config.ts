@@ -1,6 +1,7 @@
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
+import http from 'node:http'
 
 import { startSensemaking, tickSensemaking, getSensemakingStatus } from './api/_lib/sensemaking';
 import { assemblyStartTranscription, assemblyPollTranscript, assemblyUploadAudio } from './api/_lib/assemblyai';
@@ -648,6 +649,54 @@ function localAssignNarrativeApiPlugin(env: Record<string, string>) {
   };
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const LEGACY_ANTHOLOGY_API = 'localhost:3001';
+const CCC_FRAMEWORK_API = 'localhost:3030';
+
+/**
+ * Routes GET /api/graph/load to either the legacy Express API (:3001, slug
+ * anthologies stored in this repo's own Supabase project) or CCC_Framework's
+ * API (:3030, per CCC_Framework/modules/ingestion/requirements/build_anthologies_api.md)
+ * based on whether `anthologySlug`/`anthologyId` looks like a UUID.
+ * CCC_Framework conversations are addressed by their raw id — visiting
+ * /anthologies/{conversation_id} therefore transparently pulls from the new
+ * backend, while existing slug-based anthology URLs keep working unchanged.
+ * This replaces the static '/api/graph' entry in server.proxy below, since
+ * that only supports one fixed target per path.
+ */
+function graphLoadRouterPlugin() {
+  return {
+    name: 'graph-load-router',
+    configureServer(server: any) {
+      // Registered with no mount path (rather than server.middlewares.use('/api/graph/load', ...))
+      // because connect strips the mount path off req.url before invoking a
+      // path-scoped handler — which would leave us forwarding just the query
+      // string, not the real path, to the target server.
+      server.middlewares.use((req: any, res: any, next: any) => {
+        if (!req.url || !req.url.startsWith('/api/graph/load')) return next();
+
+        const url = new URL(req.url, 'http://localhost');
+        const id = url.searchParams.get('anthologySlug') || url.searchParams.get('anthologyId') || '';
+        const targetHost = UUID_RE.test(id) ? CCC_FRAMEWORK_API : LEGACY_ANTHOLOGY_API;
+
+        const proxyReq = http.request(
+          { host: targetHost.split(':')[0], port: targetHost.split(':')[1], path: req.url, method: req.method, headers: req.headers },
+          (proxyRes: any) => {
+            res.writeHead(proxyRes.statusCode, proxyRes.headers);
+            proxyRes.pipe(res);
+          },
+        );
+        proxyReq.on('error', (err: Error) => {
+          res.statusCode = 502;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ error: { code: 'BAD_GATEWAY', message: `Failed to reach ${targetHost}: ${err.message}` } }));
+        });
+        req.pipe(proxyReq);
+      });
+    },
+  };
+}
+
 // https://vite.dev/config/
 export default defineConfig(({ command, mode }) => {
   // Load all env vars (NOT just VITE_*) for dev server middleware.
@@ -663,6 +712,7 @@ export default defineConfig(({ command, mode }) => {
       command === 'serve' ? localTranscribeAsyncApiPlugin() : undefined,
       command === 'serve' ? localJudgeQuestionApiPlugin(env) : undefined,
       command === 'serve' ? localAssignNarrativeApiPlugin(env) : undefined,
+      command === 'serve' ? graphLoadRouterPlugin() : undefined,
       command === 'serve'
         ? {
           name: 'local-sensemaking-api',
@@ -857,10 +907,9 @@ export default defineConfig(({ command, mode }) => {
           target: 'http://localhost:3001',
           changeOrigin: true,
         },
-        '/api/graph': {
-          target: 'http://localhost:3001',
-          changeOrigin: true,
-        },
+        // '/api/graph/load' is handled by graphLoadRouterPlugin above instead
+        // (it needs to pick :3001 vs :3030 per-request, which a static proxy
+        // target can't do).
         '/api/docs': {
           target: 'http://localhost:3001',
           changeOrigin: true,
