@@ -29,5 +29,5 @@ dist-ssr
 .vercel
 
 # Audio/video recordings
-Recordings/
+/Recordings/
 upload_conversations/
